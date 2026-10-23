@@ -1,0 +1,77 @@
+{
+  "artifact_version": "2.0.0-schema-only",
+  "domain_profile": "SEA_Urban_Unstructured_Hanoi",
+  "detector_config": {
+    "onnx_path": "artifacts/current/detector.onnx",
+    "input_size": [
+      640,
+      640
+    ],
+    "conf_threshold": 0.35,
+    "iou_threshold": 0.45,
+    "class_mapping": {
+      "0": {
+        "name": "motorcycle",
+        "pcu_weight": 0.3,
+        "avg_area_m2": 1.6
+      },
+      "1": {
+        "name": "car",
+        "pcu_weight": 1.0,
+        "avg_area_m2": 8.5
+      },
+      "2": {
+        "name": "bus",
+        "pcu_weight": 2.5,
+        "avg_area_m2": 24.0
+      },
+      "3": {
+        "name": "truck",
+        "pcu_weight": 2.0,
+        "avg_area_m2": 18.0
+      }
+    }
+  },
+  "camera_calibration": {
+    "effective_road_length_m": 45.0,
+    "effective_road_area_m2": 315.0,
+    "free_flow_speed_kmh": 42.0
+  },
+  "feature_schema": {
+    "window_seconds": 60,
+    "slide_step_seconds": 15,
+    "ordered_input_keys": [
+      "flow.car_count",
+      "flow.motorcycle_count",
+      "flow.pcu_equivalent",
+      "speed.mean_kmh",
+      "speed.cv_ratio",
+      "density.areal_occupancy",
+      "temporal.pcu_lag_1",
+      "temporal.speed_delta_1"
+    ],
+    "default_fallback_values": {
+      "flow.car_count": 0.0,
+      "flow.motorcycle_count": 0.0,
+      "flow.pcu_equivalent": 0.0,
+      "speed.mean_kmh": 42.0,
+      "speed.cv_ratio": 0.0,
+      "density.areal_occupancy": 0.0,
+      "temporal.pcu_lag_1": 0.0,
+      "temporal.speed_delta_1": 0.0
+    }
+  },
+  "forecaster_config": {
+    "onnx_path": "artifacts/current/forecaster.onnx",
+    "horizons_minutes": [
+      5,
+      10,
+      15
+    ],
+    "thresholds": {
+      "busy": 0.3,
+      "heavy": 0.55,
+      "gridlock": 0.78
+    }
+  }
+}

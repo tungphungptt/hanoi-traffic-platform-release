@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/hanoi-traffic/forecast-target.schema.json",
+  "title": "Hanoi Traffic Forecast Ground Truth",
+  "description": "Targets must be computed from independently observed future windows; predicted CI must never be written back as ground truth.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "camera_id", "prediction_origin", "ci_t_plus_5m", "ci_t_plus_10m", "ci_t_plus_15m", "label_source", "split_group"],
+  "properties": {
+    "schema_version": {"const": "hanoi-traffic-target/1.0"},
+    "camera_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "prediction_origin": {"type": "string", "format": "date-time"},
+    "ci_t_plus_5m": {"type": "number", "minimum": 0, "maximum": 1},
+    "ci_t_plus_10m": {"type": "number", "minimum": 0, "maximum": 1},
+    "ci_t_plus_15m": {"type": "number", "minimum": 0, "maximum": 1},
+    "label_source": {"type": "string", "enum": ["measured", "expert-reviewed", "synthetic-test-only"]},
+    "split_group": {"type": "string", "minLength": 1, "maxLength": 128},
+    "review_notes": {"type": "string", "maxLength": 2000}
+  }
+}

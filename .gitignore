@@ -1,0 +1,146 @@
+# Python environment & cache
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local secrets & environment configuration
+.env
+.env.*
+!.env.example
+
+# Large video files & video archives (do not commit media to git)
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.flv
+*.wmv
+*.m4v
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# Deep learning checkpoints & large weights
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.weights
+*.h5
+*.safetensors
+
+# Production model weights
+artifacts/current/*.onnx
+artifacts/current/*.bak
+/models/*.onnx
+/models/*.pkl
+
+# Experimental models
+/models/experiments/*
+!/models/experiments/README.md
+!/models/experiments/.gitkeep
+
+# Data directory rules (Required baseline contract)
+/data/*
+!/data/README.md
+!/data/.gitkeep
+!/data/cameras.json
+!/data/camera_feeds/
+/data/camera_feeds/*
+!/data/camera_feeds/README.md
+!/data/camera_feeds/.gitkeep
+
+!/data/observations/
+!/data/observations/README.md
+!/data/labels/
+!/data/labels/README.md
+
+!/data/examples/
+/data/examples/*
+!/data/examples/README.md
+!/data/examples/forecast-evaluation-template.csv
+/data/examples/evaluation-report.json
+!/data/camera_calibrations/
+/data/camera_calibrations/*
+!/data/camera_calibrations/README.md
+!/data/camera_calibrations/camera-calibration.schema.json
+
+# Raw, staging, processed, annotations & manifests
+!/data/raw/
+/data/raw/*
+!/data/raw/README.md
+!/data/raw/.gitkeep
+!/data/raw/hanoi_traffic/
+/data/raw/hanoi_traffic/*
+!/data/raw/hanoi_traffic/README.md
+!/data/raw/hanoi_traffic/.gitkeep
+
+!/data/staging/
+/data/staging/*
+!/data/staging/README.md
+!/data/staging/.gitkeep
+
+!/data/processed/
+/data/processed/*
+!/data/processed/README.md
+!/data/processed/.gitkeep
+
+!/data/annotations/
+/data/annotations/*
+!/data/annotations/README.md
+!/data/annotations/.gitkeep
+
+!/data/manifests/
+!/data/manifests/*.json
+!/data/manifests/README.md
+!/data/manifests/.gitkeep
+
+# Generated video-review frames, uploads, and transient outputs
+/data/video_reviews/
+/data/uploads/
+/results/
+/tmp/
+scratch/
+*.log
+logs/
+
+# Local diagnostic outputs created by verification tools
+/data/diagnostics/
+*.smoke.json
+
+# Experiments run outputs (keep configs, templates, docs; ignore heavy runs)
+/experiments/**/runs/
+/experiments/**/checkpoints/
+/experiments/**/outputs/
+/experiments/**/logs/
+
+# Artifacts subdirectories retention
+!/artifacts/reports/
+!/artifacts/reports/README.md
+!/artifacts/reports/.gitkeep
+!/artifacts/evaluation/
+!/artifacts/evaluation/README.md
+!/artifacts/evaluation/.gitkeep
+!/artifacts/audit/
+!/artifacts/audit/README.md
+!/artifacts/audit/.gitkeep
+
+# Frontend build & dependencies
+node_modules/
+dist/
+build/
+
+# IDE & OS metadata
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+Desktop.ini
+.DS_Store

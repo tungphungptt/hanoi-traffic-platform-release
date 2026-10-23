@@ -1,0 +1,27 @@
+{
+  "manifest_version": "hanoi-video-manifest/1.0",
+  "updated_at_utc": "2026-10-23T10:45:00Z",
+  "dataset_name": "Hanoi Traffic Video Dataset",
+  "description": "Danh mục quản lý video giao thông Hà Nội phục vụ auto-labeling, training và route-level forecasting.",
+  "storage_root": "data/raw/hanoi_traffic",
+  "videos": [
+    {
+      "video_id": "HN-BASE-001",
+      "relative_path": "data/input.mp4",
+      "road_name": null,
+      "camera_id": null,
+      "source": "aicc-demo-baseline",
+      "recorded_timestamp": null,
+      "fps": 10.0,
+      "resolution": {
+        "width": 1280,
+        "height": 960
+      },
+      "duration_seconds": 300.0,
+      "frame_count": 3000,
+      "label_status": "unlabeled",
+      "split": "test",
+      "notes": "Video baseline 5 phút đi kèm dự án dùng cho smoke test và AICC verifier; chưa gán nhãn thực địa chính thức."
+    }
+  ]
+}

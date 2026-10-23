@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/hanoi-traffic/camera-calibration.schema.json",
+  "title": "Per-camera road-plane calibration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "camera_id", "calibrated", "frame_width", "frame_height", "roi_polygon_norm", "counting_lines", "homography_px_to_ground", "effective_road_length_m", "effective_road_area_m2", "calibration_date", "operator", "notes"],
+  "properties": {
+    "schema_version": {"const": "hanoi-camera-calibration/1.0"},
+    "camera_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "calibrated": {"type": "boolean"},
+    "frame_width": {"type": "integer", "minimum": 1},
+    "frame_height": {"type": "integer", "minimum": 1},
+    "roi_polygon_norm": {"type": "array", "minItems": 3, "maxItems": 100, "items": {"$ref": "#/$defs/point"}},
+    "counting_lines": {"type": "array", "maxItems": 50, "items": {"type": "object", "additionalProperties": false, "required": ["line_id", "start", "end"], "properties": {"line_id": {"type": "string", "minLength": 1, "maxLength": 64}, "start": {"$ref": "#/$defs/point"}, "end": {"$ref": "#/$defs/point"}}}},
+    "homography_px_to_ground": {"oneOf": [{"type": "null"}, {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}}}]},
+    "effective_road_length_m": {"type": ["number", "null"], "exclusiveMinimum": 0},
+    "effective_road_area_m2": {"type": ["number", "null"], "exclusiveMinimum": 0},
+    "free_flow_speed_kmh": {"type": ["number", "null"], "minimum": 0, "maximum": 180},
+    "calibration_date": {"type": ["string", "null"], "format": "date"},
+    "operator": {"type": ["string", "null"], "maxLength": 128},
+    "notes": {"type": "string", "maxLength": 2000}
+  },
+  "$defs": {
+    "point": {"type": "array", "minItems": 2, "maxItems": 2, "prefixItems": [{"type": "number", "minimum": 0, "maximum": 1}, {"type": "number", "minimum": 0, "maximum": 1}], "items": false}
+  }
+}

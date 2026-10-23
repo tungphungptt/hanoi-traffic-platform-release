@@ -1,0 +1,40 @@
+{
+  "dataset_name": "AIC21_Track1_Vehicle_Counting",
+  "provenance": {
+    "source": "AI City Challenge 2021 Track 1 - Multi-Camera Vehicle Counting",
+    "root_directory": "AIC21_Track1_Vehicle_Counting",
+    "license": "DataLicenseAgreement_AICity20.pdf",
+    "challenge_url": "https://www.aicitychallenge.org/"
+  },
+  "dataset_summary": {
+    "total_videos": 31,
+    "total_camera_scenes": 20,
+    "total_frames": 185446,
+    "total_duration_seconds": 17914.6,
+    "total_duration_hours": 4.98,
+    "resolutions": ["1920x1080", "1280x960", "2560x1920"],
+    "fps_distribution": {
+      "10_fps": 27,
+      "15_fps": 2,
+      "8_fps": 2
+    }
+  },
+  "ground_truth_inventory": {
+    "bounding_box_annotations_count": 0,
+    "bounding_box_format": "None (Track 1 is an event counting benchmark without per-frame bbox ground truth)",
+    "official_sample_ground_truth": "counting_gt_sample/counting_example_cam_5_1min.csv",
+    "sample_video_clip_id": 10,
+    "sample_duration_seconds": 60.0,
+    "sample_frames_count": 600,
+    "sample_events_count": 96,
+    "sample_class_distribution": {
+      "car": 93,
+      "truck": 3
+    }
+  },
+  "train_test_split_protocol": {
+    "train_split": "cam_5.mp4 frames [0, 350] (49 GT events, 46 matched tracklets)",
+    "heldout_test_split": "cam_5.mp4 frames [351, 600] (47 GT events, 46 matched tracklets)",
+    "split_rationale": "Strict temporal split to avoid time-series trajectory leakage"
+  }
+}

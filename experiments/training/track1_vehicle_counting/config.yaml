@@ -1,0 +1,30 @@
+experiment_id: EXP-TRACK1-COUNTING-BASELINE
+task: aicity_challenge_track1_vehicle_counting
+date_created: "2026-10-23"
+
+dataset:
+  name: AIC21_Track1_Vehicle_Counting
+  dataset_root: AIC21_Track1_Vehicle_Counting
+  video_file: AIC21_Track1_Vehicle_Counting/Dataset_A/cam_5.mp4
+  roi_file: AIC21_Track1_Vehicle_Counting/ROIs/cam_5.txt
+  movement_descriptions: AIC21_Track1_Vehicle_Counting/movement_description/cam_5.txt
+  reference_ground_truth: AIC21_Track1_Vehicle_Counting/counting_gt_sample/counting_example_cam_5_1min.csv
+  video_clip_id: 10
+  eval_frames_limit: 600
+
+models:
+  reused_detector: models/detector.onnx
+  detector_architecture: Ultralytics YOLOv8n (COCO-pretrained)
+  fine_tuned_components: none (baseline inference; fine-tuning blocked pending supervised bbox labels)
+  traffic_level_predictor_reused: false (models/predictor.onnx is for congestion classification, not vehicle counting)
+
+parameters:
+  conf_threshold: 0.35
+  iou_threshold: 0.45
+  max_track_age: 10
+  min_travel_distance: 35.0
+  min_roi_frames: 3
+
+outputs:
+  counting_csv: experiments/training/track1_vehicle_counting/output_counting_cam5_1min.csv
+  metrics_json: experiments/training/track1_vehicle_counting/evaluation_metrics.json

@@ -1,0 +1,193 @@
+{
+  "total_calls": 107,
+  "mlp_accepted_count": 106,
+  "mlp_accepted_pct": 99.07,
+  "fallback_short_track": 0,
+  "fallback_low_confidence": 1,
+  "fallback_out_of_range": 0,
+  "fallback_exception": 0,
+  "agreed_with_heuristic": 93,
+  "differed_from_heuristic": 13,
+  "details_sample": [
+    {
+      "track_id": 3,
+      "points_len": 12,
+      "decision": "mlp_accepted",
+      "final_movement": 3,
+      "mlp_pred": 3,
+      "mlp_conf": 0.9898,
+      "heuristic_pred": 3
+    },
+    {
+      "track_id": 6,
+      "points_len": 15,
+      "decision": "mlp_accepted",
+      "final_movement": 4,
+      "mlp_pred": 4,
+      "mlp_conf": 0.6102,
+      "heuristic_pred": 4
+    },
+    {
+      "track_id": 2,
+      "points_len": 24,
+      "decision": "mlp_accepted",
+      "final_movement": 2,
+      "mlp_pred": 2,
+      "mlp_conf": 0.9972,
+      "heuristic_pred": 2
+    },
+    {
+      "track_id": 4,
+      "points_len": 32,
+      "decision": "mlp_accepted",
+      "final_movement": 3,
+      "mlp_pred": 3,
+      "mlp_conf": 0.9596,
+      "heuristic_pred": 3
+    },
+    {
+      "track_id": 5,
+      "points_len": 39,
+      "decision": "mlp_accepted",
+      "final_movement": 3,
+      "mlp_pred": 3,
+      "mlp_conf": 0.9549,
+      "heuristic_pred": 3
+    },
+    {
+      "track_id": 14,
+      "points_len": 12,
+      "decision": "mlp_accepted",
+      "final_movement": 2,
+      "mlp_pred": 2,
+      "mlp_conf": 0.9802,
+      "heuristic_pred": 6
+    },
+    {
+      "track_id": 1,
+      "points_len": 44,
+      "decision": "mlp_accepted",
+      "final_movement": 3,
+      "mlp_pred": 3,
+      "mlp_conf": 0.9751,
+      "heuristic_pred": 3
+    },
+    {
+      "track_id": 9,
+      "points_len": 46,
+      "decision": "mlp_accepted",
+      "final_movement": 4,
+      "mlp_pred": 4,
+      "mlp_conf": 0.9492,
+      "heuristic_pred": 4
+    },
+    {
+      "track_id": 13,
+      "points_len": 29,
+      "decision": "mlp_accepted",
+      "final_movement": 3,
+      "mlp_pred": 3,
+      "mlp_conf": 0.9786,
+      "heuristic_pred": 3
+    },
+    {
+      "track_id": 7,
+      "points_len": 40,
+      "decision": "mlp_accepted",
+      "final_movement": 2,
+      "mlp_pred": 2,
+      "mlp_conf": 0.9968,
+      "heuristic_pred": 2
+    },
+    {
+      "track_id": 8,
+      "points_len": 61,
+      "decision": "mlp_accepted",
+      "final_movement": 3,
+      "mlp_pred": 3,
+      "mlp_conf": 0.9921,
+      "heuristic_pred": 3
+    },
+    {
+      "track_id": 12,
+      "points_len": 67,
+      "decision": "mlp_accepted",
+      "final_movement": 3,
+      "mlp_pred": 3,
+      "mlp_conf": 0.9874,
+      "heuristic_pred": 3
+    },
+    {
+      "track_id": 29,
+      "points_len": 4,
+      "decision": "mlp_accepted",
+      "final_movement": 4,
+      "mlp_pred": 4,
+      "mlp_conf": 0.5089,
+      "heuristic_pred": 4
+    },
+    {
+      "track_id": 10,
+      "points_len": 66,
+      "decision": "mlp_accepted",
+      "final_movement": 3,
+      "mlp_pred": 3,
+      "mlp_conf": 0.964,
+      "heuristic_pred": 3
+    },
+    {
+      "track_id": 22,
+      "points_len": 30,
+      "decision": "mlp_accepted",
+      "final_movement": 4,
+      "mlp_pred": 4,
+      "mlp_conf": 0.9001,
+      "heuristic_pred": 4
+    },
+    {
+      "track_id": 15,
+      "points_len": 64,
+      "decision": "mlp_accepted",
+      "final_movement": 3,
+      "mlp_pred": 3,
+      "mlp_conf": 0.9615,
+      "heuristic_pred": 3
+    },
+    {
+      "track_id": 16,
+      "points_len": 42,
+      "decision": "mlp_accepted",
+      "final_movement": 2,
+      "mlp_pred": 2,
+      "mlp_conf": 0.9986,
+      "heuristic_pred": 2
+    },
+    {
+      "track_id": 26,
+      "points_len": 16,
+      "decision": "mlp_accepted",
+      "final_movement": 2,
+      "mlp_pred": 2,
+      "mlp_conf": 0.9772,
+      "heuristic_pred": 2
+    },
+    {
+      "track_id": 25,
+      "points_len": 29,
+      "decision": "mlp_accepted",
+      "final_movement": 3,
+      "mlp_pred": 3,
+      "mlp_conf": 0.8078,
+      "heuristic_pred": 1
+    },
+    {
+      "track_id": 17,
+      "points_len": 56,
+      "decision": "mlp_accepted",
+      "final_movement": 2,
+      "mlp_pred": 2,
+      "mlp_conf": 0.9986,
+      "heuristic_pred": 2
+    }
+  ]
+}

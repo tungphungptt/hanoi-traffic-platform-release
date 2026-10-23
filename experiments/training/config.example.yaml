@@ -1,0 +1,26 @@
+# Cấu hình mẫu cho đợt huấn luyện Sequence Classifier
+experiment_id: EXP-TRAIN-SAMPLE
+seed: 42
+data:
+  manifest_path: data/manifests/hanoi_videos_manifest.json
+  processed_features_dir: data/processed
+  sequence_length: 5
+  window_seconds: 1.0
+
+hyperparameters:
+  model_architecture: gru_classifier
+  hidden_units: 64
+  num_layers: 2
+  dropout: 0.2
+  learning_rate: 0.001
+  batch_size: 32
+  max_epochs: 50
+  early_stopping_patience: 10
+
+checkpoint:
+  save_dir: models/experiments/EXP-TRAIN-SAMPLE
+  save_best_only: true
+  metric_target: val_f1_score
+
+evaluation:
+  report_output: artifacts/evaluation/EXP-TRAIN-SAMPLE_eval.json

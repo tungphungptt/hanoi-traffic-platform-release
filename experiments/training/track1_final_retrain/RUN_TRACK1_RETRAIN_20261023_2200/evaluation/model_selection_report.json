@@ -1,0 +1,119 @@
+{
+  "run_id": "RUN_TRACK1_RETRAIN_20261023_2200",
+  "timestamp": "2026-10-23 22:08:43",
+  "validation_protocol": "3-fold Stratified Cross-Validation on Train Partition (frames <= 350)",
+  "train_samples_count": 46,
+  "heldout_samples_count": 46,
+  "mlp_cross_validation_results": [
+    {
+      "name": "MLP-Small",
+      "hidden_layer_sizes": [
+        32
+      ],
+      "alpha": 0.01,
+      "val_macro_f1": 0.753,
+      "val_accuracy": 0.8691
+    },
+    {
+      "name": "MLP-Medium",
+      "hidden_layer_sizes": [
+        64,
+        32
+      ],
+      "alpha": 0.05,
+      "val_macro_f1": 0.7599,
+      "val_accuracy": 0.8691
+    },
+    {
+      "name": "MLP-Regularized",
+      "hidden_layer_sizes": [
+        32,
+        16
+      ],
+      "alpha": 0.1,
+      "val_macro_f1": 0.8018,
+      "val_accuracy": 0.9095
+    },
+    {
+      "name": "MLP-Deep",
+      "hidden_layer_sizes": [
+        48,
+        24
+      ],
+      "alpha": 0.02,
+      "val_macro_f1": 0.811,
+      "val_accuracy": 0.9143
+    }
+  ],
+  "selected_mlp_configuration": {
+    "name": "MLP-Deep",
+    "hidden_layer_sizes": [
+      48,
+      24
+    ],
+    "alpha": 0.02,
+    "max_iter": 300
+  },
+  "cnn_lstm_cross_validation_results": [
+    {
+      "name": "LSTM-H16-lr0.008",
+      "hidden_dim": 16,
+      "lr": 0.008,
+      "weight_decay": 0.0001,
+      "class_weights": true,
+      "val_macro_f1": 0.5202,
+      "val_accuracy": 0.7332
+    },
+    {
+      "name": "LSTM-H32-lr0.008",
+      "hidden_dim": 32,
+      "lr": 0.008,
+      "weight_decay": 0.0001,
+      "class_weights": true,
+      "val_macro_f1": 0.6273,
+      "val_accuracy": 0.8078
+    },
+    {
+      "name": "LSTM-H32-lr0.005",
+      "hidden_dim": 32,
+      "lr": 0.005,
+      "weight_decay": 0.0005,
+      "class_weights": true,
+      "val_macro_f1": 0.6273,
+      "val_accuracy": 0.8078
+    },
+    {
+      "name": "LSTM-H48-lr0.006",
+      "hidden_dim": 48,
+      "lr": 0.006,
+      "weight_decay": 0.001,
+      "class_weights": true,
+      "val_macro_f1": 0.5985,
+      "val_accuracy": 0.7857
+    },
+    {
+      "name": "LSTM-H32-NoClassW",
+      "hidden_dim": 32,
+      "lr": 0.008,
+      "weight_decay": 0.0001,
+      "class_weights": false,
+      "val_macro_f1": 0.613,
+      "val_accuracy": 0.8262
+    }
+  ],
+  "selected_cnn_lstm_configuration": {
+    "name": "LSTM-H32-lr0.008",
+    "hidden_dim": 32,
+    "lr": 0.008,
+    "weight_decay": 0.0001,
+    "class_weights": true
+  },
+  "heldout_standalone_accuracy": {
+    "geometric_heuristic_baseline": 0.8913,
+    "selected_mlp_train_only": 0.8696,
+    "selected_cnn_lstm_standalone": 0.8478,
+    "selected_cnn_lstm_fallback": 0.8478
+  },
+  "model_selection_decision": "PRODUCTION_DEFAULT_REMAINS_GEOMETRIC_HEURISTIC",
+  "reasoning": "Geometric heuristic baseline achieves 89.13% standalone accuracy and 0.8200 strict counting F1 on held-out data, outperforming ML and sequence models on rare/unseen movements without training bias."
+}

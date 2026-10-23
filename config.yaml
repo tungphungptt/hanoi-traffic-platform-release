@@ -1,0 +1,9 @@
+video_path: data/input.mp4
+model_paths:
+  detector: models/detector.onnx
+preprocessing:
+  resize: [640, 640]
+  normalize: true
+sequence_length: 5
+vehicle_classes:
+  - car  # Phase 1 contract: v1.0-car-only; extend only with matching retrained predictor/scaler.

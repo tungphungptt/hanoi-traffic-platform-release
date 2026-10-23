@@ -1,0 +1,91 @@
+{
+  "calibration_method": "train_only_empirical_ratio_and_bias",
+  "split_condition": "exit_frame <= 350 (Train Interval Only)",
+  "train_samples_count": 46,
+  "movements": {
+    "1": {
+      "movement_id": 1,
+      "train_gt_count": 0,
+      "train_detected_count": 0,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "2": {
+      "movement_id": 2,
+      "train_gt_count": 5,
+      "train_detected_count": 5,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "3": {
+      "movement_id": 3,
+      "train_gt_count": 12,
+      "train_detected_count": 11,
+      "calibration_factor": 1.0909,
+      "bias_offset": 1
+    },
+    "4": {
+      "movement_id": 4,
+      "train_gt_count": 8,
+      "train_detected_count": 8,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "5": {
+      "movement_id": 5,
+      "train_gt_count": 2,
+      "train_detected_count": 2,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "6": {
+      "movement_id": 6,
+      "train_gt_count": 0,
+      "train_detected_count": 0,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "7": {
+      "movement_id": 7,
+      "train_gt_count": 0,
+      "train_detected_count": 1,
+      "calibration_factor": 0.0,
+      "bias_offset": -1
+    },
+    "8": {
+      "movement_id": 8,
+      "train_gt_count": 0,
+      "train_detected_count": 0,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "9": {
+      "movement_id": 9,
+      "train_gt_count": 0,
+      "train_detected_count": 0,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "10": {
+      "movement_id": 10,
+      "train_gt_count": 0,
+      "train_detected_count": 0,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "11": {
+      "movement_id": 11,
+      "train_gt_count": 18,
+      "train_detected_count": 18,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "12": {
+      "movement_id": 12,
+      "train_gt_count": 1,
+      "train_detected_count": 1,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    }
+  }
+}
