@@ -124,7 +124,7 @@ def test_public_demo_allows_only_capped_uploaded_video_review(monkeypatch, tmp_p
     assert status["upload_limit_mb"] == 500
     assert status["upload_limit_mib"] == 500
     assert status["upload_limit_bytes"] == 524_288_000
-    assert status["upload_max_duration_seconds"] == 300
+    assert status["upload_max_duration_seconds"] == 360
 
     source = tmp_path / "short.avi"
     writer = cv2.VideoWriter(str(source), cv2.VideoWriter_fourcc(*"MJPG"), 5.0, (96, 64))
@@ -159,7 +159,7 @@ def test_public_demo_allows_only_capped_uploaded_video_review(monkeypatch, tmp_p
     )
     assert oversized.status_code == 413
     monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_BYTES", 500 * 1024 * 1024)
-    monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS", 300)
+    monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS", 360)
 
     class FakeCapture:
         def __init__(self, frame_count):
@@ -181,19 +181,19 @@ def test_public_demo_allows_only_capped_uploaded_video_review(monkeypatch, tmp_p
         def release(self):
             return None
 
-    monkeypatch.setattr(cv2, "VideoCapture", lambda _path: FakeCapture(30 * 300))
-    five_minutes = client.post(
+    monkeypatch.setattr(cv2, "VideoCapture", lambda _path: FakeCapture(30 * 360))
+    six_minutes = client.post(
         "/api/scenarios/video-review",
         files={"file": ("short.avi", source.read_bytes(), "video/x-msvideo")},
     )
-    assert five_minutes.status_code == 202, five_minutes.text
+    assert six_minutes.status_code == 202, six_minutes.text
 
-    monkeypatch.setattr(cv2, "VideoCapture", lambda _path: FakeCapture(30 * 301))
-    over_five_minutes = client.post(
+    monkeypatch.setattr(cv2, "VideoCapture", lambda _path: FakeCapture(30 * 361))
+    over_six_minutes = client.post(
         "/api/scenarios/video-review",
         files={"file": ("short.avi", source.read_bytes(), "video/x-msvideo")},
     )
-    assert over_five_minutes.status_code == 413
+    assert over_six_minutes.status_code == 413
 
 
 def test_frame_endpoint_rejects_traversal_and_non_jpeg(monkeypatch, tmp_path):

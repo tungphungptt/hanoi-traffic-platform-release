@@ -969,7 +969,7 @@ function renderScenarioInputState() {
   const hint = $('#scenarioInputHint');
   if (hint) hint.textContent = reason || 'Video đã chọn. Bấm Phân tích video để bắt đầu.';
   const limit = $('#scenarioUploadLimit');
-  if (limit) limit.textContent = `Tối đa ${maxMiB} MiB và ${Math.floor(Number(state.aiccStatus?.upload_max_duration_seconds || 300) / 60)} phút.`;
+  if (limit) limit.textContent = `Tối đa ${maxMiB} MiB và ${Math.floor(Number(state.aiccStatus?.upload_max_duration_seconds || 360) / 60)} phút.`;
   const mode = $('#scenarioRuntimeMode');
   if (mode) mode.textContent = blocked ? 'Chưa sẵn sàng' : 'Sẵn sàng nhận video';
 }

@@ -65,7 +65,7 @@ ACTIVE_REVIEW_UPLOADS: set[Path] = set()
 MAX_VIDEO_REVIEW_BYTES = 500 * 1024 * 1024
 MAX_PUBLIC_VIDEO_REVIEW_BYTES = 500 * 1024 * 1024
 VIDEO_REVIEW_DISK_RESERVE_BYTES = 64 * 1024 * 1024
-MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS = 5 * 60
+MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS = 6 * 60
 MAX_VIDEO_REVIEW_DURATION_SECONDS = 20 * 60
 
 
@@ -434,9 +434,9 @@ async def app_lifespan(app):
         except asyncio.CancelledError:
             pass
 
-
 PUBLIC_UPLOAD_GATE = UploadGate()
-app = FastAPI(lifespan=app_lifespan, title="Hanoi Traffic Operations", version="8.0.0", description="Nền tảng giám sát và hỗ trợ dự báo giao thông trên CPU")
+PUBLIC_UPLOAD_GATE = UploadGate()
+app = FastAPI(lifespan=app_lifespan, title="hanoiFlow Operations", version="8.0.0", description="Nền tảng giám sát và hỗ trợ dự báo giao thông trên CPU")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.add_middleware(PublicUploadMiddleware, public_mode=lambda: PUBLIC_DEMO_MODE,
                    enabled=video_review_upload_enabled, max_bytes=lambda: MAX_PUBLIC_VIDEO_REVIEW_BYTES,

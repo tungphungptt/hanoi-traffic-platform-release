@@ -1,4 +1,4 @@
-# Hanoi Traffic Platform — Final 8.0.0
+# hanoiFlow — Hanoi Traffic Platform 8.0.0
 
 **Mục tiêu vận hành:** đánh giá đoạn A từ clip được cấp quyền, tạo ảnh minh chứng theo thời điểm, hiển thị nguy cơ theo luật giải thích được khi đủ điều kiện, lấy các tuyến thay thế trên mạng đường phố Hà Nội và chọn phương án dựa trên nguồn dữ liệu có sẵn. Không coi việc “chạy phân tích video” là đích đến; đầu ra phục vụ quyết định lộ trình.
 
