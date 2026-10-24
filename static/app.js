@@ -1,6 +1,6 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { dashboard: null, cameras: [], alerts: [], modelStatus: null, providerStatus: null, aiccStatus: null, manifest: null, currentPage: 'video', mapLayer: 'status', aiccResults: null, scenarioResult: null, scenarioJobId: null, routeResult: null, routeMap: null, routeMapLayers: [], selectedRouteId: null, selectedCameraId: null, publicDemoMode: false, leafletMap: null, leafletMarkers: new Map(), baseTileLayer: null, trafficTileLayer: null, mapConfig: null, mapPollSeconds: 15, mapPollBusy: false, mapPollTimer: null };
+const state = { dashboard: null, cameras: [], alerts: [], modelStatus: null, providerStatus: null, aiccStatus: null, manifest: null, currentPage: 'video', mapLayer: 'status', aiccResults: null, scenarioResult: null, scenarioJobId: null, routeResult: null, routeMap: null, routeMapLayers: [], selectedRouteId: null, selectedCameraId: null, publicDemoMode: false, leafletMap: null, leafletMarkers: new Map(), baseTileLayer: null, trafficTileLayer: null, mapConfig: null, mapPollSeconds: 45, mapPollBusy: false, mapPollTimer: null };
 const PAGE_NAMES = { overview: 'Tổng quan', cameras: 'Điểm giám sát', alerts: 'Cảnh báo', analytics: 'Báo cáo & xu hướng', video: 'Dự báo & phương án', models: 'Nguồn xử lý', settings: 'Cài đặt vận hành' };
 
 async function api(path, options = {}) {
@@ -30,8 +30,15 @@ function setPage(page) {
   if (page === 'analytics') renderAnalytics();
   if (page === 'models') { renderModelStatus(); if (state.manifest && $('#manifestEditor')) $('#manifestEditor').value = JSON.stringify(state.manifest, null, 2); }
   if (page === 'settings') renderProviderStatus();
-  if (page === 'video') { refreshAiccStatus(); if (state.routeMap) requestAnimationFrame(() => state.routeMap.invalidateSize({ pan: false })); }
-  if (page === 'overview' && state.leafletMap) requestAnimationFrame(() => state.leafletMap.invalidateSize({ pan: false }));
+  if (page === 'video') {
+    refreshAiccStatus();
+    if (!state.routeMap) initScenarioRouteMap();
+    if (state.routeMap) requestAnimationFrame(() => state.routeMap.invalidateSize({ pan: false }));
+  }
+  if (page === 'overview' && state.leafletMap) {
+    requestAnimationFrame(() => state.leafletMap.invalidateSize({ pan: false }));
+    if (state.dashboard) void pollCameraMapData();
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -132,85 +139,249 @@ function renderMapMarkers(cameras) {
   }
   updateMapStatus();
 }
+
+const MAP_PROVIDER_FAILOVER_V2 = true;
+const BASE_OSM = {
+  name: 'OpenStreetMap',
+  url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'
+};
+const BASE_HOT = {
+  name: 'OpenStreetMap HOT',
+  url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+  subdomains: 'abc',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> ? Tiles courtesy of <a href="https://www.hotosm.org/" target="_blank" rel="noopener">Humanitarian OpenStreetMap Team</a>'
+};
+const BASE_OSMFR = {
+  name: 'OpenStreetMap France',
+  url: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
+  subdomains: 'abc',
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> ? Tiles &copy; <a href="https://www.openstreetmap.fr/" target="_blank" rel="noopener">OpenStreetMap France</a>'
+};
+const BUILTIN_MAP_PROVIDERS = [BASE_OSM, BASE_HOT, BASE_OSMFR];
+let baseMapProviders = [...BUILTIN_MAP_PROVIDERS];
+let mapVisibilityListenerAdded = false;
+
+const MAP_TILE_RUNTIME = {
+  base: {
+    mapKey: 'leafletMap', layerKey: 'baseTileLayer',
+    errorSelector: '#mapTileError', statusSelector: '#mapBaseStatus',
+    timer: null, activeIndex: -1, hasLoaded: false
+  },
+  route: {
+    mapKey: 'routeMap', layerKey: 'routeBaseTileLayer',
+    errorSelector: '#scenarioRouteMapError', statusSelector: null,
+    timer: null, activeIndex: -1, hasLoaded: false
+  }
+};
+
+function mountMapTileLayer(kind, index) {
+  const runtime = MAP_TILE_RUNTIME[kind];
+  const map = state[runtime.mapKey];
+  if (!map || typeof L === 'undefined') return;
+
+  if (runtime.timer) window.clearTimeout(runtime.timer);
+  runtime.timer = null;
+
+  const provider = baseMapProviders[index];
+  const errorEl = $(runtime.errorSelector);
+  const statusEl = runtime.statusSelector ? $(runtime.statusSelector) : null;
+
+  if (!provider) {
+    if (errorEl) errorEl.hidden = false;
+    if (statusEl) statusEl.textContent = 'B?n ?? n?n kh?ng kh? d?ng';
+    return;
+  }
+
+  const oldLayer = state[runtime.layerKey];
+  if (oldLayer && map.hasLayer(oldLayer)) map.removeLayer(oldLayer);
+
+  runtime.activeIndex = index;
+  runtime.hasLoaded = false;
+
+  const options = {
+    maxZoom: 19,
+    attribution: provider.attribution,
+    updateWhenIdle: true,
+    keepBuffer: 1,
+    crossOrigin: true
+  };
+  if (provider.subdomains) options.subdomains = provider.subdomains;
+
+  const layer = L.tileLayer(provider.url, options);
+  state[runtime.layerKey] = layer;
+
+  if (errorEl) errorEl.hidden = true;
+  if (statusEl) statusEl.textContent = `?ang t?i b?n ?? ? ${provider.name}`;
+
+  layer.on('tileload', () => {
+    if (state[runtime.layerKey] !== layer) return;
+    runtime.hasLoaded = true;
+    if (errorEl) errorEl.hidden = true;
+    if (statusEl) statusEl.textContent = `B?n ?? ???ng ph? ? ${provider.name}`;
+    if (runtime.timer) window.clearTimeout(runtime.timer);
+    runtime.timer = null;
+  });
+
+  layer.on('tileerror', () => {
+    if (state[runtime.layerKey] !== layer || runtime.hasLoaded || runtime.timer) return;
+
+    // Ch? chuy?n ngu?n n?u sau th?i gian ch? v?n ch?a t?i ???c tile n?o.
+    runtime.timer = window.setTimeout(() => {
+      runtime.timer = null;
+      if (state[runtime.layerKey] !== layer || runtime.hasLoaded) return;
+
+      if (index + 1 < baseMapProviders.length) {
+        console.warn(`Tile provider failed: ${provider.name}; trying fallback.`);
+        mountMapTileLayer(kind, index + 1);
+      } else {
+        if (errorEl) errorEl.hidden = false;
+        if (statusEl) statusEl.textContent =
+          `B?n ?? kh?ng kh? d?ng ? ?? th? ${baseMapProviders.length} ngu?n`;
+      }
+    }, 2500);
+  });
+
+  layer.addTo(map);
+}
+
+function configureBaseMapProviders(config) {
+  const configured = String(config.tile_url_template || '').trim();
+  const isCarto = /basemaps\.cartocdn\.com/i.test(configured);
+  const isCustom = configured && !isCarto && configured !== BASE_OSM.url;
+
+  const providers = isCustom ? [{
+    name: String(config.base_map_name || 'B?n ?? c?u h?nh'),
+    url: configured,
+    attribution: String(config.base_attribution || BASE_OSM.attribution),
+    ...(configured.includes('{s}') ? { subdomains: 'abc' } : {})
+  }, ...BUILTIN_MAP_PROVIDERS] : [...BUILTIN_MAP_PROVIDERS];
+
+  const seen = new Set();
+  baseMapProviders = providers.filter(provider => {
+    if (!provider.url || seen.has(provider.url)) return false;
+    seen.add(provider.url);
+    return true;
+  });
+
+  for (const kind of ['base', 'route']) {
+    const runtime = MAP_TILE_RUNTIME[kind];
+    const map = state[runtime.mapKey];
+    if (!map) continue;
+
+    const activeLayer = state[runtime.layerKey];
+    const activeUrl = activeLayer?._url;
+    const urlIsKnown = baseMapProviders.some(provider => provider.url === activeUrl);
+
+    if (isCustom && activeUrl !== configured) {
+      mountMapTileLayer(kind, 0);
+    } else if (!activeLayer || !urlIsKnown) {
+      mountMapTileLayer(kind, 0);
+    }
+    // Gi? nguy?n tile d? ph?ng ?ang ch?y ???c; kh?ng kh?i ??ng l?i v? ?ch.
+  }
+}
+
+function isOverviewPollingAllowed() {
+  return !document.hidden &&
+    state.currentPage === 'overview' &&
+    Boolean($('#page-overview')?.classList.contains('active'));
+}
+
 const HANOI_INNER_CITY = [21.0285, 105.8542];
 function initLeafletMap() {
   const holder = $('#leafletMap');
-  if (!holder) return;
+  if (!holder || state.leafletMap) return;
+
   if (typeof L === 'undefined') {
-    $('#mapTileError').hidden = false;
-    $('#mapBaseStatus').textContent = 'Không tải được thư viện bản đồ';
-    scheduleMapPolling();
+    const error = $('#mapTileError');
+    const status = $('#mapBaseStatus');
+    if (error) error.hidden = false;
+    if (status) status.textContent = 'Kh?ng t?i ???c th? vi?n b?n ??';
     return;
   }
-  state.leafletMap = L.map(holder, { center: HANOI_INNER_CITY, zoom: 11, minZoom: 8, maxZoom: 19, zoomControl: false, preferCanvas: true, scrollWheelZoom: true, tap: true });
-  const defaultTiles = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-  state.baseTileLayer = L.tileLayer(defaultTiles, { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>', updateWhenIdle: true, keepBuffer: 2 }).addTo(state.leafletMap);
-  state.baseTileLayer.on('tileerror', () => { $('#mapTileError').hidden = false; });
-  state.baseTileLayer.on('tileload', () => { $('#mapTileError').hidden = true; });
+
+  state.leafletMap = L.map(holder, {
+    center: HANOI_INNER_CITY, zoom: 11, minZoom: 8, maxZoom: 19,
+    zoomControl: false, preferCanvas: true, scrollWheelZoom: true, tap: true
+  });
+
+  mountMapTileLayer('base', 0);
   loadMapConfig();
 }
 function initScenarioRouteMap() {
   const holder = $('#scenarioRouteMap');
-  if (!holder) return;
+  if (!holder || state.routeMap) return;
+
   if (typeof L === 'undefined') {
-    const message = $('#scenarioRouteMapError'); if (message) message.hidden = false;
+    const message = $('#scenarioRouteMapError');
+    if (message) message.hidden = false;
     return;
   }
-  state.routeMap = L.map(holder, { center: HANOI_INNER_CITY, zoom: 11, minZoom: 8, maxZoom: 19,
-    zoomControl: true, preferCanvas: true, scrollWheelZoom: true, tap: true });
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>',
-    updateWhenIdle: true, keepBuffer: 2
-  }).addTo(state.routeMap).on('tileerror', () => { const el = $('#scenarioRouteMapError'); if (el) el.hidden = false; })
-    .on('tileload', () => { const el = $('#scenarioRouteMapError'); if (el) el.hidden = true; });
+
+  state.routeMap = L.map(holder, {
+    center: HANOI_INNER_CITY, zoom: 11, minZoom: 8, maxZoom: 19,
+    zoomControl: true, preferCanvas: true, scrollWheelZoom: true, tap: true
+  });
+
+  mountMapTileLayer('route', 0);
 }
 async function loadMapConfig() {
   try {
     const config = await api('/api/map/config');
     state.mapConfig = config;
-    state.mapPollSeconds = Math.max(10, Math.min(120, Number(config.camera_refresh_seconds || 15)));
-const configuredTiles = String(config.tile_url_template || '').trim();
-if (!configuredTiles || /basemaps\.cartocdn\.com/i.test(configuredTiles)) {
-  config.tile_url_template = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-  config.base_map_name = 'CARTO Light';
-  config.base_attribution = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>';
-}
 
-    if (state.leafletMap && config.tile_url_template) {
-      if (state.baseTileLayer) state.leafletMap.removeLayer(state.baseTileLayer);
-      state.baseTileLayer = L.tileLayer(config.tile_url_template, {
-        maxZoom: 19,
-        attribution: config.base_attribution || '&copy; OpenStreetMap contributors',
-        updateWhenIdle: true,
-        keepBuffer: 2
-      }).addTo(state.leafletMap);
-      state.baseTileLayer.on('tileerror', () => { $('#mapTileError').hidden = false; });
-      state.baseTileLayer.on('tileload', () => { $('#mapTileError').hidden = true; });
-    }
+    const requestedInterval = Number(config.camera_refresh_seconds);
+    state.mapPollSeconds = Number.isFinite(requestedInterval)
+      ? Math.max(45, Math.min(120, requestedInterval))
+      : 45;
+
+    configureBaseMapProviders(config);
+
     if (state.leafletMap && config.traffic_tile_url_template) {
+      if (state.trafficTileLayer) state.leafletMap.removeLayer(state.trafficTileLayer);
       state.trafficTileLayer = L.tileLayer(config.traffic_tile_url_template, {
         opacity: 0.72, maxZoom: 19,
-        attribution: config.traffic_attribution || 'Nhà cung cấp lớp giao thông',
+        attribution: config.traffic_attribution || 'Nh? cung c?p l?p giao th?ng',
         updateWhenIdle: true, keepBuffer: 1
       });
-      const trafficBtn = $('#mapTrafficLayerButton');
-      if (trafficBtn) { trafficBtn.title = `Lớp dữ liệu từ ${config.traffic_layer_name || 'nhà cung cấp bên ngoài'}`; trafficBtn.setAttribute('aria-label', trafficBtn.title); }
+      const button = $('#mapTrafficLayerButton');
+      if (button) {
+        button.title = `L?p d? li?u t? ${config.traffic_layer_name || 'nh? cung c?p b?n ngo?i'}`;
+        button.setAttribute('aria-label', button.title);
+      }
+    } else if (state.leafletMap && state.trafficTileLayer) {
+      state.leafletMap.removeLayer(state.trafficTileLayer);
+      state.trafficTileLayer = null;
     }
-    const status = $('#mapBaseStatus');
-    if (status) status.textContent = `Bản đồ đường phố · ${config.base_map_name || 'OpenStreetMap'}`;
+
     const trafficBtn = $('#mapTrafficLayerButton');
-    if (trafficBtn && !config.traffic_layer_enabled) trafficBtn.title = 'Chưa cấu hình nhà cung cấp luồng giao thông trực tiếp; xem .env.example';
+    if (trafficBtn && !config.traffic_layer_enabled) {
+      trafficBtn.title = 'Ch?a c?u h?nh nh? cung c?p lu?ng giao th?ng tr?c ti?p; xem .env.example';
+    }
+
     updateMapStatus();
     scheduleMapPolling();
   } catch (error) {
-    state.mapConfig = { traffic_layer_enabled: false, camera_refresh_seconds: 15 };
-    const status = $('#mapBaseStatus'); if (status) status.textContent = 'Bản đồ đường phố · cấu hình mặc định';
+    state.mapConfig = { traffic_layer_enabled: false, camera_refresh_seconds: 45 };
+    state.mapPollSeconds = 45;
     scheduleMapPolling();
+    console.warn('Map configuration unavailable; using fallback tile providers.', error);
   }
 }
 function scheduleMapPolling() {
   if (state.mapPollTimer) window.clearInterval(state.mapPollTimer);
-  state.mapPollTimer = window.setInterval(pollCameraMapData, state.mapPollSeconds * 1000);
+
+  state.mapPollTimer = window.setInterval(() => {
+    if (isOverviewPollingAllowed()) void pollCameraMapData();
+  }, state.mapPollSeconds * 1000);
+
+  if (!mapVisibilityListenerAdded) {
+    document.addEventListener('visibilitychange', () => {
+      if (isOverviewPollingAllowed() && state.dashboard) void pollCameraMapData();
+    });
+    mapVisibilityListenerAdded = true;
+  }
 }
 async function pollCameraMapData() {
   if (state.mapPollBusy) return;
@@ -1161,4 +1332,4 @@ function bindEvents() {
   $('#manifestEditor').addEventListener('input',()=>{try{JSON.parse($('#manifestEditor').value);$('#manifestValidation').innerHTML='<span class="tiny-indicator green-indicator"></span> JSON hợp lệ · chưa lưu thay đổi';}catch{$('#manifestValidation').innerHTML='<span class="tiny-indicator red-indicator"></span> JSON chưa hợp lệ';}});
 }
 
-updateDate(); bindEvents(); initLeafletMap(); initScenarioRouteMap(); setPage('video'); loadAll({quiet:true});
+updateDate(); bindEvents(); initLeafletMap(); setPage('overview'); loadAll({quiet:true});
