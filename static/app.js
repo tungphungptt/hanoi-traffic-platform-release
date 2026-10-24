@@ -143,8 +143,8 @@ function initLeafletMap() {
     return;
   }
   state.leafletMap = L.map(holder, { center: HANOI_INNER_CITY, zoom: 11, minZoom: 8, maxZoom: 19, zoomControl: false, preferCanvas: true, scrollWheelZoom: true, tap: true });
-  const defaultTiles = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-  state.baseTileLayer = L.tileLayer(defaultTiles, { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>', updateWhenIdle: true, keepBuffer: 2 }).addTo(state.leafletMap);
+  const defaultTiles = 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  state.baseTileLayer = L.tileLayer(defaultTiles, { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>', updateWhenIdle: true, keepBuffer: 2 }).addTo(state.leafletMap);
   state.baseTileLayer.on('tileerror', () => { $('#mapTileError').hidden = false; });
   state.baseTileLayer.on('tileload', () => { $('#mapTileError').hidden = true; });
   loadMapConfig();
@@ -158,8 +158,8 @@ function initScenarioRouteMap() {
   }
   state.routeMap = L.map(holder, { center: HANOI_INNER_CITY, zoom: 11, minZoom: 8, maxZoom: 19,
     zoomControl: true, preferCanvas: true, scrollWheelZoom: true, tap: true });
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>',
+  L.tileLayer('https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
     updateWhenIdle: true, keepBuffer: 2
   }).addTo(state.routeMap).on('tileerror', () => { const el = $('#scenarioRouteMapError'); if (el) el.hidden = false; })
     .on('tileload', () => { const el = $('#scenarioRouteMapError'); if (el) el.hidden = true; });
@@ -169,6 +169,13 @@ async function loadMapConfig() {
     const config = await api('/api/map/config');
     state.mapConfig = config;
     state.mapPollSeconds = Math.max(10, Math.min(120, Number(config.camera_refresh_seconds || 15)));
+const configuredTiles = String(config.tile_url_template || '').trim();
+if (!configuredTiles || /tile\.openstreetmap\.org/i.test(configuredTiles)) {
+  config.tile_url_template = 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  config.base_map_name = 'CARTO Light';
+  config.base_attribution = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
+}
+
     if (state.leafletMap && config.tile_url_template) {
       if (state.baseTileLayer) state.leafletMap.removeLayer(state.baseTileLayer);
       state.baseTileLayer = L.tileLayer(config.tile_url_template, {
@@ -208,22 +215,59 @@ function scheduleMapPolling() {
 async function pollCameraMapData() {
   if (state.mapPollBusy) return;
   state.mapPollBusy = true;
+
   try {
     const payload = await api('/api/cameras');
     if (!Array.isArray(payload.items)) return;
-    const selected = state.selectedCameraId;
-    state.cameras = payload.items;
-    renderMapMarkers(state.cameras);
+
+    const previous = state.cameras || [];
+    const next = payload.items;
+
+    const signature = (items) => JSON.stringify(items.map((cam) => [
+      cam.id, cam.name, cam.area, cam.lat, cam.lng, cam.status, cam.ci,
+      cam.telemetry_live, cam.speed, cam.vehicles, cam.occupancy,
+      cam.updated, cam.telemetry_source, cam.feed?.available,
+      cam.feed?.source_type, cam.feed?.stream_url
+    ]));
+
+    updateMapStatus(payload);
+
+    // Payload unchanged: no marker, table, or select rebuilding.
+    if (signature(previous) === signature(next)) return;
+
+    const selectedId = state.selectedCameraId;
+    const before = previous.find((cam) => cam.id === selectedId);
+    const after = next.find((cam) => cam.id === selectedId);
+
+    const selectedView = (cam) => cam ? JSON.stringify([
+      cam.id, cam.name, cam.area, cam.lat, cam.lng,
+      cam.status, cam.ci, cam.telemetry_live,
+      cam.feed?.available, cam.feed?.source_type, cam.feed?.stream_url
+    ]) : '';
+
+    state.cameras = next;
+    renderMapMarkers(next);
     renderCameraPicker();
     renderScenarioCameraOptions();
     renderCameraTable();
-    if (selected && state.cameras.some(cam => cam.id === selected)) selectTrafficCamera(selected, false, false);
-    else if (state.cameras.length) selectTrafficCamera(state.cameras[0].id, false, false);
+
+    if (!after && next.length) {
+      selectTrafficCamera(next[0].id, false, false);
+    } else if (after && selectedView(before) !== selectedView(after)) {
+      selectTrafficCamera(selectedId, false, false);
+    }
+
     updateMapStatus(payload);
   } catch (error) {
-    const sync = $('#mapSyncStatus'); if (sync) sync.textContent = `Mất kết nối API · ${new Date().toLocaleTimeString('vi-VN')}`;
-  } finally { state.mapPollBusy = false; }
+    const sync = $('#mapSyncStatus');
+    if (sync) sync.textContent =
+      `M?t k?t n?i API ? ${new Date().toLocaleTimeString('vi-VN')}`;
+  } finally {
+    state.mapPollBusy = false;
+  }
 }
+
+
 function setMapLayer(layer) {
   if (layer === 'traffic' && !state.trafficTileLayer) {
     toast('Chưa có nguồn giao thông trực tiếp', 'Bản đồ đường phố là bản đồ thật; lớp màu ùn tắc cần URL tile/API được cấp phép. Cấu hình TRAFFIC_TILE_URL_TEMPLATE trong .env.', 'error');
@@ -287,8 +331,12 @@ function selectTrafficCamera(cameraId, forceReload = false, focusMap = false) {
     }
     video.hidden = false;
     empty.hidden = true;
-    const playAttempt = video.play();
-    if (playAttempt && typeof playAttempt.catch === 'function') playAttempt.catch(() => {});
+    if (video.paused) {
+  const playAttempt = video.play();
+  if (playAttempt && typeof playAttempt.catch === 'function') {
+    playAttempt.catch(() => {});
+  }
+}
     tag.hidden = false;
     tag.textContent = feed.source_type === 'demo_fallback' ? 'CLIP MẪU CHUNG' : 'CLIP ĐÃ GÁN';
     $('#trafficFeedHint').textContent = feed.notice || 'Video đã được gán cho đúng mã camera này.';
