@@ -12,6 +12,7 @@
   ],
   "vehicle_classes": [
     "car",
+    "motorcycle",
     "truck",
     "bus"
   ],

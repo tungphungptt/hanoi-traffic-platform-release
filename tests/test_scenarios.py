@@ -87,6 +87,8 @@ def test_analyze_video_creates_real_sampled_frame_and_explicit_limits(monkeypatc
     assert result["status"] == "succeeded"
     assert result["summary"]["sampled_frames"] >= 1
     assert result["frames"]
+    assert result["hanoi_forecast"]["available"] is False
+    assert result["hanoi_forecast"]["mode"] == "insufficient_history"
     assert (tmp_path / "result" / "frames" / result["frames"][0]["filename"]).is_file()
     assert any("pixel/giây" in note for note in result["limitations"])
     saved = json.loads((tmp_path / "result" / "result.json").read_text(encoding="utf-8"))
@@ -106,9 +108,61 @@ def test_video_from_data_rejects_path_escape(monkeypatch, tmp_path):
 def test_public_demo_blocks_video_review(monkeypatch):
     monkeypatch.setattr(main, "PUBLIC_DEMO_MODE", True)
     monkeypatch.setattr(main, "AICC_VIDEO_ENABLED", True)
+    monkeypatch.setattr(main, "PUBLIC_VIDEO_REVIEW_ENABLED", False)
     response = client.post("/api/scenarios/video-review-from-data", json={"path": "input.mp4"})
     assert response.status_code == 403
+    protected_response = client.post("/api/aicc/predict-video", files={"file": ("clip.mp4", b"video")})
+    assert protected_response.status_code == 403
     monkeypatch.setattr(main, "PUBLIC_DEMO_MODE", False)
+
+
+def test_public_demo_allows_only_capped_uploaded_video_review(monkeypatch, tmp_path):
+    monkeypatch.setattr(main, "PUBLIC_DEMO_MODE", True)
+    monkeypatch.setattr(main, "AICC_VIDEO_ENABLED", False)
+    monkeypatch.setattr(main, "PUBLIC_VIDEO_REVIEW_ENABLED", True)
+    status = client.get("/api/aicc/status").json()
+    assert status["upload_limit_mb"] == 100
+    assert status["upload_max_duration_seconds"] == 300
+
+    source = tmp_path / "short.avi"
+    writer = cv2.VideoWriter(str(source), cv2.VideoWriter_fourcc(*"MJPG"), 5.0, (96, 64))
+    if not writer.isOpened():
+        pytest.skip("OpenCV build has no MJPG writer")
+    for _ in range(5):
+        writer.write(np.zeros((64, 96, 3), dtype=np.uint8))
+    writer.release()
+
+    def enqueue(video_path, filename, camera_id, preserve_real_timing, cleanup):
+        assert video_path.is_file()
+        assert filename == "short.avi"
+        assert camera_id is None
+        assert preserve_real_timing is False
+        assert cleanup is True
+        video_path.unlink()
+        return {"job_id": "a" * 32, "status": "queued"}
+
+    monkeypatch.setattr(main, "_load_video_review_models", lambda: None)
+    monkeypatch.setattr(main, "_enqueue_video_review_job", enqueue)
+    response = client.post(
+        "/api/scenarios/video-review",
+        files={"file": ("short.avi", source.read_bytes(), "video/x-msvideo")},
+    )
+    assert response.status_code == 202, response.text
+    assert response.json()["job_id"] == "a" * 32
+
+    monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_BYTES", 1)
+    oversized = client.post(
+        "/api/scenarios/video-review",
+        files={"file": ("short.avi", source.read_bytes(), "video/x-msvideo")},
+    )
+    assert oversized.status_code == 413
+    monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_BYTES", 100 * 1024 * 1024)
+    monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS", 0)
+    too_long = client.post(
+        "/api/scenarios/video-review",
+        files={"file": ("short.avi", source.read_bytes(), "video/x-msvideo")},
+    )
+    assert too_long.status_code == 413
 
 
 def test_frame_endpoint_rejects_traversal_and_non_jpeg(monkeypatch, tmp_path):

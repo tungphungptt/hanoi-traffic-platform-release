@@ -12,6 +12,7 @@ function setup() {
   const context = vm.createContext({ console, AbortController, FormData, setTimeout, clearTimeout,
     document: {querySelector: el}, window: {}, fetch: async () => { throw new TypeError('offline'); } });
   vm.runInContext(source, context);
+  vm.runInContext("state.aiccStatus = {enabled:true, video_review_enabled:true, upload_limit_mb:100};", context);
   vm.runInContext("toast = () => {}; renderScenarioReview = result => { state.scenarioResult = result; };", context);
   return { context, el, run: code => vm.runInContext(code, context) };
 }
@@ -125,18 +126,19 @@ test('upload selection enables its button even when data listing is empty or fai
   assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
 });
 
-test('read-only and disabled video modes explain why a selected upload is blocked', () => {
+test('public upload follows dedicated readiness while stored-video mode remains local-only', () => {
   const {el, run} = setup();
-  el('#scenarioOriginSelect').value = 'HN-001';
   el('#scenarioVideoFile').files = [new Blob(['selected clip'])];
-  run('state.publicDemoMode = true; renderScenarioInputState()');
+  run("state.publicDemoMode = true; state.aiccStatus = {enabled:false, video_review_enabled:true, upload_limit_mb:100}; renderScenarioInputState()");
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
+  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
+  run("state.aiccStatus = {enabled:false, video_review_enabled:false, message:'Tải video phân tích đang bị tắt ở public demo.'}; renderScenarioInputState()");
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
-  assert.match(el('#scenarioInputHint').textContent, /chế độ chỉ đọc/);
-  assert.match(el('#scenarioAnalyzeUploadBtn').title, /deploy_demo.ps1/);
-  run('state.publicDemoMode = false; state.aiccStatus = {enabled:false}; renderScenarioInputState()');
+  assert.match(el('#scenarioInputHint').textContent, /tắt ở public demo/);
+  run("state.publicDemoMode = false; state.aiccStatus = {enabled:false, video_review_enabled:false, message:'Chưa bật phân tích video.'}; renderScenarioInputState()");
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
-  assert.match(el('#scenarioInputHint').textContent, /chưa bật phân tích/);
-  run('state.aiccStatus = {enabled:true}; renderScenarioInputState()');
+  assert.match(el('#scenarioInputHint').textContent, /Chưa bật phân tích/);
+  run('state.aiccStatus = {enabled:true, video_review_enabled:true, upload_limit_mb:100}; renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
 });
 

@@ -20,6 +20,8 @@ def sandbox(monkeypatch, tmp_path):
     monkeypatch.setattr(main, 'PUBLIC_DEMO_MODE', False)
     monkeypatch.setattr(main, 'AICC_VIDEO_ENABLED', True)
     monkeypatch.setattr(main.aicc_runtime, 'status', lambda: {'missing_files': []})
+    monkeypatch.setattr(main.aicc_runtime, 'load', lambda: {})
+    monkeypatch.setattr(main.hanoi_video_forecaster, 'load', lambda: {})
     return data
 
 

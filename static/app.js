@@ -1,6 +1,14 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const state = { dashboard: null, cameras: [], alerts: [], modelStatus: null, providerStatus: null, aiccStatus: null, manifest: null, currentPage: 'video', mapLayer: 'status', aiccResults: null, scenarioResult: null, scenarioJobId: null, scenarioBusy: false, routeResult: null, routeMap: null, routeMapLayers: [], selectedRouteId: null, selectedCameraId: null, publicDemoMode: false, leafletMap: null, leafletMarkers: new Map(), baseTileLayer: null, trafficTileLayer: null, mapConfig: null, mapPollSeconds: 45, mapPollBusy: false, mapPollTimer: null };
+
+function canAnalyzeUploadedScenarioVideo() {
+  return Boolean(state.aiccStatus?.video_review_enabled);
+}
+
+function canAnalyzeStoredScenarioVideo() {
+  return !state.publicDemoMode && Boolean(state.aiccStatus?.video_review_enabled);
+}
 const PAGE_NAMES = { overview: 'Tổng quan', cameras: 'Điểm giám sát', alerts: 'Cảnh báo', analytics: 'Báo cáo & xu hướng', video: 'Dự báo & phương án', models: 'Nguồn xử lý', settings: 'Cài đặt vận hành' };
 
 async function api(path, options = {}) {
@@ -987,8 +995,9 @@ function renderModelStatus() {
 }
 
 function scenarioWriteBlockReason() {
-  if (state.publicDemoMode) return 'Máy chủ đang ở chế độ chỉ đọc; phân tích video bị tắt. Dừng backend và chạy deploy_demo.ps1 để bật chế độ local.';
-  if (state.aiccStatus?.enabled === false) return 'Máy chủ chưa bật phân tích video. Dừng backend và chạy deploy_demo.ps1 để bật chế độ local.';
+  if (!canAnalyzeUploadedScenarioVideo()) {
+    return state.aiccStatus?.message || 'Tải video phân tích đang tắt hoặc model chưa sẵn sàng.';
+  }
   return '';
 }
 
@@ -996,21 +1005,26 @@ function renderScenarioInputState() {
   const file = $('#scenarioVideoFile')?.files?.[0];
   const path = $('#scenarioDataVideo')?.value;
   const blocked = scenarioWriteBlockReason();
-  const commonReason = blocked || (state.scenarioBusy ? 'Tác vụ đang chạy; đợi xử lý xong.' : '')
-    || (!$('#scenarioOriginSelect')?.value ? 'Chọn đoạn A / điểm đi trước khi phân tích.' : '');
-  const uploadReason = commonReason || (!file ? 'Chọn tệp từ máy tính để phân tích clip upload.' : '');
-  const dataReason = commonReason || (!path ? 'Chọn một video trong data/ để dùng nút Phân tích bên cạnh danh sách.' : '');
+  const maxMb = Number(state.aiccStatus?.upload_limit_mb || 500);
+  const commonReason = state.scenarioBusy ? 'Tác vụ đang chạy; đợi xử lý xong.' : '';
+  const uploadReason = commonReason || blocked
+    || (!file ? 'Chọn tệp từ máy tính để phân tích clip upload.' : '')
+    || (file && file.size > maxMb * 1024 * 1024 ? `Video vượt giới hạn ${maxMb} MB.` : '');
+  const dataReason = commonReason
+    || (state.publicDemoMode || !state.aiccStatus?.enabled ? 'Video trong data/ chỉ có thể phân tích ở chế độ local.' : '')
+    || (!$('#scenarioOriginSelect')?.value ? 'Chọn đoạn A / điểm đi khi dùng video trong data/.' : '')
+    || (!path ? 'Chọn một video trong data/ để dùng nút Phân tích bên cạnh danh sách.' : '');
   for (const [selector, reason] of [['#scenarioAnalyzeUploadBtn', uploadReason], ['#scenarioAnalyzeDataBtn', dataReason]]) {
     const button = $(selector);
     if (button) { button.disabled = Boolean(reason); button.title = reason; }
   }
   const hint = $('#scenarioInputHint');
-  if (hint) hint.textContent = commonReason || (file
-    ? 'Đã chọn clip từ máy tính. Bấm nút lớn bên dưới để upload và phân tích; không cần video trong data/.'
+  if (hint) hint.textContent = commonReason || blocked || (file
+    ? uploadReason || 'Đã chọn clip từ máy tính. Bấm nút lớn bên dưới để upload và phân tích; không cần chọn camera.'
     : path ? 'Đã chọn video trong data/. Bấm nút Phân tích bên cạnh danh sách.'
     : 'Chọn tệp từ máy tính hoặc video trong data/ để bắt đầu.');
   const mode = $('#scenarioRuntimeMode');
-  if (mode) mode.textContent = blocked ? 'Phân tích video đang bị tắt' : 'Phân tích video cục bộ';
+  if (mode) mode.textContent = blocked ? 'Tải video phân tích đang bị tắt' : 'Sẵn sàng phân tích video';
 }
 
 function renderScenarioCameraOptions() {
@@ -1021,13 +1035,13 @@ function renderScenarioCameraOptions() {
   const oldDestination = destination.value;
   const optionHtml = state.cameras.filter(cam => cam.lat != null && cam.lng != null && Number.isFinite(Number(cam.lat)) && Number.isFinite(Number(cam.lng)))
     .map(cam => `<option value="${escapeHtml(cam.id)}">${escapeHtml(cam.name)} · ${escapeHtml(cam.area || cam.id)}</option>`).join('');
-  origin.innerHTML = optionHtml || '<option value="">Chưa có điểm có tọa độ</option>';
-  destination.innerHTML = optionHtml || '<option value="">Chưa có điểm có tọa độ</option>';
-  const preferredOrigin = oldOrigin || state.selectedCameraId || state.cameras[0]?.id;
-  origin.value = state.cameras.some(cam => cam.id === preferredOrigin) ? preferredOrigin : (state.cameras[0]?.id || '');
-  const preferredDest = oldDestination || state.cameras.find(cam => cam.id !== origin.value)?.id;
+  origin.innerHTML = `<option value="">Không gắn camera (tùy chọn)</option>${optionHtml || ''}`;
+  destination.innerHTML = `<option value="">Chọn điểm đến…</option>${optionHtml || ''}`;
+  const preferredOrigin = oldOrigin || state.selectedCameraId || '';
+  origin.value = state.cameras.some(cam => cam.id === preferredOrigin) ? preferredOrigin : '';
+  const preferredDest = oldDestination || '';
   destination.value = state.cameras.some(cam => cam.id === preferredDest) && preferredDest !== origin.value
-    ? preferredDest : (state.cameras.find(cam => cam.id !== origin.value)?.id || '');
+    ? preferredDest : '';
   if (destination.value === origin.value) destination.value = '';
   const button = $('#scenarioFindRoutesBtn'); if (button) button.disabled = !origin.value || !destination.value || state.publicDemoMode;
   renderScenarioInputState();
@@ -1083,6 +1097,22 @@ function renderScenarioReview(result) {
     badge.textContent = 'Chưa đủ điều kiện'; badge.className = 'status-tag';
     text.textContent = forecast.message || 'Chưa có baseline +5/+10. Không ngoại suy nếu clip không giữ đúng thời gian, quá ngắn hoặc thiếu mẫu.';
   }
+  const hanoiForecast = result.hanoi_forecast || {};
+  const hanoiBadge = $('#hanoiForecastBadge');
+  const hanoiText = $('#hanoiForecastText');
+  const hanoiCards = $('#hanoiForecastCards');
+  hanoiCards.innerHTML = '';
+  if (hanoiForecast.available && Array.isArray(hanoiForecast.predictions)) {
+    hanoiBadge.textContent = 'Thử nghiệm · chưa hiệu chuẩn';
+    hanoiBadge.className = 'status-tag status-warn';
+    hanoiText.textContent = hanoiForecast.message || 'Xác suất tham khảo từ LSTM, chưa được hiệu chuẩn.';
+    hanoiCards.innerHTML = hanoiForecast.predictions.map(item =>
+      `<article class="scenario-prediction-card"><small>+${numberVN(item.horizon_seconds)} giây</small><strong>${escapeHtml(item.predicted_class === 'Tac_duong' ? 'Có nguy cơ tắc' : 'Thông thoáng')}</strong><span>Xác suất ùn tắc ${numberVN(Number(item.congestion_probability) * 100, 1)}% · chưa hiệu chuẩn</span></article>`).join('');
+  } else {
+    hanoiBadge.textContent = 'Chưa đủ dữ liệu';
+    hanoiBadge.className = 'status-tag';
+    hanoiText.textContent = hanoiForecast.message || 'LSTM cần ít nhất 30 giây clip được lấy mẫu ở 1 frame/giây.';
+  }
   const frames = result.frames || [];
   const gallery = $('#scenarioFrameGallery');
   gallery.innerHTML = frames.length ? frames.map(frame => {
@@ -1127,10 +1157,12 @@ async function pollScenarioReviewJob(jobId, filename) {
 
 async function startScenarioReview({ fromData = false } = {}) {
   if (state.scenarioBusy) return;
-  const blocked = scenarioWriteBlockReason();
+  const blocked = fromData
+    ? (state.publicDemoMode || !state.aiccStatus?.enabled ? 'Video trong data/ chỉ có thể phân tích ở chế độ local.' : '')
+    : scenarioWriteBlockReason();
   if (blocked) { renderScenarioInputState(); toast('Chưa thể phân tích video', blocked, 'error'); return; }
   const originId = $('#scenarioOriginSelect').value;
-  if (!originId) { toast('Chưa chọn đoạn A', 'Chọn camera/đoạn đường nguồn trước.', 'error'); return; }
+  if (!originId && fromData) { toast('Chưa chọn đoạn A', 'Chọn camera/đoạn đường nguồn trước khi dùng video trong data/.', 'error'); return; }
   const preserve = $('#scenarioPreserveTiming').checked;
   const uploadButton = $('#scenarioAnalyzeUploadBtn'); const dataButton = $('#scenarioAnalyzeDataBtn');
   state.scenarioBusy = true;
@@ -1152,7 +1184,8 @@ async function startScenarioReview({ fromData = false } = {}) {
     } else {
       const file = $('#scenarioVideoFile').files?.[0];
       if (!file) throw new Error('Chọn video từ máy tính hoặc dùng danh sách data/.');
-      const form = new FormData(); form.append('file', file); form.append('camera_id', originId);
+      const form = new FormData(); form.append('file', file);
+      if (originId) form.append('camera_id', originId);
       form.append('preserve_real_timing', preserve ? 'true' : 'false');
       job = await api('/api/scenarios/video-review', { method: 'POST', body: form, timeoutMs: 5 * 60 * 1000 });
     }
@@ -1492,8 +1525,16 @@ function bindEvents() {
   });
   $('#scenarioVideoFile')?.addEventListener('change', () => {
     const file = $('#scenarioVideoFile').files?.[0];
+    const maxMb = Number(state.aiccStatus?.upload_limit_mb || 500);
     renderScenarioInputState();
-    if (!state.scenarioBusy) $('#scenarioJobStatus').textContent = file ? `${file.name} · ${(file.size/1024/1024).toFixed(1)} MB · đã chọn từ máy tính, chưa tải lên backend.` : 'Chưa chọn tệp từ máy tính.';
+    if (!state.scenarioBusy) {
+      const overLimit = file && file.size > maxMb * 1024 * 1024;
+      $('#scenarioJobStatus').textContent = file
+        ? overLimit
+          ? `${file.name} vượt giới hạn ${maxMb} MB.`
+          : `${file.name} · ${(file.size/1024/1024).toFixed(1)} MB · đã chọn từ máy tính, chưa tải lên backend.`
+        : 'Chưa chọn tệp từ máy tính.';
+    }
   });
   $('#scenarioVideoFile')?.addEventListener('input', renderScenarioInputState);
   window.addEventListener('pageshow', renderScenarioInputState);
