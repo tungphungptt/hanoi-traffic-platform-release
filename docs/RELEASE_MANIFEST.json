@@ -770,8 +770,8 @@
     },
     {
       "path": "static/app.js",
-      "bytes": 91071,
-      "sha256": "5a01d44eb62660c5c010bedc74d0a4628d34fb87ec46f2147a1f3047180863fa"
+      "bytes": 92832,
+      "sha256": "cdc0fa237beea84a434d11faf841ea4e82f8749295c36fdc8a06578a9d1be0e4"
     },
     {
       "path": "static/index.html",

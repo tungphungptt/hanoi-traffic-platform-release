@@ -140,7 +140,7 @@ function renderMapMarkers(cameras) {
   updateMapStatus();
 }
 
-const MAP_PROVIDER_FAILOVER_V2 = true;
+const MAP_PROVIDER_FAILOVER_V3 = true;
 const BASE_OSM = {
   name: 'OpenStreetMap',
   url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -150,13 +150,13 @@ const BASE_HOT = {
   name: 'OpenStreetMap HOT',
   url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
   subdomains: 'abc',
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> ? Tiles courtesy of <a href="https://www.hotosm.org/" target="_blank" rel="noopener">Humanitarian OpenStreetMap Team</a>'
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> \u00b7 Tiles courtesy of <a href="https://www.hotosm.org/" target="_blank" rel="noopener">Humanitarian OpenStreetMap Team</a>'
 };
 const BASE_OSMFR = {
   name: 'OpenStreetMap France',
   url: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
   subdomains: 'abc',
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> ? Tiles &copy; <a href="https://www.openstreetmap.fr/" target="_blank" rel="noopener">OpenStreetMap France</a>'
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> \u00b7 Tiles &copy; <a href="https://www.openstreetmap.fr/" target="_blank" rel="noopener">OpenStreetMap France</a>'
 };
 const BUILTIN_MAP_PROVIDERS = [BASE_OSM, BASE_HOT, BASE_OSMFR];
 let baseMapProviders = [...BUILTIN_MAP_PROVIDERS];
@@ -166,12 +166,12 @@ const MAP_TILE_RUNTIME = {
   base: {
     mapKey: 'leafletMap', layerKey: 'baseTileLayer',
     errorSelector: '#mapTileError', statusSelector: '#mapBaseStatus',
-    timer: null, activeIndex: -1, hasLoaded: false
+    timer: null, activeIndex: -1, hasLoaded: false, loadedCount: 0, failedCount: 0
   },
   route: {
     mapKey: 'routeMap', layerKey: 'routeBaseTileLayer',
     errorSelector: '#scenarioRouteMapError', statusSelector: null,
-    timer: null, activeIndex: -1, hasLoaded: false
+    timer: null, activeIndex: -1, hasLoaded: false, loadedCount: 0, failedCount: 0
   }
 };
 
@@ -189,7 +189,7 @@ function mountMapTileLayer(kind, index) {
 
   if (!provider) {
     if (errorEl) errorEl.hidden = false;
-    if (statusEl) statusEl.textContent = 'B?n ?? n?n kh?ng kh? d?ng';
+    if (statusEl) statusEl.textContent = 'B\u1ea3n \u0111\u1ed3 n\u1ec1n kh\u00f4ng kh\u1ea3 d\u1ee5ng';
     return;
   }
 
@@ -198,13 +198,14 @@ function mountMapTileLayer(kind, index) {
 
   runtime.activeIndex = index;
   runtime.hasLoaded = false;
+  runtime.loadedCount = 0;
+  runtime.failedCount = 0;
 
   const options = {
     maxZoom: 19,
     attribution: provider.attribution,
     updateWhenIdle: true,
-    keepBuffer: 1,
-    crossOrigin: true
+    keepBuffer: 1
   };
   if (provider.subdomains) options.subdomains = provider.subdomains;
 
@@ -212,34 +213,51 @@ function mountMapTileLayer(kind, index) {
   state[runtime.layerKey] = layer;
 
   if (errorEl) errorEl.hidden = true;
-  if (statusEl) statusEl.textContent = `?ang t?i b?n ?? ? ${provider.name}`;
+  if (statusEl) statusEl.textContent = `\u0110ang t\u1ea3i b\u1ea3n \u0111\u1ed3 \u00b7 ${provider.name}`;
+
+  layer.on('loading', () => {
+    if (runtime.timer) window.clearTimeout(runtime.timer);
+    runtime.timer = null;
+    runtime.loadedCount = 0;
+    runtime.failedCount = 0;
+  });
 
   layer.on('tileload', () => {
     if (state[runtime.layerKey] !== layer) return;
+    runtime.loadedCount += 1;
     runtime.hasLoaded = true;
     if (errorEl) errorEl.hidden = true;
-    if (statusEl) statusEl.textContent = `B?n ?? ???ng ph? ? ${provider.name}`;
-    if (runtime.timer) window.clearTimeout(runtime.timer);
-    runtime.timer = null;
+    if (statusEl) statusEl.textContent =
+      `B\u1ea3n \u0111\u1ed3 \u0111\u01b0\u1eddng ph\u1ed1 \u00b7 ${provider.name}`;
   });
 
   layer.on('tileerror', () => {
-    if (state[runtime.layerKey] !== layer || runtime.hasLoaded || runtime.timer) return;
+    if (state[runtime.layerKey] !== layer) return;
+    runtime.failedCount += 1;
+    if (runtime.timer) return;
 
-    // Ch? chuy?n ngu?n n?u sau th?i gian ch? v?n ch?a t?i ???c tile n?o.
     runtime.timer = window.setTimeout(() => {
       runtime.timer = null;
-      if (state[runtime.layerKey] !== layer || runtime.hasLoaded) return;
+      if (state[runtime.layerKey] !== layer) return;
+
+      const total = runtime.loadedCount + runtime.failedCount;
+      const errorRatio = total > 0 ? runtime.failedCount / total : 0;
+      const partialFailure =
+        runtime.failedCount >= 2 && errorRatio >= 0.35;
+
+      if (!partialFailure) return;
 
       if (index + 1 < baseMapProviders.length) {
-        console.warn(`Tile provider failed: ${provider.name}; trying fallback.`);
+        console.warn(
+          `Tile provider ${provider.name} has partial failures; trying fallback.`
+        );
         mountMapTileLayer(kind, index + 1);
       } else {
         if (errorEl) errorEl.hidden = false;
         if (statusEl) statusEl.textContent =
-          `B?n ?? kh?ng kh? d?ng ? ?? th? ${baseMapProviders.length} ngu?n`;
+          `B\u1ea3n \u0111\u1ed3 kh\u00f4ng kh\u1ea3 d\u1ee5ng \u00b7 \u0111\u00e3 th\u1eed ${baseMapProviders.length} ngu\u1ed3n`;
       }
-    }, 2500);
+    }, 4000);
   });
 
   layer.addTo(map);
@@ -251,7 +269,7 @@ function configureBaseMapProviders(config) {
   const isCustom = configured && !isCarto && configured !== BASE_OSM.url;
 
   const providers = isCustom ? [{
-    name: String(config.base_map_name || 'B?n ?? c?u h?nh'),
+    name: String(config.base_map_name || 'B\u1ea3n \u0111\u1ed3 c\u1ea5u h\u00ecnh'),
     url: configured,
     attribution: String(config.base_attribution || BASE_OSM.attribution),
     ...(configured.includes('{s}') ? { subdomains: 'abc' } : {})
@@ -278,7 +296,7 @@ function configureBaseMapProviders(config) {
     } else if (!activeLayer || !urlIsKnown) {
       mountMapTileLayer(kind, 0);
     }
-    // Gi? nguy?n tile d? ph?ng ?ang ch?y ???c; kh?ng kh?i ??ng l?i v? ?ch.
+    // Keep a working fallback layer instead of replacing it unnecessarily.
   }
 }
 
@@ -286,6 +304,32 @@ function isOverviewPollingAllowed() {
   return !document.hidden &&
     state.currentPage === 'overview' &&
     Boolean($('#page-overview')?.classList.contains('active'));
+}
+
+function observeMapContainerResize(map, holder, observerKey) {
+  if (state[observerKey]) state[observerKey].disconnect();
+
+  const invalidate = () => {
+    if (!holder.isConnected || !map) return;
+    const width = holder.clientWidth;
+    const height = holder.clientHeight;
+    if (width < 1 || height < 1) return;
+
+    const size = map.getSize();
+    if (Math.abs(size.x - width) > 1 || Math.abs(size.y - height) > 1) {
+      map.invalidateSize({ pan: false, debounceMoveend: true });
+    }
+  };
+
+  if (typeof ResizeObserver !== 'undefined') {
+    const observer = new ResizeObserver(() => requestAnimationFrame(invalidate));
+    state[observerKey] = observer;
+    observer.observe(holder);
+  }
+
+  requestAnimationFrame(invalidate);
+  window.setTimeout(invalidate, 250);
+  window.setTimeout(invalidate, 800);
 }
 
 const HANOI_INNER_CITY = [21.0285, 105.8542];
@@ -297,7 +341,7 @@ function initLeafletMap() {
     const error = $('#mapTileError');
     const status = $('#mapBaseStatus');
     if (error) error.hidden = false;
-    if (status) status.textContent = 'Kh?ng t?i ???c th? vi?n b?n ??';
+    if (status) status.textContent = 'Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c th\u01b0 vi\u1ec7n b\u1ea3n \u0111\u1ed3';
     return;
   }
 
@@ -307,6 +351,7 @@ function initLeafletMap() {
   });
 
   mountMapTileLayer('base', 0);
+  observeMapContainerResize(state.leafletMap, holder, 'mapResizeObserver');
   loadMapConfig();
 }
 function initScenarioRouteMap() {
@@ -325,6 +370,7 @@ function initScenarioRouteMap() {
   });
 
   mountMapTileLayer('route', 0);
+  observeMapContainerResize(state.routeMap, holder, 'routeMapResizeObserver');
 }
 async function loadMapConfig() {
   try {
@@ -342,12 +388,12 @@ async function loadMapConfig() {
       if (state.trafficTileLayer) state.leafletMap.removeLayer(state.trafficTileLayer);
       state.trafficTileLayer = L.tileLayer(config.traffic_tile_url_template, {
         opacity: 0.72, maxZoom: 19,
-        attribution: config.traffic_attribution || 'Nh? cung c?p l?p giao th?ng',
+        attribution: config.traffic_attribution || 'Nh\u00e0 cung c\u1ea5p l\u1edbp giao th\u00f4ng',
         updateWhenIdle: true, keepBuffer: 1
       });
       const button = $('#mapTrafficLayerButton');
       if (button) {
-        button.title = `L?p d? li?u t? ${config.traffic_layer_name || 'nh? cung c?p b?n ngo?i'}`;
+        button.title = `L\u1edbp d\u1eef li\u1ec7u t\u1eeb ${config.traffic_layer_name || 'nh\u00e0 cung c\u1ea5p b\u00ean ngo\u00e0i'}`;
         button.setAttribute('aria-label', button.title);
       }
     } else if (state.leafletMap && state.trafficTileLayer) {
@@ -357,7 +403,7 @@ async function loadMapConfig() {
 
     const trafficBtn = $('#mapTrafficLayerButton');
     if (trafficBtn && !config.traffic_layer_enabled) {
-      trafficBtn.title = 'Ch?a c?u h?nh nh? cung c?p lu?ng giao th?ng tr?c ti?p; xem .env.example';
+      trafficBtn.title = 'Ch\u01b0a c\u1ea5u h\u00ecnh nh\u00e0 cung c\u1ea5p lu\u1ed3ng giao th\u00f4ng tr\u1ef1c ti\u1ebfp; xem .env.example';
     }
 
     updateMapStatus();
