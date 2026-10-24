@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def status_payloads():
     return ({'ok': True}, {'process_id': 123, 'public_demo_mode': False},
             {'public_demo_mode': False, 'video_enabled': True, 'enabled': True,
-             'artifacts_present': True, 'missing_files': []})
+             'artifacts_present': True, 'missing_files': [], 'video_review_enabled': True, 'hanoi_forecaster': {'artifacts_present': True}})
 
 
 def test_health_alone_is_not_local_readiness():
@@ -33,6 +33,7 @@ def test_health_alone_is_not_local_readiness():
 @pytest.mark.parametrize('part,key,value', [
     (0, 'ok', False), (1, 'process_id', 999), (1, 'public_demo_mode', True),
     (2, 'public_demo_mode', True), (2, 'video_enabled', False), (2, 'enabled', False),
+    (2, 'video_review_enabled', False), (2, 'hanoi_forecaster', {'artifacts_present': False}),
     (2, 'artifacts_present', False), (2, 'missing_files', ['detector.onnx']),
 ])
 def test_unready_or_wrong_child_is_rejected(part, key, value):
@@ -44,6 +45,7 @@ def test_unready_or_wrong_child_is_rejected(part, key, value):
 
 @pytest.mark.parametrize('public,video', [(True, True), (False, False), (False, True)])
 def test_effective_flags_have_one_backend_source(monkeypatch, public, video):
+    monkeypatch.setattr(main, 'PUBLIC_VIDEO_REVIEW_ENABLED', False)
     monkeypatch.setattr(main, 'PUBLIC_DEMO_MODE', public)
     monkeypatch.setattr(main, 'AICC_VIDEO_ENABLED', video)
     client = TestClient(main.app)
@@ -64,6 +66,7 @@ def test_public_deployment_stays_read_only():
     values = {row['key']: row['value'] for row in config['services'][0]['envVars']}
     assert values['PUBLIC_DEMO_MODE'] == 'true'
     assert values['AICC_VIDEO_ENABLED'] == 'false'
+    assert values['PUBLIC_VIDEO_REVIEW_ENABLED'] == 'false'
 
 
 def test_process_environment_wins_over_dotenv_in_child(tmp_path, monkeypatch):
@@ -90,7 +93,7 @@ def test_real_child_http_mode_and_startup_checker(public):
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]
     child_env = os.environ.copy()
-    child_env.update(PUBLIC_DEMO_MODE=str(public).lower(), AICC_VIDEO_ENABLED='true', FORECAST_PROVIDER='local_onnx', HANOI_LAUNCH_INSTANCE='test-child-instance')
+    child_env.update(PUBLIC_DEMO_MODE=str(public).lower(), AICC_VIDEO_ENABLED='true', PUBLIC_VIDEO_REVIEW_ENABLED='false', FORECAST_PROVIDER='local_onnx', HANOI_LAUNCH_INSTANCE='test-child-instance')
     child = subprocess.Popen([sys.executable, '-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', str(port)],
                              cwd=ROOT, env=child_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     base = f'http://127.0.0.1:{port}'

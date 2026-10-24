@@ -28,6 +28,7 @@ from traffic_brain.providers import ForecastProviderManager, load_dotenv
 from traffic_brain.feature_engine import FeatureContractError, aggregate_traffic_features
 from traffic_brain.analytics import AnalyticsInputError, TrafficAnalyticsEngine
 from traffic_brain.video_review import analyze_video, VideoReviewError
+from traffic_brain.hanoi_video_forecaster import hanoi_video_forecaster
 from traffic_brain.routing import RouteServiceError, fetch_route_alternatives, score_routes
 from app.weather_service import WeatherServiceError, get_weather_report
 from app.traffic_baseline import forecast_from_history
@@ -50,9 +51,20 @@ load_dotenv(ROOT / ".env")
 logger = logging.getLogger("hanoi_traffic")
 PUBLIC_DEMO_MODE = os.getenv("PUBLIC_DEMO_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}
 AICC_VIDEO_ENABLED = os.getenv("AICC_VIDEO_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+PUBLIC_VIDEO_REVIEW_ENABLED = os.getenv("PUBLIC_VIDEO_REVIEW_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 VIDEO_REVIEW_ROOT = DATA_DIR / "video_reviews"
 VIDEO_REVIEW_ROOT.mkdir(parents=True, exist_ok=True)
 MAX_VIDEO_REVIEW_BYTES = 500 * 1024 * 1024
+MAX_PUBLIC_VIDEO_REVIEW_BYTES = 100 * 1024 * 1024
+MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS = 5 * 60
+MAX_VIDEO_REVIEW_DURATION_SECONDS = 20 * 60
+
+
+def video_review_upload_enabled() -> bool:
+    """Allow only video-review uploads in public mode when explicitly enabled."""
+    if PUBLIC_DEMO_MODE:
+        return PUBLIC_VIDEO_REVIEW_ENABLED
+    return AICC_VIDEO_ENABLED
 
 
 def require_write_access() -> None:
@@ -875,11 +887,23 @@ def _run_video_review_job(job_id: str, video_path: Path, filename: str, camera_i
             _prune_video_review_jobs()
 
 
-def _enqueue_video_review_job(video_path: Path, filename: str, camera_id: str | None,
-                              preserve_real_timing: bool, cleanup: bool) -> dict[str, Any]:
+def _load_video_review_models() -> None:
     status = aicc_runtime.status()
     if status.get("missing_files"):
         raise HTTPException(status_code=503, detail="Thiếu mô hình AICC: " + ", ".join(status["missing_files"]))
+    try:
+        aicc_runtime.load()
+        hanoi_video_forecaster.load()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Không nạp được mô hình cần cho phân tích video: {str(exc)[:300]}",
+        ) from exc
+
+
+def _enqueue_video_review_job(video_path: Path, filename: str, camera_id: str | None,
+                              preserve_real_timing: bool, cleanup: bool) -> dict[str, Any]:
+    _load_video_review_models()
     with VIDEO_REVIEW_LOCK:
         if _active_aicc_job_exists():
             raise HTTPException(status_code=409, detail="Đang có tác vụ video chạy hoặc chờ trên CPU. Đợi tác vụ hiện tại kết thúc rồi thử lại.")
@@ -977,6 +1001,16 @@ def weather_forecast(latitude: float = 21.0285, longitude: float = 105.8542) -> 
 def system_status() -> dict[str, Any]:
     status = runtime.status()
     telemetry = _recent_live_telemetry()
+    aicc_status = aicc_runtime.status()
+    hanoi_status = hanoi_video_forecaster.status()
+    public_upload_limit = (
+        MAX_PUBLIC_VIDEO_REVIEW_BYTES if PUBLIC_DEMO_MODE else MAX_VIDEO_REVIEW_BYTES
+    )
+    public_duration_limit = (
+        MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS
+        if PUBLIC_DEMO_MODE
+        else MAX_VIDEO_REVIEW_DURATION_SECONDS
+    )
     return {
         "service": "Đang hoạt động",
         "model_mode": status["mode"],
@@ -990,6 +1024,14 @@ def system_status() -> dict[str, Any]:
         "video_review": video_review_access(),
         "process_id": os.getpid(),
         "launch_instance": os.getenv("HANOI_LAUNCH_INSTANCE") if not PUBLIC_DEMO_MODE else None,
+        "video_review_upload_enabled": video_review_upload_enabled(),
+        "video_review_ready": (
+            video_review_upload_enabled()
+            and aicc_status.get("ready", False)
+            and hanoi_status.get("ready", False)
+        ),
+        "video_review_upload_limit_mb": public_upload_limit // (1024 * 1024),
+        "video_review_max_duration_seconds": public_duration_limit,
         "camera_config_warning": CAMERA_CONFIG_WARNING,
         "telemetry_source": "authorized_rtsp_collector" if telemetry else "not_connected",
         "updated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
@@ -1409,14 +1451,46 @@ def aicc_status() -> dict[str, Any]:
     """Report readiness of the separate AICC sequence-classification bundle."""
     status = aicc_runtime.status()
     status.update(video_review_access())
+    hanoi_status = hanoi_video_forecaster.status()
+    status["hanoi_forecaster"] = hanoi_status
+    status["video_review_enabled"] = (
+        video_review_upload_enabled()
+        and status.get("artifacts_present", False)
+        and hanoi_status.get("artifacts_present", False)
+    )
+    status["video_review_ready"] = (
+        status["video_review_enabled"]
+        and status.get("ready", False)
+        and hanoi_status.get("ready", False)
+    )
     status["upstream"] = "https://github.com/dinoraptor999/AICC"
-    status["upload_limit_mb"] = MAX_VIDEO_BYTES // (1024 * 1024)
+    status["upload_limit_mb"] = (
+        MAX_PUBLIC_VIDEO_REVIEW_BYTES if PUBLIC_DEMO_MODE else MAX_VIDEO_REVIEW_BYTES
+    ) // (1024 * 1024)
+    status["upload_max_duration_seconds"] = (
+        MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS
+        if PUBLIC_DEMO_MODE
+        else MAX_VIDEO_REVIEW_DURATION_SECONDS
+    )
     if PUBLIC_DEMO_MODE:
-        status["message"] = "Phân tích video bị khóa ở public demo để tránh lạm dụng CPU. Chạy local để dùng pipeline AICC."
+        if status["video_review_enabled"]:
+            status["message"] = "Có thể tải video lên để phân tích clip."
+        elif not PUBLIC_VIDEO_REVIEW_ENABLED:
+            status["message"] = "Tải video phân tích đang bị tắt ở public demo."
+        else:
+            missing = status.get("missing_files", []) + hanoi_status.get("missing_files", [])
+            detail = ", ".join(missing) or status.get("error") or hanoi_status.get("error")
+            status["message"] = (
+                "Thiếu hoặc không nạp được model artifacts: " + str(detail)
+                if detail
+                else "Model chưa được nạp; tải video để khởi tạo trước."
+            )
     elif not AICC_VIDEO_ENABLED:
         status["message"] = "AICC_VIDEO_ENABLED=false; bật biến môi trường để chạy phân tích video."
     elif status.get("missing_files"):
         status["message"] = "Cần đặt detector.onnx, predictor.onnx và scaler.pkl vào models/ theo manifest AICC."
+    elif hanoi_status.get("missing_files"):
+        status["message"] = "Thiếu bộ model Hanoi cho video review; kiểm tra hanoi_predictor.onnx, hanoi_scaler.pkl và hanoi_manifest.json trong models/."
     elif not status.get("loaded"):
         status["message"] = status.get("error") or "Artifacts đã có; model sẽ được nạp lần đầu khi gửi video."
     else:
@@ -1545,8 +1619,8 @@ async def create_video_review(
     preserve_real_timing: bool = Form(default=False),
 ) -> dict[str, Any]:
     """Analyze an uploaded clip in the background and return selected frames + explainable state labels."""
-    if PUBLIC_DEMO_MODE or not AICC_VIDEO_ENABLED:
-        raise HTTPException(status_code=403, detail="Phân tích clip chỉ bật trong môi trường local/protected; public demo khóa tác vụ CPU nặng.")
+    if not video_review_upload_enabled():
+        raise HTTPException(status_code=403, detail="Tính năng tải video để phân tích hiện đang bị tắt.")
     if camera_id:
         _assert_camera_exists(camera_id)
     filename = Path(file.filename or "traffic.mp4").name
@@ -1563,8 +1637,11 @@ async def create_video_review(
                 if not chunk:
                     break
                 total_bytes += len(chunk)
-                if total_bytes > MAX_VIDEO_REVIEW_BYTES:
-                    raise HTTPException(status_code=413, detail=f"Video vượt giới hạn {MAX_VIDEO_REVIEW_BYTES // (1024 * 1024)} MB")
+                max_bytes = (
+                    MAX_PUBLIC_VIDEO_REVIEW_BYTES if PUBLIC_DEMO_MODE else MAX_VIDEO_REVIEW_BYTES
+                )
+                if total_bytes > max_bytes:
+                    raise HTTPException(status_code=413, detail=f"Video vượt giới hạn {max_bytes // (1024 * 1024)} MB")
                 tmp.write(chunk)
         if total_bytes == 0:
             raise HTTPException(status_code=400, detail="Tệp video rỗng")
@@ -1572,8 +1649,20 @@ async def create_video_review(
         try:
             ok, _frame = cap.read()
             fps = float(cap.get(cv2.CAP_PROP_FPS) or 0)
-            if not cap.isOpened() or not ok or not math.isfinite(fps) or fps <= 0:
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+            if not cap.isOpened() or not ok or not math.isfinite(fps) or fps <= 0 or frame_count <= 0:
                 raise HTTPException(status_code=400, detail="Không đọc được video hoặc FPS không hợp lệ")
+            duration = frame_count / fps
+            max_duration = (
+                MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS
+                if PUBLIC_DEMO_MODE
+                else MAX_VIDEO_REVIEW_DURATION_SECONDS
+            )
+            if duration > max_duration:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Video vượt giới hạn {max_duration // 60} phút",
+                )
         finally:
             cap.release()
         job = _enqueue_video_review_job(tmp_path, filename, camera_id, preserve_real_timing, cleanup=True)
@@ -1592,7 +1681,7 @@ async def create_video_review(
 @app.post("/api/scenarios/video-review-from-data", status_code=202)
 def create_video_review_from_data(body: dict[str, Any]) -> dict[str, Any]:
     """Analyze a clip already placed under data/ without resending it through the browser."""
-    if PUBLIC_DEMO_MODE or not AICC_VIDEO_ENABLED:
+    if not AICC_VIDEO_ENABLED or PUBLIC_DEMO_MODE:
         raise HTTPException(status_code=403, detail="Phân tích clip chỉ bật trong môi trường local/protected.")
     raw_path = body.get("path")
     camera_id = body.get("camera_id")

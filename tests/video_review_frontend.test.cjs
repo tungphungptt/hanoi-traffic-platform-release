@@ -12,7 +12,7 @@ function setup() {
   const context = vm.createContext({ console, AbortController, FormData, setTimeout, clearTimeout,
     document: {querySelector: el}, window: {location:{hostname:'127.0.0.1'}}, fetch: async () => { throw new TypeError('offline'); } });
   vm.runInContext(source, context);
-  vm.runInContext("state.aiccStatus = {enabled:true, public_demo_mode:false}; toast = () => {}; renderScenarioReview = result => { state.scenarioResult = result; };", context);
+  vm.runInContext("state.aiccStatus = {enabled:true, public_demo_mode:false, video_review_enabled:true, upload_limit_mb:500}; toast = () => {}; renderScenarioReview = result => { state.scenarioResult = result; };", context);
   return { context, el, run: code => vm.runInContext(code, context) };
 }
 function response(payload, status=200) { return { ok: status < 400, status, text: async () => JSON.stringify(payload) }; }
@@ -127,18 +127,19 @@ test('upload selection enables its button even when data listing is empty or fai
   assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
 });
 
-test('read-only and disabled video modes explain why a selected upload is blocked', () => {
+test('public opt-in uses upload capability while stored files remain local-only', () => {
   const {el, run} = setup();
-  el('#scenarioOriginSelect').value = 'HN-001';
-  el('#scenarioVideoFile').files = [new Blob(['selected clip'])];
-  run('state.publicDemoMode = true; state.aiccStatus = {enabled:false,public_demo_mode:true}; renderScenarioInputState()');
+  el('#scenarioVideoFile').files = [new Blob(['clip'])];
+  run('state.publicDemoMode = true; state.aiccStatus = {enabled:false, public_demo_mode:true, video_review_enabled:true, upload_limit_mb:100}; renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
+  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
+  run('state.aiccStatus.video_review_enabled = false; renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
   assert.match(el('#scenarioInputHint').textContent, /chế độ chỉ đọc/);
-  assert.match(el('#scenarioAnalyzeUploadBtn').title, /deploy_demo.ps1/);
-  run('state.publicDemoMode = false; state.aiccStatus = {enabled:false}; renderScenarioInputState()');
+  run('state.publicDemoMode = false; state.aiccStatus = {enabled:false,public_demo_mode:false,video_review_enabled:false}; renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
   assert.match(el('#scenarioInputHint').textContent, /chưa bật phân tích/);
-  run('state.aiccStatus = {enabled:true}; renderScenarioInputState()');
+  run('state.aiccStatus = {enabled:true,public_demo_mode:false,video_review_enabled:true}; renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
 });
 
@@ -160,7 +161,7 @@ test('refresh cannot enable either input during an active review', async () => {
 
 test('public website explains that starting local does not enable the remote demo', () => {
   const {el, run} = setup();
-  run("window.location.hostname = 'hanoi-traffic-platform.onrender.com'; state.aiccStatus = {enabled:false,public_demo_mode:true}; renderScenarioInputState()");
+  run("window.location.hostname = 'hanoi-traffic-platform.onrender.com'; state.aiccStatus = {enabled:false,public_demo_mode:true,video_review_enabled:false}; renderScenarioInputState()");
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
   assert.match(el('#scenarioInputHint').textContent, /demo công khai/);
   assert.match(el('#scenarioInputHint').textContent, /không thay đổi trang demo này/);
@@ -171,7 +172,7 @@ test('fresh backend mode overrides stale read-only dashboard state', () => {
   const {el, run} = setup();
   el('#scenarioOriginSelect').value = 'HN-001';
   el('#scenarioVideoFile').files = [new Blob(['clip'])];
-  run('state.publicDemoMode = true; state.aiccStatus = {enabled:true,public_demo_mode:false}; renderScenarioInputState()');
+  run('state.publicDemoMode = true; state.aiccStatus = {enabled:true,public_demo_mode:false,video_review_enabled:true}; renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
   assert.equal(el('#scenarioVideoFile').disabled, false);
   run('state.aiccStatus = null; renderScenarioInputState()');

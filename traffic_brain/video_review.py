@@ -8,6 +8,11 @@ import cv2
 import numpy as np
 from aicc.core.preprocessing import preprocess_frame
 from aicc.pipeline import _detect, _update_tracks, _predict_window
+from traffic_brain.hanoi_video_forecaster import (
+    FEATURES as HANOI_FEATURES,
+    SEQUENCE_LENGTH as HANOI_SEQUENCE_LENGTH,
+    hanoi_video_forecaster,
+)
 
 STATE_LABELS = {"free": "Thông thoáng", "busy": "Đông đúc", "heavy": "Ùn ứ", "gridlock": "Tắc nghẽn"}
 DEFAULT_THRESHOLDS = {"busy": 0.30, "heavy": 0.55, "gridlock": 0.78}
@@ -282,6 +287,9 @@ def analyze_video(video_path: Path, bundle: dict[str, Any], output_dir: Path, *,
     effective_sample_fps = fps / stride
     sequence_len = int(bundle["manifest"].get("sequence_length", 5))
     feature_seq: deque[np.ndarray] = deque(maxlen=sequence_len)
+    hanoi_feature_seq: deque[np.ndarray] = deque(maxlen=HANOI_SEQUENCE_LENGTH)
+    hanoi_forecast: dict[str, Any] | None = None
+    hanoi_rate_supported = math.isclose(effective_sample_fps, 1.0, abs_tol=0.05)
     tracks: dict[int, Any] = {}; next_track_id = 1; sample_index = 0; source_index = 0
     last_snap_time = -1e9; prev_centers: dict[int, tuple[float,float]] = {}; prev_sample_time: float | None = None
     timeline: list[dict[str, Any]] = []; snapshots: list[dict[str, Any]] = []
@@ -313,6 +321,32 @@ def analyze_video(video_path: Path, bundle: dict[str, Any], output_dir: Path, *,
 
                 det_scores = [getattr(d, "score", None) for d in detections if getattr(d, "score", None) is not None]
                 mean_det_conf = round(float(np.mean(det_scores)), 4) if det_scores else None
+
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+                class_counts = Counter(detection.class_id for detection in detections)
+                hanoi_features = np.asarray(
+                    [
+                        class_counts.get(2, 0),
+                        class_counts.get(3, 0),
+                        sum(class_counts.get(class_id, 0) for class_id in (2, 3, 5, 7)),
+                        average_speed,
+                        occupancy,
+                        speed_cv,
+                        float(np.mean(gray)),
+                        float(np.std(gray)),
+                        float(np.mean(hsv[:, :, 1])),
+                    ],
+                    dtype=np.float32,
+                )
+                if hanoi_features.shape != (len(HANOI_FEATURES),):
+                    raise VideoReviewError("Hanoi feature vector không đúng 9 features.")
+                if hanoi_rate_supported:
+                    hanoi_feature_seq.append(hanoi_features)
+                    if len(hanoi_feature_seq) == HANOI_SEQUENCE_LENGTH:
+                        hanoi_forecast = hanoi_video_forecaster.predict(
+                            np.stack(hanoi_feature_seq)
+                        )
 
                 model_label = None
                 model_confidence = None
@@ -403,10 +437,31 @@ def analyze_video(video_path: Path, bundle: dict[str, Any], output_dir: Path, *,
     raw_states = Counter(row["raw_state_key"] for row in timeline)
     dominant = states.most_common(1)[0][0]
     forecast = project_trend_baseline(timeline, source_duration_seconds=duration, preserve_real_timing=preserve_real_timing)
+    if hanoi_forecast is None:
+        if not hanoi_rate_supported:
+            hanoi_forecast = {
+                "available": False,
+                "mode": "unsupported_sampling_rate",
+                "predictions": [],
+                "message": (
+                    "Hanoi LSTM cần video được lấy mẫu ở 1 frame/giây; "
+                    f"tốc độ hiện tại là {effective_sample_fps:.2f} frame/giây."
+                ),
+            }
+        else:
+            hanoi_forecast = {
+                "available": False,
+                "mode": "insufficient_history",
+                "predictions": [],
+                "message": (
+                    "Cần ít nhất 30 giây video lấy mẫu 1 frame/giây "
+                    "để tạo dự báo LSTM."
+                ),
+            }
     export_evidence_csv(output_dir / "evidence.csv", snapshots)
     export_evidence_csv(output_dir / "timeline.csv", timeline)
     result = {
-        "status": "succeeded", "pipeline": "AICC detector + explainable frame logic", "video": {
+        "status": "succeeded", "pipeline": "ONNX detector + Hanoi multi-horizon LSTM + visual rules", "video": {
             "duration_seconds": round(duration,3), "fps": round(fps,3), "width": width, "height": height,
             "frames_total": total, "frames_sampled": sample_index, "sample_fps": round(effective_sample_fps,3),
         },
@@ -425,12 +480,14 @@ def analyze_video(video_path: Path, bundle: dict[str, Any], output_dir: Path, *,
             "current_raw_ci": timeline[-1]["raw_ci"],
         },
         "frames": snapshots, "timeline": timeline, "trend_forecast": forecast,
+        "hanoi_forecast": hanoi_forecast,
         "evidence_csv": "evidence.csv", "timeline_csv": "timeline.csv",
         "limitations": [
             "Khung ảnh được phân loại bằng luật giải thích được từ số xe phát hiện và diện tích hộp trong ảnh; kết hợp temporal smoothing và hysteresis để ổn định nhãn.",
-            "Bộ AICC v1.0-car-only chủ yếu bao phủ ô tô; không đủ để suy ra chính xác dòng xe máy Hà Nội.",
+            "Dự báo LSTM +5/+10/+15 giây là kết quả thử nghiệm từ clip, chưa được hiệu chuẩn hoặc xác nhận trên camera trực tiếp.",
+            "Mô hình chỉ hỗ trợ horizon tính bằng giây; không thể diễn giải thành dự báo +5/+10/+15 phút.",
             "Tốc độ trong ảnh là pixel/giây, chưa phải km/h; chưa hiệu chuẩn homography/ROI.",
-            "Ngoại suy +5/+10 phút, nếu có, là trend baseline, không phải forecaster đã huấn luyện.",
+            "CI và nhãn thị giác là baseline giải thích được, không phải CI dự báo đã hiệu chuẩn.",
             "Một clip đơn lẻ không cho biết mức ùn tắc của tuyến thay thế B; cần telemetry mới ở các tuyến đó.",
         ],
     }

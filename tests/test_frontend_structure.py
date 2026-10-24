@@ -61,6 +61,22 @@ def test_scenario_first_landing_and_no_synthetic_dashboard_forecast():
     assert '"trend": [],' in backend
 
 
+def test_video_upload_works_without_camera_selection_and_shows_experimental_hanoi_horizons():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    html = (root / "static/index.html").read_text(encoding="utf-8")
+    js = (root / "static/app.js").read_text(encoding="utf-8")
+    backend = (root / "app/main.py").read_text(encoding="utf-8")
+    render = (root / "render.yaml").read_text(encoding="utf-8")
+    assert "Đoạn A / điểm đi (không bắt buộc)" in html
+    assert "LSTM thử nghiệm +5 / +10 / +15 giây" in html
+    assert "if (originId) form.append('camera_id', originId)" in js
+    assert "canAnalyzeUploadedScenarioVideo" in js
+    assert "PUBLIC_VIDEO_REVIEW_ENABLED" in backend
+    assert 'key: PUBLIC_VIDEO_REVIEW_ENABLED' in render
+
+
 def test_alerts_are_not_fabricated_when_no_live_event_generator_exists():
     from fastapi.testclient import TestClient
     from app.main import app

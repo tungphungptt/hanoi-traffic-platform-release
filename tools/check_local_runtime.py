@@ -22,6 +22,9 @@ def validate_local_status(health: dict, system: dict, aicc: dict, expected_pid: 
         raise ValueError("Wrong launch instance or stale code at this port; stop the old backend and check the checkout.")
     if expected_pid is not None and system.get("process_id") != expected_pid:
         raise ValueError("Wrong process or stale code at this port; stop the old backend and check the checkout.")
+    hanoi = aicc.get("hanoi_forecaster") or {}
+    if aicc.get("video_review_enabled") is not True or hanoi.get("artifacts_present") is not True:
+        raise ValueError("Video-review models are unavailable; check the AICC and Hanoi model bundles in this checkout.")
     if aicc.get("artifacts_present") is not True or aicc.get("missing_files"):
         raise ValueError("AICC model bundle is missing; check models/ in this local checkout.")
 

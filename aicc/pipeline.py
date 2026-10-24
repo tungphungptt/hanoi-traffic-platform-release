@@ -33,7 +33,7 @@ CONFIDENCE_THRESHOLD = 0.25
 NMS_THRESHOLD = 0.45
 TRACK_DISTANCE_THRESHOLD = 50.0
 MAX_TRACK_AGE = 5
-COCO_CLASS_IDS = {"car": 2, "truck": 7, "bus": 5}
+COCO_CLASS_IDS = {"car": 2, "motorcycle": 3, "truck": 7, "bus": 5}
 MAX_VIDEO_BYTES = 500 * 1024 * 1024
 
 

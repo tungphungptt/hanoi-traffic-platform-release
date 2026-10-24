@@ -6,10 +6,10 @@
 
 ## Luồng làm việc chính
 
-1. **Chọn đoạn A / điểm đi** trên bản đồ/danh sách camera.
-2. **Nạp clip** từ máy hoặc chọn video đã đặt trong `data/`. Với ảnh tĩnh/footage không đúng thời gian quay, có thể phân loại trạng thái theo frame nhưng không được suy ra +5/+10 phút.
-3. **Xem bộ ảnh minh chứng**: hệ thống lấy mẫu frame, đánh dấu detection từ AICC Phase 1 và gán mức Thông thoáng/Đông đúc/Ùn ứ/Tắc nghẽn bằng luật giải thích được dựa trên số xe phát hiện, phần diện tích bounding box và chuyển động tương đối trong ảnh.
-4. **Đánh giá xu hướng** chỉ được bật khi người dùng xác nhận clip giữ thời gian thật, clip đủ dài và đủ mẫu. Đây chỉ là ngoại suy tuyến tính baseline có cảnh báo rõ ràng; không phải mô hình dự báo Hà Nội đã huấn luyện.
+1. **Nạp clip** từ máy tính để phân tích ngay; chọn đoạn A là tùy chọn và chỉ dùng để gắn clip với tuyến. Video trong `data/` vẫn dành cho vận hành local.
+2. Hệ thống lấy mẫu frame, đánh dấu detection từ AICC Phase 1 và gán mức Thông thoáng/Đông đúc/Ùn ứ/Tắc nghẽn bằng luật giải thích được dựa trên số xe phát hiện, phần diện tích bounding box và chuyển động tương đối trong ảnh.
+3. **Xem dự báo thử nghiệm**: Hanoi LSTM yêu cầu tối thiểu 30 giây clip lấy mẫu 1 Hz và hiển thị xác suất tắc +5/+10/+15 giây; điểm xác suất chưa hiệu chuẩn, không thay thế dự báo theo phút.
+4. Baseline xu hướng +5/+10 phút vẫn là một luồng riêng, chỉ được bật khi người dùng xác nhận clip giữ thời gian thật và đủ mẫu; đây là ngoại suy tuyến tính, không phải LSTM đã huấn luyện.
 5. **Chọn điểm đến và so sánh tuyến thay thế**. Hệ thống gọi OSRM lấy hình học tuyến đường từ mạng đường OSM. Nếu chưa có telemetry RTSP mới xác minh và phủ đủ mọi phương án, tuyến ưu tiên chọn theo thời gian tham chiếu, không tuyên bố là “ít tắc nhất”. Nếu các tuyến đều được phủ bởi telemetry RTSP mới, dùng heuristic có phạt CI và ghi rõ cơ sở tính điểm.
 
 ## Khởi chạy trên Windows
@@ -62,7 +62,8 @@ Bộ kiểm thử có test process con/HTTP trên Linux và test tĩnh launcher.
 
 ```text
 app/main.py                         FastAPI endpoints, job queue, artifact/provider runtime
-traffic_brain/video_review.py       Frame sampling, visual heuristic, optional trend baseline
+traffic_brain/video_review.py       Frame sampling, visual heuristic, experimental clip forecasts
+traffic_brain/hanoi_video_forecaster.py  Hanoi LSTM ONNX runtime for +5/+10/+15 seconds
 traffic_brain/routing.py            OSRM road routing + conservative live-telemetry scoring
 traffic_brain/providers.py          Local ONNX / external HTTP forecast adapter
 traffic_brain/feature_engine.py     Manifest-ordered features, PCU, homography/calibration primitives
@@ -93,7 +94,7 @@ The AICC-compatible integration is retained from the operator's earlier project.
 |---|---|---|
 | `GET /api/health` | Service health | Does not assert model/camera health |
 | `GET /api/cameras` | Camera metadata and assigned local clips | Bundled camera status/metrics are fixtures unless replaced with verified ingestion |
-| `POST /api/scenarios/video-review` | Upload and queue video review | Local/protected mode only; sampled annotated images and heuristic labels |
+| `POST /api/scenarios/video-review` | Upload and queue video review | Public mode requires `PUBLIC_VIDEO_REVIEW_ENABLED=true`; 100 MB / 5 minute cap |
 | `POST /api/scenarios/video-review-from-data` | Queue a file under `data/` | Rejects path escape, unsupported file type, oversize input and public demo writes |
 | `GET /api/scenarios/video-reviews/{job_id}` | Job progress/result | In-memory job state; lost on restart |
 | `GET /api/scenarios/video-reviews/{job_id}/frames/{filename}` | View a generated JPEG | Constrained job ID and filename pattern |
@@ -130,7 +131,7 @@ Useful reference concepts were independently implemented where appropriate: samp
 
 ## Deployment boundaries
 
-The local bootstrap binds only to loopback. `render.yaml` uses read-only `PUBLIC_DEMO_MODE=true` and disables video analysis. A public internet deployment requires access control, HTTPS, persistent storage, audit/retention rules, rate limits, camera/traffic data licenses and an independent model validation procedure. This release is a research/operational prototype, not a certified traffic-control system.
+The local bootstrap binds only to loopback. `render.yaml` keeps `PUBLIC_DEMO_MODE=true` and `PUBLIC_VIDEO_REVIEW_ENABLED=false`, so the public deployment stays read-only by default. The dedicated upload opt-in is retained for an explicitly configured protected deployment; stored-file and other public writes remain disabled. Public uploads are limited to 100 MB and 5 minutes and consume shared CPU, so deployment should add authentication, rate limits, storage-retention rules, and abuse monitoring before wider use. Video LSTM outputs are experimental, second-based, and uncalibrated. This release is a research/operational prototype, not a certified traffic-control system.
 
 ## Final 8.0 release hardening
 
