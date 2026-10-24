@@ -187,10 +187,11 @@
             <section class="panel scenario-input-panel">
               <div class="section-kicker">01 · NGUỒN ĐOẠN ĐƯỜNG A</div><h2>Chọn video và điểm giám sát</h2>
               <div class="scenario-field"><label for="scenarioOriginSelect">Đoạn A / điểm đi</label><select id="scenarioOriginSelect" class="scenario-select"><option value="">Đang tải camera…</option></select><small>Tọa độ mẫu là vị trí tham chiếu theo tên giao lộ; cần xác minh trước khi vận hành.</small></div>
-              <div class="scenario-field"><label for="scenarioDataVideo">Video có sẵn trong thư mục data/</label><div class="scenario-inline"><select id="scenarioDataVideo" class="scenario-select"><option value="">Đang tải danh sách video…</option></select><button class="btn btn-outline" id="scenarioAnalyzeDataBtn" type="button">Phân tích</button></div></div>
+              <div class="scenario-field"><label for="scenarioDataVideo">Video có sẵn trong thư mục data/</label><div class="scenario-inline"><select id="scenarioDataVideo" class="scenario-select"><option value="">Đang tải danh sách video…</option></select><button class="btn btn-outline" id="scenarioAnalyzeDataBtn" type="button" disabled>Phân tích</button></div></div>
               <div class="scenario-upload"><label for="scenarioVideoFile">Hoặc thêm video từ máy tính</label><input id="scenarioVideoFile" type="file" accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,.mp4,.mov,.avi,.mkv,.mpeg,.mpg,.webm"/><small>Giới hạn 500 MB; tác vụ xử lý chạy nền trên CPU. Video chỉ dùng để trích xuất đặc trưng/frame, không phải feed trực tiếp.</small></div>
               <label class="timing-consent"><input id="scenarioPreserveTiming" type="checkbox"/><span><strong>Clip giữ đúng thời gian quay (không timelapse / không tăng tốc)</strong><small>Chỉ bật nếu chắc chắn timestamp phản ánh thời gian thực. Nếu không, hệ thống không ngoại suy +5/+10 phút từ clip.</small></span></label>
-              <button class="btn btn-primary scenario-main-action" id="scenarioAnalyzeUploadBtn" type="button">Phân tích clip & tạo ảnh minh chứng</button>
+              <div class="scenario-job-status" id="scenarioInputHint" role="status" aria-live="polite">Chọn tệp từ máy tính hoặc video trong data/ để bắt đầu.</div>
+              <button class="btn btn-primary scenario-main-action" id="scenarioAnalyzeUploadBtn" type="button" disabled>Phân tích clip & tạo ảnh minh chứng</button>
               <div class="scenario-job-status" id="scenarioJobStatus" role="status" aria-live="polite">Chưa có lượt xử lý. Chọn đoạn A và video để bắt đầu.</div>
               <div class="scenario-progress" id="scenarioProgressWrap" hidden><div class="scenario-progress-bar"><span id="scenarioProgressBar"></span></div><small id="scenarioProgressText">Đang chờ CPU…</small></div>
             </section>
@@ -246,6 +247,6 @@
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
   <div class="modal-backdrop" id="cameraModal" hidden><div class="modal"><div class="modal-head"><div><span class="section-kicker">CHI TIẾT ĐIỂM GIÁM SÁT</span><h2 id="cameraModalTitle">Camera</h2></div><button class="modal-close" id="closeCameraModal">×</button></div><div id="cameraModalContent"></div><div class="modal-actions"><button class="btn btn-outline" id="closeCameraModal2">Đóng</button><button class="btn btn-primary" data-page="alerts" id="cameraModalAlerts">Xem cảnh báo liên quan</button></div></div></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
-  <script src="/static/app.js" defer></script>
+  <script src="/static/app.js?v=20261024-video-controls-2" defer></script>
 </body>
 </html>

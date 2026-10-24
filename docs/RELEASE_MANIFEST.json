@@ -1,7 +1,7 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 208,
+  "files_count": 210,
   "files": [
     {
       "path": ".env.example",
@@ -65,8 +65,8 @@
     },
     {
       "path": "app/main.py",
-      "bytes": 96075,
-      "sha256": "8f57ed3df7359351fb9a773d2d9e1345a2d95ae80f2ac704b53e32a3c19616d5"
+      "bytes": 97476,
+      "sha256": "2b0ee85630e340ccdb10312442c06ca93c3afd38d2b6d99e5bbe793e7167ed79"
     },
     {
       "path": "app/traffic_baseline.py",
@@ -460,8 +460,8 @@
     },
     {
       "path": "deploy_demo.ps1",
-      "bytes": 8868,
-      "sha256": "8da0f132b4812014f48f90ac3911783466283af8175c5a5c8dddf092ca67dc05"
+      "bytes": 8869,
+      "sha256": "175bac0db689913428320d89a0ce6c45643d58dc6656e22e4235dc6fb6db03d5"
     },
     {
       "path": "docker/Dockerfile.cpu",
@@ -810,13 +810,13 @@
     },
     {
       "path": "static/app.js",
-      "bytes": 99140,
-      "sha256": "1d5286554100662997ac49b764a60b1009593a77d500a01410f979492d5dcd51"
+      "bytes": 103416,
+      "sha256": "0f871101b3e0ddd0c1482dfbc8db38062d51ea9809434fddcda1a1b3a925aa75"
     },
     {
       "path": "static/index.html",
-      "bytes": 49990,
-      "sha256": "4fa0a99325a0ea444430c38d2081ba2ed3ea5f297b0b5c6c9e2a94e80dd9256c"
+      "bytes": 50219,
+      "sha256": "e3df30fa89a5a3009d974c8a36b877c162ed1240bbade9ad9f455c75760a67b4"
     },
     {
       "path": "static/street-traffic-demo.jpg",
@@ -890,8 +890,8 @@
     },
     {
       "path": "tests/test_release_integrity.py",
-      "bytes": 2923,
-      "sha256": "4f6014b703a47c7ca3908edfcdd15ac55b2f645236a4441e7985e1857d7093fb"
+      "bytes": 3521,
+      "sha256": "5b7885addee33d7835080925164c6441c28e636bb472706557655210c08ffb6e"
     },
     {
       "path": "tests/test_scenarios.py",
@@ -1042,6 +1042,16 @@
       "path": "VERSION",
       "bytes": 6,
       "sha256": "462c9aaa608fb2014cd9649af1c5c009485c60b9c8b15b89401fdc10cf6161c6"
+    },
+    {
+      "path": "tests/test_video_review_jobs.py",
+      "bytes": 6102,
+      "sha256": "4f9621c2db114dd0d2eedaa079f43ebf3aa0ee4286a78bcbb028c2e9031e0ae6"
+    },
+    {
+      "path": "tests/video_review_frontend.test.cjs",
+      "bytes": 8641,
+      "sha256": "83aa1242c861ab14b54a93e73247963011526066ae1ba36f740a826cdd299bcd"
     }
   ]
 }

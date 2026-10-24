@@ -130,7 +130,8 @@
     }
 
     # Dataset/videos are intentionally excluded from this release.
-    # Do not copy data/input.mp4 from a previous workspace.    $env:PUBLIC_DEMO_MODE = 'false'
+    # Do not copy data/input.mp4 from a previous workspace.
+    $env:PUBLIC_DEMO_MODE = 'false'
     $env:AICC_VIDEO_ENABLED = 'true'
     $env:AICC_SAMPLE_FPS = '6'
 
