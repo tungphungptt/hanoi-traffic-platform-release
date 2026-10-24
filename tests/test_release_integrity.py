@@ -77,3 +77,18 @@ def test_local_bootstrap_actually_sets_write_mode_before_launch():
         assignment = re.search(rf"(?m)^\s*\$env:{name}\s*=\s*'{value}'\s*$", script)
         assert assignment, f"Local bootstrap must execute the {name} assignment, not comment it out"
         assert assignment.start() < launch
+
+
+def test_launcher_verifies_child_mode_and_pid_before_reporting_ready():
+    script = (ROOT / "deploy_demo.ps1").read_text(encoding="utf-8-sig")
+    launch = script.index("$Proc = Start-Process")
+    check = script.index("tools/check_local_runtime.py --base-url")
+    ready = script.index('DEMO READY:')
+    assert launch < check < ready
+    assert '--expected-instance $env:HANOI_LAUNCH_INSTANCE' in script
+    assert script.index('$env:HANOI_LAUNCH_INSTANCE = [guid]::NewGuid()') < launch
+    assert '$CheckExit = $LASTEXITCODE' in script
+    assert 'if ($CheckExit -eq 2)' in script
+    assert "--host','127.0.0.1'" in script
+    assert script.count('    Assert-LocalPortAvailable') == 2
+    assert "find_spec('app.main')" in script

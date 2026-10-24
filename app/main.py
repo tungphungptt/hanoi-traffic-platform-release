@@ -60,6 +60,16 @@ def require_write_access() -> None:
     if PUBLIC_DEMO_MODE:
         raise HTTPException(status_code=403, detail="Public demo đang ở chế độ chỉ đọc; thao tác ghi đã bị tắt.")
 
+
+def video_review_access() -> dict[str, Any]:
+    """Expose the effective server flags, independently of model forecast readiness."""
+    return {
+        "public_demo_mode": PUBLIC_DEMO_MODE,
+        "video_enabled": AICC_VIDEO_ENABLED,
+        "enabled": AICC_VIDEO_ENABLED and not PUBLIC_DEMO_MODE,
+        "blocked_reason": "public_demo" if PUBLIC_DEMO_MODE else "video_disabled" if not AICC_VIDEO_ENABLED else None,
+    }
+
 DEFAULT_MANIFEST: dict[str, Any] = {
     "artifact_version": "2.0.0-schema-only",
     "domain_profile": "SEA_Urban_Unstructured_Hanoi",
@@ -977,6 +987,9 @@ def system_status() -> dict[str, Any]:
         "alerts_open": 0,
         "cpu_target": "CPU · ONNX Runtime",
         "public_demo_mode": PUBLIC_DEMO_MODE,
+        "video_review": video_review_access(),
+        "process_id": os.getpid(),
+        "launch_instance": os.getenv("HANOI_LAUNCH_INSTANCE") if not PUBLIC_DEMO_MODE else None,
         "camera_config_warning": CAMERA_CONFIG_WARNING,
         "telemetry_source": "authorized_rtsp_collector" if telemetry else "not_connected",
         "updated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
@@ -1395,7 +1408,7 @@ def download_manifest() -> FileResponse:
 def aicc_status() -> dict[str, Any]:
     """Report readiness of the separate AICC sequence-classification bundle."""
     status = aicc_runtime.status()
-    status["enabled"] = AICC_VIDEO_ENABLED and not PUBLIC_DEMO_MODE
+    status.update(video_review_access())
     status["upstream"] = "https://github.com/dinoraptor999/AICC"
     status["upload_limit_mb"] = MAX_VIDEO_BYTES // (1024 * 1024)
     if PUBLIC_DEMO_MODE:

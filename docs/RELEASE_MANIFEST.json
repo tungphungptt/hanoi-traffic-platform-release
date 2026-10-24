@@ -1,7 +1,7 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 210,
+  "files_count": 212,
   "files": [
     {
       "path": ".env.example",
@@ -15,8 +15,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 914,
-      "sha256": "dabde2fd9b2266eb24a1a2334c45d3fb801088266fadcfaba7c63888ac0146af"
+      "bytes": 1027,
+      "sha256": "3fd9feee5bd27aea39ac9637f3fd8997180d99c265a5ac30cda93af3fcad86a4"
     },
     {
       "path": ".gitignore",
@@ -65,8 +65,8 @@
     },
     {
       "path": "app/main.py",
-      "bytes": 97476,
-      "sha256": "2b0ee85630e340ccdb10312442c06ca93c3afd38d2b6d99e5bbe793e7167ed79"
+      "bytes": 98056,
+      "sha256": "78e2961ddc3b50f0364860482e8d1cfc862b281cff781ae83968ef04cf7acda2"
     },
     {
       "path": "app/traffic_baseline.py",
@@ -460,8 +460,8 @@
     },
     {
       "path": "deploy_demo.ps1",
-      "bytes": 8869,
-      "sha256": "175bac0db689913428320d89a0ce6c45643d58dc6656e22e4235dc6fb6db03d5"
+      "bytes": 11218,
+      "sha256": "0778d19a7814fee89182b094eb45e333143b390e7efef1e6aef1da82c17dc3ba"
     },
     {
       "path": "docker/Dockerfile.cpu",
@@ -775,8 +775,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 12751,
-      "sha256": "337a531102830c4358977513f4bad4888b68274081508176906150b4f6fd4a6c"
+      "bytes": 15698,
+      "sha256": "25d343c303ad877211e0118461093eae120e56a4275357379dedfe754806868b"
     },
     {
       "path": "render.yaml",
@@ -810,13 +810,13 @@
     },
     {
       "path": "static/app.js",
-      "bytes": 103416,
-      "sha256": "0f871101b3e0ddd0c1482dfbc8db38062d51ea9809434fddcda1a1b3a925aa75"
+      "bytes": 104868,
+      "sha256": "afcde14810115779a685499ba364aa5f156e96424421ac1865b70d5fd3984027"
     },
     {
       "path": "static/index.html",
-      "bytes": 50219,
-      "sha256": "e3df30fa89a5a3009d974c8a36b877c162ed1240bbade9ad9f455c75760a67b4"
+      "bytes": 50216,
+      "sha256": "70c869063632158ec8c4b141e0de75667696ccc7866dd141f164a27ee92417b1"
     },
     {
       "path": "static/street-traffic-demo.jpg",
@@ -890,8 +890,8 @@
     },
     {
       "path": "tests/test_release_integrity.py",
-      "bytes": 3521,
-      "sha256": "5b7885addee33d7835080925164c6441c28e636bb472706557655210c08ffb6e"
+      "bytes": 4258,
+      "sha256": "cc533244a6304d043380e4928caae3b074dc151631a75ed6d8ad0f9476d6843e"
     },
     {
       "path": "tests/test_scenarios.py",
@@ -1045,13 +1045,23 @@
     },
     {
       "path": "tests/test_video_review_jobs.py",
-      "bytes": 6102,
-      "sha256": "4f9621c2db114dd0d2eedaa079f43ebf3aa0ee4286a78bcbb028c2e9031e0ae6"
+      "bytes": 6205,
+      "sha256": "8dfc75b2c53e0728bcfea92e1c4d29901cfa5e27661419294d8abab6a61043fb"
     },
     {
       "path": "tests/video_review_frontend.test.cjs",
-      "bytes": 8641,
-      "sha256": "83aa1242c861ab14b54a93e73247963011526066ae1ba36f740a826cdd299bcd"
+      "bytes": 10738,
+      "sha256": "e6e0dbff72dccab917a68b5a2c9950c31c03c2acb01c3b6314096da9a3de947b"
+    },
+    {
+      "path": "tests/test_local_runtime.py",
+      "bytes": 6121,
+      "sha256": "4dd3bff107f162927055fd9540d23f49a236edf06f24f8238a404e24197c5750"
+    },
+    {
+      "path": "tools/check_local_runtime.py",
+      "bytes": 3624,
+      "sha256": "e30129b14f55bbede51e224b00da2bafe65e65641850030326eeb49c2daa9407"
     }
   ]
 }
