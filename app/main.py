@@ -72,6 +72,16 @@ def require_write_access() -> None:
     if PUBLIC_DEMO_MODE:
         raise HTTPException(status_code=403, detail="Public demo đang ở chế độ chỉ đọc; thao tác ghi đã bị tắt.")
 
+
+def video_review_access() -> dict[str, Any]:
+    """Expose the effective server flags, independently of model forecast readiness."""
+    return {
+        "public_demo_mode": PUBLIC_DEMO_MODE,
+        "video_enabled": AICC_VIDEO_ENABLED,
+        "enabled": AICC_VIDEO_ENABLED and not PUBLIC_DEMO_MODE,
+        "blocked_reason": "public_demo" if PUBLIC_DEMO_MODE else "video_disabled" if not AICC_VIDEO_ENABLED else None,
+    }
+
 DEFAULT_MANIFEST: dict[str, Any] = {
     "artifact_version": "2.0.0-schema-only",
     "domain_profile": "SEA_Urban_Unstructured_Hanoi",
@@ -1011,6 +1021,9 @@ def system_status() -> dict[str, Any]:
         "alerts_open": 0,
         "cpu_target": "CPU · ONNX Runtime",
         "public_demo_mode": PUBLIC_DEMO_MODE,
+        "video_review": video_review_access(),
+        "process_id": os.getpid(),
+        "launch_instance": os.getenv("HANOI_LAUNCH_INSTANCE") if not PUBLIC_DEMO_MODE else None,
         "video_review_upload_enabled": video_review_upload_enabled(),
         "video_review_ready": (
             video_review_upload_enabled()
@@ -1437,7 +1450,7 @@ def download_manifest() -> FileResponse:
 def aicc_status() -> dict[str, Any]:
     """Report readiness of the separate AICC sequence-classification bundle."""
     status = aicc_runtime.status()
-    status["enabled"] = AICC_VIDEO_ENABLED and not PUBLIC_DEMO_MODE
+    status.update(video_review_access())
     hanoi_status = hanoi_video_forecaster.status()
     status["hanoi_forecaster"] = hanoi_status
     status["video_review_enabled"] = (
@@ -1476,6 +1489,8 @@ def aicc_status() -> dict[str, Any]:
         status["message"] = "AICC_VIDEO_ENABLED=false; bật biến môi trường để chạy phân tích video."
     elif status.get("missing_files"):
         status["message"] = "Cần đặt detector.onnx, predictor.onnx và scaler.pkl vào models/ theo manifest AICC."
+    elif hanoi_status.get("missing_files"):
+        status["message"] = "Thiếu bộ model Hanoi cho video review; kiểm tra hanoi_predictor.onnx, hanoi_scaler.pkl và hanoi_manifest.json trong models/."
     elif not status.get("loaded"):
         status["message"] = status.get("error") or "Artifacts đã có; model sẽ được nạp lần đầu khi gửi video."
     else:

@@ -30,6 +30,34 @@ Bootstrap sẽ:
 
 Tắt server bằng `Ctrl+C` trong cửa sổ Uvicorn. Có thể đổi cổng bằng `-Port 8001`. Nếu cổng đang sử dụng, script dừng và báo cách khắc phục. Bản ZIP không kèm footage/video, `.env`, hoặc trọng số model upstream vì chưa đủ xác minh quyền phân phối. Bản local cần các artifact AICC trong đường dẫn nêu trên để chạy inference video.
 
+## Phân biệt bản local và demo Render khi phân tích video
+
+`https://hanoi-traffic-platform.onrender.com/` là một backend riêng. Cấu hình `render.yaml` giữ bản demo công khai ở chế độ chỉ đọc và tắt phân tích video. Khởi động server trên Windows không bật upload trên trang Render. Hãy mở địa chỉ `http://127.0.0.1:8000` (hoặc cổng đã chọn) do launcher local thông báo để phân tích clip.
+
+Tại checkout Git trên Windows, dừng Uvicorn cũ bằng `Ctrl+C`, cập nhật code rồi chạy:
+
+```powershell
+git status --short
+git switch main
+git pull --ff-only origin main
+powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy_demo.ps1
+```
+
+Nếu có thay đổi local, giữ lại chúng và giải quyết trước khi chuyển branch; không reset hoặc ghi đè dữ liệu cá nhân. Nếu thư mục được giải nén từ ZIP và không có `.git`, cần cập nhật từ bản phát hành đã chứa bản sửa thay vì chạy `git pull`.
+
+Launcher dùng `.venv\Scripts\python.exe` với Python 3.12/3.11, đặt `PUBLIC_DEMO_MODE=false` và `AICC_VIDEO_ENABLED=true` trước khi tạo process con, đồng thời in đường dẫn dự án/interpreter và các cờ không chứa secret. Nó kiểm tra cổng cả trước setup và trước khi chạy Uvicorn, xác minh `app.main` thuộc checkout hiện tại, rồi chỉ báo `DEMO READY` sau khi `tools/check_local_runtime.py` kiểm tra health, mã phiên khởi chạy được process con kế thừa, PID server thực tế, quyền phân tích thực tế và sự hiện diện của bộ model. Process environment được ưu tiên trước `.env`; không cần ghi đè `.env` cá nhân. Python 3.14 không thuộc bộ runtime được launcher hỗ trợ.
+
+Có thể kiểm tra chế độ của server đang mở bằng PowerShell trong cửa sổ khác:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/api/system | Select-Object public_demo_mode,process_id,video_review
+Invoke-RestMethod http://127.0.0.1:8000/api/aicc/status | Select-Object public_demo_mode,video_enabled,enabled,artifacts_present,blocked_reason
+```
+
+Ở bản local được phép phân tích, `public_demo_mode` phải là `False`, `video_enabled`, `enabled` và `artifacts_present` phải là `True`. Nút upload dùng file đã chọn từ máy tính, độc lập với danh sách `data/`; danh sách trống chỉ khóa nút phân tích từ `data/`. File được chọn chưa được upload cho đến khi bấm phân tích. Nếu khởi động lại backend với cấu hình khác, dùng nút làm mới để đọc lại trạng thái có thẩm quyền từ API.
+
+Bộ kiểm thử có test process con/HTTP trên Linux và test tĩnh launcher. Các test đó không thay thế việc chạy Windows PowerShell thực tế trên máy Windows.
+
 ## Cấu trúc dự án
 
 ```text
@@ -92,6 +120,7 @@ For live traffic overlays, set `TRAFFIC_TILE_URL_TEMPLATE` and attribution to a 
 .\.venv\Scripts\python.exe -m compileall -q app aicc traffic_brain tests
 .\.venv\Scripts\python.exe -m pytest -q
 node --check static/app.js
+node --test tests/video_review_frontend.test.cjs
 ```
 
 `tools/evaluate_forecast.py` computes MAE/RMSE at +5/+10/+15 on a CSV with verified ground truth. The header-only `data/examples/forecast-evaluation-template.csv` is an example, not a benchmark. Required independent evaluation should split by time/camera, and include mAP, IDF1, counting error, CI MAE/RMSE, macro-F1 per horizon, inference latency and RAM.
@@ -102,7 +131,7 @@ Useful reference concepts were independently implemented where appropriate: samp
 
 ## Deployment boundaries
 
-The local bootstrap binds only to loopback. `render.yaml` keeps `PUBLIC_DEMO_MODE=true` and enables only the dedicated, capped video-review upload; all other public write operations remain disabled. Public uploads are limited to 100 MB and 5 minutes and consume shared CPU, so deployment should add authentication, rate limits, storage-retention rules, and abuse monitoring before wider use. Video LSTM outputs are experimental, second-based, and uncalibrated. This release is a research/operational prototype, not a certified traffic-control system.
+The local bootstrap binds only to loopback. `render.yaml` keeps `PUBLIC_DEMO_MODE=true` and `PUBLIC_VIDEO_REVIEW_ENABLED=false`, so the public deployment stays read-only by default. The dedicated upload opt-in is retained for an explicitly configured protected deployment; stored-file and other public writes remain disabled. Public uploads are limited to 100 MB and 5 minutes and consume shared CPU, so deployment should add authentication, rate limits, storage-retention rules, and abuse monitoring before wider use. Video LSTM outputs are experimental, second-based, and uncalibrated. This release is a research/operational prototype, not a certified traffic-control system.
 
 ## Final 8.0 release hardening
 

@@ -1,14 +1,18 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { dashboard: null, cameras: [], alerts: [], modelStatus: null, providerStatus: null, aiccStatus: null, manifest: null, currentPage: 'video', mapLayer: 'status', aiccResults: null, scenarioResult: null, scenarioJobId: null, scenarioBusy: false, routeResult: null, routeMap: null, routeMapLayers: [], selectedRouteId: null, selectedCameraId: null, publicDemoMode: false, leafletMap: null, leafletMarkers: new Map(), baseTileLayer: null, trafficTileLayer: null, mapConfig: null, mapPollSeconds: 45, mapPollBusy: false, mapPollTimer: null };
+const state = { dashboard: null, cameras: [], alerts: [], modelStatus: null, providerStatus: null, aiccStatus: null, manifest: null, currentPage: 'video', mapLayer: 'status', aiccResults: null, scenarioResult: null, scenarioJobId: null, scenarioBusy: false, scenarioDataVideos: [], routeResult: null, routeMap: null, routeMapLayers: [], selectedRouteId: null, selectedCameraId: null, publicDemoMode: false, leafletMap: null, leafletMarkers: new Map(), baseTileLayer: null, trafficTileLayer: null, mapConfig: null, mapPollSeconds: 45, mapPollBusy: false, mapPollTimer: null };
+
 
 function canAnalyzeUploadedScenarioVideo() {
   return Boolean(state.aiccStatus?.video_review_enabled);
 }
 
 function canAnalyzeStoredScenarioVideo() {
-  return !state.publicDemoMode && Boolean(state.aiccStatus?.video_review_enabled);
+  const status = state.aiccStatus;
+  const publicMode = typeof status?.public_demo_mode === 'boolean' ? status.public_demo_mode : state.publicDemoMode;
+  return !publicMode && Boolean(status?.enabled && status?.video_review_enabled);
 }
+
 const PAGE_NAMES = { overview: 'Tổng quan', cameras: 'Điểm giám sát', alerts: 'Cảnh báo', analytics: 'Báo cáo & xu hướng', video: 'Dự báo & phương án', models: 'Nguồn xử lý', settings: 'Cài đặt vận hành' };
 
 async function api(path, options = {}) {
@@ -995,9 +999,17 @@ function renderModelStatus() {
 }
 
 function scenarioWriteBlockReason() {
-  if (!canAnalyzeUploadedScenarioVideo()) {
-    return state.aiccStatus?.message || 'Tải video phân tích đang tắt hoặc model chưa sẵn sàng.';
-  }
+  const status = state.aiccStatus;
+  if (!status || typeof status.video_review_enabled !== 'boolean') return 'Chưa xác minh được quyền phân tích video từ máy chủ. Nhấn làm mới để kiểm tra lại kết nối.';
+  const publicMode = typeof status.public_demo_mode === 'boolean' ? status.public_demo_mode : state.publicDemoMode;
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+  if (publicMode && !canAnalyzeUploadedScenarioVideo()) return loopback
+    ? 'Máy chủ local đang ở chế độ chỉ đọc. Dừng backend và chạy deploy_demo.ps1 để bật phân tích cục bộ.'
+    : 'Bạn đang mở bản demo công khai chỉ đọc. Trang này không nhận hoặc phân tích video upload. Hãy chạy bản local trên máy và mở địa chỉ 127.0.0.1 do launcher thông báo; khởi động local không thay đổi trang demo này.';
+  if (!status.enabled && !canAnalyzeUploadedScenarioVideo()) return loopback
+    ? 'Máy chủ local chưa bật phân tích video. Dừng backend và chạy deploy_demo.ps1 để bật chế độ local.'
+    : 'Máy chủ này đã tắt phân tích video. Dùng bản local hoặc liên hệ người vận hành môi trường được bảo vệ.';
+  if (!canAnalyzeUploadedScenarioVideo()) return status.message || 'Thiếu bộ model cần cho phân tích video; kiểm tra nguồn xử lý.';
   return '';
 }
 
@@ -1006,25 +1018,29 @@ function renderScenarioInputState() {
   const path = $('#scenarioDataVideo')?.value;
   const blocked = scenarioWriteBlockReason();
   const maxMb = Number(state.aiccStatus?.upload_limit_mb || 500);
-  const commonReason = state.scenarioBusy ? 'Tác vụ đang chạy; đợi xử lý xong.' : '';
-  const uploadReason = commonReason || blocked
+  const busyReason = state.scenarioBusy ? 'Tác vụ đang chạy; đợi xử lý xong.' : '';
+  const uploadReason = busyReason || blocked
     || (!file ? 'Chọn tệp từ máy tính để phân tích clip upload.' : '')
-    || (file && file.size > maxMb * 1024 * 1024 ? `Video vượt giới hạn ${maxMb} MB.` : '');
-  const dataReason = commonReason
-    || (state.publicDemoMode || !state.aiccStatus?.enabled ? 'Video trong data/ chỉ có thể phân tích ở chế độ local.' : '')
+    || (file.size > maxMb * 1024 * 1024 ? `Video vượt giới hạn ${maxMb} MB.` : '');
+  const dataReason = busyReason
+    || (!canAnalyzeStoredScenarioVideo() ? 'Video trong data/ chỉ có thể phân tích ở chế độ local với bộ model hợp lệ.' : '')
     || (!$('#scenarioOriginSelect')?.value ? 'Chọn đoạn A / điểm đi khi dùng video trong data/.' : '')
-    || (!path ? 'Chọn một video trong data/ để dùng nút Phân tích bên cạnh danh sách.' : '');
+    || (!state.scenarioDataVideos.some(item => item.path === path) ? 'Chọn một video trong data/ để dùng nút Phân tích bên cạnh danh sách.' : '');
   for (const [selector, reason] of [['#scenarioAnalyzeUploadBtn', uploadReason], ['#scenarioAnalyzeDataBtn', dataReason]]) {
     const button = $(selector);
     if (button) { button.disabled = Boolean(reason); button.title = reason; }
   }
+  const uploadInput = $('#scenarioVideoFile');
+  if (uploadInput) uploadInput.disabled = Boolean(blocked) || state.scenarioBusy;
+  const dataSelect = $('#scenarioDataVideo');
+  if (dataSelect) dataSelect.disabled = !canAnalyzeStoredScenarioVideo() || state.scenarioBusy || !state.scenarioDataVideos.length;
   const hint = $('#scenarioInputHint');
-  if (hint) hint.textContent = commonReason || blocked || (file
-    ? uploadReason || 'Đã chọn clip từ máy tính. Bấm nút lớn bên dưới để upload và phân tích; không cần chọn camera.'
-    : path ? 'Đã chọn video trong data/. Bấm nút Phân tích bên cạnh danh sách.'
+  if (hint) hint.textContent = busyReason || blocked || (file
+    ? uploadReason || 'Đã chọn clip từ máy tính. Bấm nút lớn bên dưới để upload và phân tích; không cần chọn camera hoặc video trong data/.'
+    : path ? dataReason || 'Đã chọn video trong data/. Bấm nút Phân tích bên cạnh danh sách.'
     : 'Chọn tệp từ máy tính hoặc video trong data/ để bắt đầu.');
   const mode = $('#scenarioRuntimeMode');
-  if (mode) mode.textContent = blocked ? 'Tải video phân tích đang bị tắt' : 'Sẵn sàng phân tích video';
+  if (mode) mode.textContent = blocked ? 'Phân tích video chưa được phép' : 'Máy chủ cho phép phân tích video';
 }
 
 function renderScenarioCameraOptions() {
@@ -1053,13 +1069,15 @@ async function refreshScenarioVideoList() {
   const keep = select.value;
   try {
     const payload = await api('/api/aicc/data-videos');
-    select.innerHTML = '<option value="">Chọn video trong data/…</option>' + (payload.items || [])
+    state.scenarioDataVideos = payload.items || [];
+    select.innerHTML = '<option value="">Chọn video trong data/…</option>' + state.scenarioDataVideos
       .map(item => `<option value="${escapeHtml(item.path)}">${escapeHtml(item.path)} · ${numberVN(item.size_mb, 1)} MB</option>`).join('');
     if (keep && (payload.items || []).some(item => item.path === keep)) select.value = keep;
     const hint = $('#scenarioJobStatus');
     if (!payload.total && hint && !state.scenarioResult && !state.scenarioBusy && !$('#scenarioVideoFile')?.files?.[0]) hint.textContent = 'Backend chưa tìm thấy video trong data/. Đặt clip vào data/ hoặc thư mục con rồi tải lại danh sách; hoặc chọn tệp từ máy tính để upload.';
     renderScenarioInputState();
   } catch (error) {
+    state.scenarioDataVideos = [];
     select.innerHTML = '<option value="">Không tải được danh sách video</option>';
     renderScenarioInputState();
     const hint = $('#scenarioJobStatus'); if (hint && !state.scenarioBusy) hint.textContent = `Không tải được danh sách video: ${error.message}`;
@@ -1158,7 +1176,7 @@ async function pollScenarioReviewJob(jobId, filename) {
 async function startScenarioReview({ fromData = false } = {}) {
   if (state.scenarioBusy) return;
   const blocked = fromData
-    ? (state.publicDemoMode || !state.aiccStatus?.enabled ? 'Video trong data/ chỉ có thể phân tích ở chế độ local.' : '')
+    ? (!canAnalyzeStoredScenarioVideo() ? 'Video trong data/ chỉ có thể phân tích ở chế độ local với bộ model hợp lệ.' : '')
     : scenarioWriteBlockReason();
   if (blocked) { renderScenarioInputState(); toast('Chưa thể phân tích video', blocked, 'error'); return; }
   const originId = $('#scenarioOriginSelect').value;
@@ -1178,7 +1196,7 @@ async function startScenarioReview({ fromData = false } = {}) {
     let job;
     if (fromData) {
       const path = $('#scenarioDataVideo').value;
-      if (!path) throw new Error('Chọn video có sẵn trong data/ trước.');
+      if (!state.scenarioDataVideos.some(item => item.path === path)) throw new Error('Chọn video hợp lệ trong danh sách data/ mới nhất.');
       job = await api('/api/scenarios/video-review-from-data', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path, camera_id: originId, preserve_real_timing: preserve }) });
     } else {

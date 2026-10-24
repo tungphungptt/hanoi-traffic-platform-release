@@ -41,3 +41,6 @@ jobs:
 
       - name: Check frontend syntax
         run: node --check static/app.js
+
+      - name: Test video review frontend behavior
+        run: node --test tests/video_review_frontend.test.cjs

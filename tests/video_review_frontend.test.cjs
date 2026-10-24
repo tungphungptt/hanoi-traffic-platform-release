@@ -10,17 +10,16 @@ function setup() {
     return elements.get(id);
   };
   const context = vm.createContext({ console, AbortController, FormData, setTimeout, clearTimeout,
-    document: {querySelector: el}, window: {}, fetch: async () => { throw new TypeError('offline'); } });
+    document: {querySelector: el}, window: {location:{hostname:'127.0.0.1'}}, fetch: async () => { throw new TypeError('offline'); } });
   vm.runInContext(source, context);
-  vm.runInContext("state.aiccStatus = {enabled:true, video_review_enabled:true, upload_limit_mb:100};", context);
-  vm.runInContext("toast = () => {}; renderScenarioReview = result => { state.scenarioResult = result; };", context);
+  vm.runInContext("state.aiccStatus = {enabled:true, public_demo_mode:false, video_review_enabled:true, upload_limit_mb:500}; toast = () => {}; renderScenarioReview = result => { state.scenarioResult = result; };", context);
   return { context, el, run: code => vm.runInContext(code, context) };
 }
 function response(payload, status=200) { return { ok: status < 400, status, text: async () => JSON.stringify(payload) }; }
 
 test('api reports HTTP validation, non-JSON, network, and hung-request errors', async () => {
   const { context, run } = setup();
-  for (const status of [404, 409, 422, 500]) {
+  for (const status of [403, 404, 409, 413, 422, 500]) {
     context.fetch = async () => response({detail: status === 422 ? [{msg: 'Sai path'}] : 'CPU bận'}, status);
     await assert.rejects(run("api('/test')"), new RegExp(`HTTP ${status}`));
   }
@@ -52,6 +51,7 @@ test('both analysis flows submit correct inputs and restore independent buttons 
     const {context, el, run} = setup();
     el('#scenarioOriginSelect').value = 'HN-001';
     el('#scenarioDataVideo').value = fromData ? 'nested/clip.avi' : '';
+    run("state.scenarioDataVideos = [{path:'nested/clip.avi'}]");
     el('#scenarioVideoFile').files = fromData ? [] : [new Blob(['clip'])];
     let called;
     context.fetch = async (path, options) => {
@@ -91,6 +91,7 @@ test('accepted job polls queued/running/success without allowing a second submis
   const {context, el, run} = setup();
   el('#scenarioOriginSelect').value = 'HN-001';
   el('#scenarioDataVideo').value = 'nested/clip.avi';
+  run("state.scenarioDataVideos = [{path:'nested/clip.avi'}]");
   const jobId = 'a'.repeat(32);
   let polls = 0;
   context.setTimeout = (callback, ms) => setTimeout(callback, ms === 900 ? 0 : ms);
@@ -126,19 +127,19 @@ test('upload selection enables its button even when data listing is empty or fai
   assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
 });
 
-test('public upload follows dedicated readiness while stored-video mode remains local-only', () => {
+test('public opt-in uses upload capability while stored files remain local-only', () => {
   const {el, run} = setup();
-  el('#scenarioVideoFile').files = [new Blob(['selected clip'])];
-  run("state.publicDemoMode = true; state.aiccStatus = {enabled:false, video_review_enabled:true, upload_limit_mb:100}; renderScenarioInputState()");
+  el('#scenarioVideoFile').files = [new Blob(['clip'])];
+  run('state.publicDemoMode = true; state.aiccStatus = {enabled:false, public_demo_mode:true, video_review_enabled:true, upload_limit_mb:100}; renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
   assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
-  run("state.aiccStatus = {enabled:false, video_review_enabled:false, message:'Tải video phân tích đang bị tắt ở public demo.'}; renderScenarioInputState()");
+  run('state.aiccStatus.video_review_enabled = false; renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
-  assert.match(el('#scenarioInputHint').textContent, /tắt ở public demo/);
-  run("state.publicDemoMode = false; state.aiccStatus = {enabled:false, video_review_enabled:false, message:'Chưa bật phân tích video.'}; renderScenarioInputState()");
+  assert.match(el('#scenarioInputHint').textContent, /chế độ chỉ đọc/);
+  run('state.publicDemoMode = false; state.aiccStatus = {enabled:false,public_demo_mode:false,video_review_enabled:false}; renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
-  assert.match(el('#scenarioInputHint').textContent, /Chưa bật phân tích/);
-  run('state.aiccStatus = {enabled:true, video_review_enabled:true, upload_limit_mb:100}; renderScenarioInputState()');
+  assert.match(el('#scenarioInputHint').textContent, /chưa bật phân tích/);
+  run('state.aiccStatus = {enabled:true,public_demo_mode:false,video_review_enabled:true}; renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
 });
 
@@ -155,4 +156,38 @@ test('refresh cannot enable either input during an active review', async () => {
   run('state.scenarioBusy = false; renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
   assert.equal(el('#scenarioAnalyzeDataBtn').disabled, false);
+});
+
+
+test('public website explains that starting local does not enable the remote demo', () => {
+  const {el, run} = setup();
+  run("window.location.hostname = 'hanoi-traffic-platform.onrender.com'; state.aiccStatus = {enabled:false,public_demo_mode:true,video_review_enabled:false}; renderScenarioInputState()");
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
+  assert.match(el('#scenarioInputHint').textContent, /demo công khai/);
+  assert.match(el('#scenarioInputHint').textContent, /không thay đổi trang demo này/);
+  assert.equal(el('#scenarioVideoFile').disabled, true);
+});
+
+test('fresh backend mode overrides stale read-only dashboard state', () => {
+  const {el, run} = setup();
+  el('#scenarioOriginSelect').value = 'HN-001';
+  el('#scenarioVideoFile').files = [new Blob(['clip'])];
+  run('state.publicDemoMode = true; state.aiccStatus = {enabled:true,public_demo_mode:false,video_review_enabled:true}; renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
+  assert.equal(el('#scenarioVideoFile').disabled, false);
+  run('state.aiccStatus = null; renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
+  assert.match(el('#scenarioInputHint').textContent, /Chưa xác minh/);
+});
+
+test('a data path must belong to the current backend listing', () => {
+  const {el, run} = setup();
+  el('#scenarioOriginSelect').value = 'HN-001';
+  el('#scenarioDataVideo').value = 'stale.mp4';
+  run("state.scenarioDataVideos = [{path:'nested/clip.avi'}]; renderScenarioInputState()");
+  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
+  el('#scenarioDataVideo').value = 'nested/clip.avi';
+  run('renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, false);
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
 });

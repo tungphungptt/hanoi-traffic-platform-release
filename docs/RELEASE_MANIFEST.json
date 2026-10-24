@@ -1,7 +1,7 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 212,
+  "files_count": 214,
   "files": [
     {
       "path": ".env.example",
@@ -15,8 +15,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 914,
-      "sha256": "dabde2fd9b2266eb24a1a2334c45d3fb801088266fadcfaba7c63888ac0146af"
+      "bytes": 1027,
+      "sha256": "3fd9feee5bd27aea39ac9637f3fd8997180d99c265a5ac30cda93af3fcad86a4"
     },
     {
       "path": ".gitignore",
@@ -35,8 +35,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 13046,
-      "sha256": "e1284d0d6ac39d261c665d52a1ab8aeaffebf3c0721b6ffd9269827fdcfb5980"
+      "bytes": 16120,
+      "sha256": "6606a32f244e10ea3a692ed07c63ad56b4bb1ebd8c338b5f2e17f062a15a221a"
     },
     {
       "path": "SOURCE_RELEASE_NOTES.md",
@@ -95,8 +95,8 @@
     },
     {
       "path": "app/main.py",
-      "bytes": 101060,
-      "sha256": "e3e37d45658e12c8ffbf64e9692bb104f4866e377200feb00a1d36169ee8848c"
+      "bytes": 101846,
+      "sha256": "d5731c12afcf9380e431942aae967754c888612fa493fe8f24b51ce5d03d9a9b"
     },
     {
       "path": "app/traffic_baseline.py",
@@ -485,8 +485,8 @@
     },
     {
       "path": "deploy_demo.ps1",
-      "bytes": 8869,
-      "sha256": "175bac0db689913428320d89a0ce6c45643d58dc6656e22e4235dc6fb6db03d5"
+      "bytes": 11218,
+      "sha256": "0778d19a7814fee89182b094eb45e333143b390e7efef1e6aef1da82c17dc3ba"
     },
     {
       "path": "docker/Dockerfile.cpu",
@@ -795,8 +795,8 @@
     },
     {
       "path": "render.yaml",
-      "bytes": 598,
-      "sha256": "d27abe33d776a1d093202c668fee5c2b8916920338a332aede05066746c847e4"
+      "bytes": 599,
+      "sha256": "15fe053b3cae98ea49bb16cf4c83840e0d2b791e7f04797d8e0d9d9341727145"
     },
     {
       "path": "requirements-dev.txt",
@@ -820,13 +820,13 @@
     },
     {
       "path": "static/app.js",
-      "bytes": 105305,
-      "sha256": "8487954723ca25410b3239d445897e5180e5542af576d5a22e27cab3a5250fb5"
+      "bytes": 107314,
+      "sha256": "342b69b0431f98ac66e9d4bec7a0f304ff228b77d2e240d51d540bd544343688"
     },
     {
       "path": "static/index.html",
-      "bytes": 50716,
-      "sha256": "1c9bf83b53aaf6a47e40c277dda48e534c96dd5ad05be4dc8661e243aec79fc5"
+      "bytes": 50713,
+      "sha256": "c59b958b57270b94e051296cdc05dec0c1e6672576542d2d3ad2f0c5fa6e2efa"
     },
     {
       "path": "static/street-traffic-demo.jpg",
@@ -905,8 +905,8 @@
     },
     {
       "path": "tests/test_release_integrity.py",
-      "bytes": 3521,
-      "sha256": "5b7885addee33d7835080925164c6441c28e636bb472706557655210c08ffb6e"
+      "bytes": 4258,
+      "sha256": "cc533244a6304d043380e4928caae3b074dc151631a75ed6d8ad0f9476d6843e"
     },
     {
       "path": "tests/test_scenarios.py",
@@ -940,8 +940,8 @@
     },
     {
       "path": "tests/test_video_review_jobs.py",
-      "bytes": 6238,
-      "sha256": "c751a57c9cc4eff0404fabaa72e7561dcc9f42daf5f8b5ee69b41f3f55b230b7"
+      "bytes": 6341,
+      "sha256": "f24a92570446a25fdd846a80ebf9bb5b7419f852a543427cbb0f6b097803ae26"
     },
     {
       "path": "tests/test_weather_service.py",
@@ -950,8 +950,8 @@
     },
     {
       "path": "tests/video_review_frontend.test.cjs",
-      "bytes": 9138,
-      "sha256": "00177a434f2f47a0c6e16b4ab2e714b523130c3437dcff072845d842b724f8be"
+      "bytes": 11065,
+      "sha256": "73defd860c93be511ea1296a1b7003da1f0810e939e9895e53881fb7ee3f9a92"
     },
     {
       "path": "tools/build_track1_cnn_lstm_final.ps1",
@@ -1062,6 +1062,16 @@
       "path": "traffic_brain/video_review.py",
       "bytes": 26600,
       "sha256": "892d1a15dbfd58ef1a0e13517e5c913abf7703ab2f894f8ad055f4b4bbaa7242"
+    },
+    {
+      "path": "tests/test_local_runtime.py",
+      "bytes": 6460,
+      "sha256": "fb117fecda5c29af162e26134c4b9779d43cd560eb034388a9e8e86a6c75471e"
+    },
+    {
+      "path": "tools/check_local_runtime.py",
+      "bytes": 3892,
+      "sha256": "26d3c9c16b909db5bc3f9d2408c1716631440df802fa4df8aa145aa1b49fecef"
     }
   ]
 }
