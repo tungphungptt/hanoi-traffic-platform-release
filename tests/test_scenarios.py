@@ -121,7 +121,9 @@ def test_public_demo_allows_only_capped_uploaded_video_review(monkeypatch, tmp_p
     monkeypatch.setattr(main, "AICC_VIDEO_ENABLED", False)
     monkeypatch.setattr(main, "PUBLIC_VIDEO_REVIEW_ENABLED", True)
     status = client.get("/api/aicc/status").json()
-    assert status["upload_limit_mb"] == 100
+    assert status["upload_limit_mb"] == 500
+    assert status["upload_limit_mib"] == 500
+    assert status["upload_limit_bytes"] == 524_288_000
     assert status["upload_max_duration_seconds"] == 300
 
     source = tmp_path / "short.avi"
@@ -156,7 +158,7 @@ def test_public_demo_allows_only_capped_uploaded_video_review(monkeypatch, tmp_p
         files={"file": ("short.avi", source.read_bytes(), "video/x-msvideo")},
     )
     assert oversized.status_code == 413
-    monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_BYTES", 100 * 1024 * 1024)
+    monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_BYTES", 500 * 1024 * 1024)
     monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS", 300)
 
     class FakeCapture:

@@ -1,7 +1,7 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 217,
+  "files_count": 219,
   "files": [
     {
       "path": ".env.example",
@@ -35,8 +35,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 16297,
-      "sha256": "0f13e5aa792d07a2fdbcf02cefed5d69a1f12da41f022c9077bfb085354e1085"
+      "bytes": 18448,
+      "sha256": "02a698f09419533968ad91dd89aa703689c449029e863c8375f49d5c77a989a0"
     },
     {
       "path": "SOURCE_RELEASE_NOTES.md",
@@ -95,8 +95,8 @@
     },
     {
       "path": "app/main.py",
-      "bytes": 105896,
-      "sha256": "7bb183953779ecf19f7cfa61177dc24c5439d7e26b040e959f6f572d68b817b6"
+      "bytes": 109522,
+      "sha256": "fe6e2a20c8738a7fcfa495ba9a71bcc8b7926ca053f8bc524cc69314a52ef672"
     },
     {
       "path": "app/traffic_baseline.py",
@@ -820,13 +820,13 @@
     },
     {
       "path": "static/app.js",
-      "bytes": 92222,
-      "sha256": "09f5242c555ce3a22d30dee72f7de5061e990759b971c2ae83137264bfd79ef2"
+      "bytes": 92602,
+      "sha256": "842bce89011b32b54fbb0b550cc55eda6c3ca36ecbdac91757e5830c3797180f"
     },
     {
       "path": "static/index.html",
-      "bytes": 44683,
-      "sha256": "169617a8b0a5f3a910372ab6668660d74831936cabe575c75afde0c377c98cbd"
+      "bytes": 44691,
+      "sha256": "1cea345b1a798d45fbadc3d84fe3fd71af3406160bccc645c1b28d639a2b0292"
     },
     {
       "path": "static/street-traffic-demo.jpg",
@@ -915,8 +915,8 @@
     },
     {
       "path": "tests/test_scenarios.py",
-      "bytes": 13245,
-      "sha256": "1d3d0302aea80c29126ab8ca2cc501c84d43280f401e8cb9d150d04456a3fb3d"
+      "bytes": 13345,
+      "sha256": "bae14e05e30a0d2dd246a4f255bf2a64e56ebaf4d37ea4c156a32c5f78a55462"
     },
     {
       "path": "tests/test_temporal_smoothing.py",
@@ -955,8 +955,8 @@
     },
     {
       "path": "tests/video_review_frontend.test.cjs",
-      "bytes": 8405,
-      "sha256": "a9dfd71d6fae36bac988c8052e65beafee51f5d3829eeeff2de860b26276af00"
+      "bytes": 10042,
+      "sha256": "f71feb6f1cc173f59b05e7dacd48563c03dabf45a4540a6bae26bf3cd491eb04"
     },
     {
       "path": "tools/build_track1_cnn_lstm_final.ps1",
@@ -1075,18 +1075,28 @@
     },
     {
       "path": "app/public_upload.py",
-      "bytes": 4115,
-      "sha256": "b9d7027f2eba4ce398c2046c0c56790156a37f840f50b7ccd5484fc506d1c4f9"
+      "bytes": 6555,
+      "sha256": "370aeb52e20c6292f156099437a930ba99a49b4c74aa957f9a6bf7d7d1598e3d"
     },
     {
       "path": "tests/conftest.py",
-      "bytes": 309,
-      "sha256": "70c7d42141c6abffd01c8c979d8fbfb112cba289d5ed703a09d791242fd9d76a"
+      "bytes": 367,
+      "sha256": "0dcc963eab68dbef3ddabea78330095f26020db914e545e528c6ad4371caab95"
     },
     {
       "path": "tests/test_public_video_upload.py",
       "bytes": 10069,
-      "sha256": "95f3419efd7892a1de5adff3116c676bddfe9e46bf9b66c03c5bbaec6c2486e7"
+      "sha256": "3ed932ec61e92f44f1f1ee0be3104bd44aa8a7d4fc8a2906adb9404ea5d97ae3"
+    },
+    {
+      "path": "tests/test_review_streaming.py",
+      "bytes": 11862,
+      "sha256": "a9869b26d697b0c653b781545432490746d30d32bc9907d42c958fd6f472ef42"
+    },
+    {
+      "path": "tests/test_upload_gate_lifecycle.py",
+      "bytes": 14933,
+      "sha256": "5d23170dc184e3032db2dc59c660a4f29738c7d44f978fb71fd4fc1fa42a5426"
     }
   ]
 }

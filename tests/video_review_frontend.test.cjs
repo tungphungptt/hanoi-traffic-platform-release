@@ -18,7 +18,7 @@ function setup() {
       send(body){this.body=body;requests.push(this);}
     },fetch:async()=>response({status:'succeeded',result:{frames:[]}})});
   vm.runInContext(source,context);
-  vm.runInContext('state.aiccStatus={video_review_enabled:true,upload_limit_mb:100,upload_max_duration_seconds:300}; toast=()=>{}; renderScenarioReview=result=>{state.scenarioResult=result;};',context);
+  vm.runInContext('state.aiccStatus={video_review_enabled:true,upload_limit_bytes:524288000,upload_limit_mb:500,upload_max_duration_seconds:300}; toast=()=>{}; renderScenarioReview=result=>{state.scenarioResult=result;};',context);
   el('#scenarioVideoFile').files=[new Blob(['clip'])];
   return {context,el,requests,storage,run:code=>vm.runInContext(code,context)};
 }
@@ -28,6 +28,7 @@ test('one upload reports actual byte progress and changes phase before job polli
   const {run,el,requests}=setup();
   const pending=run('startScenarioReview()');const xhr=requests[0];
   assert.equal(xhr.path,'/api/scenarios/video-review');
+  assert.equal(xhr.timeout,1800000);
   assert.equal(xhr.body.has('file'),true);assert.equal(xhr.body.has('camera_id'),false);
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,true);
   xhr.upload.onprogress({loaded:25,total:100,lengthComputable:true});
@@ -45,7 +46,7 @@ test('one upload reports actual byte progress and changes phase before job polli
 test('unknown transfer length shows measured bytes without invented percentages',async()=>{
   const {run,el,requests}=setup();const pending=run('startScenarioReview()');
   requests[0].upload.onprogress({loaded:1048576,lengthComputable:false});
-  assert.match(el('#scenarioProgressText').textContent,/1.*MB/);
+  assert.match(el('#scenarioProgressText').textContent,/1.*MiB/);
   assert.equal(el('#scenarioProgressBar').style.width,'0%');
   accept(requests[0]);await pending;
 });
@@ -120,15 +121,45 @@ test('worker failure and expired job clear pending state to allow another upload
   }
 });
 
-test('public capability, optional camera and 100 MB limit govern the single upload',()=>{
+test('public capability and optional camera govern the single upload',()=>{
   const {run,el}=setup();run('renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,false);
-  el('#scenarioVideoFile').files=[{size:101*1024*1024}];run('renderScenarioInputState()');
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,true);
-  assert.match(el('#scenarioInputHint').textContent,/100 MB/);
+  assert.match(el('#scenarioUploadLimit').textContent,/500 MiB.*5 phút/);
   run('state.aiccStatus.video_review_enabled=false; renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,true);
   assert.doesNotMatch(el('#scenarioInputHint').textContent,/local|backend|CPU|data\//);
+});
+
+test('500 MiB admits files one byte below or at the cap and blocks one byte above',async()=>{
+  // Metadata exercises browser admission without allocating or uploading a 500 MiB fixture.
+  for(const size of [524287999,524288000,524288001]){
+    const {run,el,requests}=setup();
+    el('#scenarioVideoFile').files=[{name:'clip.mp4',size}];
+    run('renderScenarioInputState()');
+    const blocked=size===524288001;
+    assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,blocked);
+    const pending=run('startScenarioReview()');
+    assert.equal(requests.length,blocked?0:1,'submit must enforce the same cap as the button');
+    if(blocked)assert.match(el('#scenarioInputHint').textContent,/500 MiB/);
+    else accept(requests[0]);
+    await pending;
+  }
+});
+
+test('byte limit overrides rounded legacy MiB and older status responses remain supported',async()=>{
+  const {run,el,requests}=setup();
+  el('#scenarioVideoFile').files=[{name:'clip.mp4',size:524288000}];
+  run('state.aiccStatus.upload_limit_bytes=524287999; renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,true);
+  await run('startScenarioReview()');
+  assert.equal(requests.length,0);
+  run('delete state.aiccStatus.upload_limit_bytes; state.aiccStatus.upload_limit_mb=100; renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,true);
+  assert.match(el('#scenarioInputHint').textContent,/100 MiB/);
+  run('delete state.aiccStatus.upload_limit_mb; renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,false);
+  assert.match(el('#scenarioUploadLimit').textContent,/500 MiB/);
+  const pending=run('startScenarioReview()');accept(requests[0]);await pending;
 });
 
 test('API polling errors preserve HTTP status and requests have a deadline',async()=>{

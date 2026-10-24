@@ -944,14 +944,22 @@ function scenarioWriteBlockReason() {
   return '';
 }
 
+function scenarioUploadLimitBytes() {
+  const bytes = Number(state.aiccStatus?.upload_limit_bytes);
+  if (Number.isSafeInteger(bytes) && bytes > 0) return bytes;
+  const legacyBytes = Number(state.aiccStatus?.upload_limit_mb) * 1024 * 1024;
+  return Number.isSafeInteger(legacyBytes) && legacyBytes > 0 ? legacyBytes : 500 * 1024 * 1024;
+}
+
 function renderScenarioInputState() {
   const file = $('#scenarioVideoFile')?.files?.[0];
   const blocked = scenarioWriteBlockReason();
-  const maxMb = Number(state.aiccStatus?.upload_limit_mb || 100);
+  const maxBytes = scenarioUploadLimitBytes();
+  const maxMiB = Number((maxBytes / 1024 / 1024).toFixed(2));
   const reason = blocked || (state.scenarioBusy ? 'Đang xử lý yêu cầu của bạn…' : '')
     || (state.scenarioPendingJobId ? 'Video đã được tiếp nhận. Hãy theo dõi lại kết quả.' : '')
     || (!file ? 'Chọn một video để bắt đầu.' : '')
-    || (file.size > maxMb * 1024 * 1024 ? `Video vượt giới hạn ${maxMb} MB.` : '');
+    || (file.size > maxBytes ? `Video vượt giới hạn ${maxMiB} MiB.` : '');
   const button = $('#scenarioAnalyzeUploadBtn');
   if (button) { button.disabled = Boolean(reason); button.title = reason; }
   const input = $('#scenarioVideoFile');
@@ -961,7 +969,7 @@ function renderScenarioInputState() {
   const hint = $('#scenarioInputHint');
   if (hint) hint.textContent = reason || 'Video đã chọn. Bấm Phân tích video để bắt đầu.';
   const limit = $('#scenarioUploadLimit');
-  if (limit) limit.textContent = `Tối đa ${maxMb} MB và ${Math.floor(Number(state.aiccStatus?.upload_max_duration_seconds || 300) / 60)} phút.`;
+  if (limit) limit.textContent = `Tối đa ${maxMiB} MiB và ${Math.floor(Number(state.aiccStatus?.upload_max_duration_seconds || 300) / 60)} phút.`;
   const mode = $('#scenarioRuntimeMode');
   if (mode) mode.textContent = blocked ? 'Chưa sẵn sàng' : 'Sẵn sàng nhận video';
 }
@@ -1065,7 +1073,7 @@ function uploadScenarioVideo(form, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/api/scenarios/video-review');
-    xhr.timeout = 10 * 60 * 1000;
+    xhr.timeout = 30 * 60 * 1000;
     xhr.upload.onprogress = event => onProgress(event.loaded, event.lengthComputable ? event.total : null);
     xhr.upload.onload = () => {
       $('#scenarioProgressText').textContent = 'Đã tải video lên. Đang kiểm tra video…';
@@ -1140,7 +1148,7 @@ async function startScenarioReview() {
   const pending = state.scenarioPendingJobId;
   const file = $('#scenarioVideoFile').files?.[0];
   if (!pending && (scenarioWriteBlockReason() || !file)) { renderScenarioInputState(); return; }
-  if (!pending && file.size > Number(state.aiccStatus?.upload_limit_mb || 100) * 1024 * 1024) { renderScenarioInputState(); return; }
+  if (!pending && file.size > scenarioUploadLimitBytes()) { renderScenarioInputState(); return; }
   const button = $('#scenarioAnalyzeUploadBtn');
   state.scenarioBusy = true;
   renderScenarioInputState();
@@ -1159,7 +1167,7 @@ async function startScenarioReview() {
       const job = await uploadScenarioVideo(form, (loaded, total) => {
         const pct = total ? Math.max(0, Math.min(100, Math.floor(loaded / total * 100))) : null;
         if (pct !== null) $('#scenarioProgressBar').style.width = `${pct}%`;
-        const progress = pct === null ? `${numberVN(loaded / 1024 / 1024, 1)} MB` : `${pct}% · ${numberVN(loaded / 1024 / 1024, 1)} / ${numberVN(total / 1024 / 1024, 1)} MB`;
+        const progress = pct === null ? `${numberVN(loaded / 1024 / 1024, 1)} MiB` : `${pct}% · ${numberVN(loaded / 1024 / 1024, 1)} / ${numberVN(total / 1024 / 1024, 1)} MiB`;
         $('#scenarioProgressText').textContent = `Đang tải video lên: ${progress}`;
       });
       jobId = job.job_id;
@@ -1353,14 +1361,15 @@ function bindEvents() {
   });
   $('#scenarioVideoFile')?.addEventListener('change', () => {
     const file = $('#scenarioVideoFile').files?.[0];
-    const maxMb = Number(state.aiccStatus?.upload_limit_mb || 100);
+    const maxBytes = scenarioUploadLimitBytes();
+    const maxMiB = Number((maxBytes / 1024 / 1024).toFixed(2));
     renderScenarioInputState();
     if (!state.scenarioBusy) {
-      const overLimit = file && file.size > maxMb * 1024 * 1024;
+      const overLimit = file && file.size > maxBytes;
       $('#scenarioJobStatus').textContent = file
         ? overLimit
-          ? `${file.name} vượt giới hạn ${maxMb} MB.`
-          : `${file.name} · ${(file.size/1024/1024).toFixed(1)} MB · đã chọn.`
+          ? `${file.name} vượt giới hạn ${maxMiB} MiB.`
+          : `${file.name} · ${(file.size/1024/1024).toFixed(1)} MiB · đã chọn.`
         : 'Chưa chọn tệp từ máy tính.';
     }
   });

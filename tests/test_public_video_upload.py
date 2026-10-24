@@ -38,7 +38,7 @@ def test_busy_rejected_before_receiving_file(monkeypatch):
 def test_public_content_length_is_bounded_before_multipart(monkeypatch):
     monkeypatch.setattr(main, 'PUBLIC_DEMO_MODE', True)
     monkeypatch.setattr(main, 'PUBLIC_VIDEO_REVIEW_ENABLED', True)
-    response = client.post('/api/scenarios/video-review', content=b'x', headers={'Content-Length': str(102*1024*1024)})
+    response = client.post('/api/scenarios/video-review', content=b'x', headers={'Content-Length': str(502*1024*1024)})
     assert response.status_code == 413
 
 
