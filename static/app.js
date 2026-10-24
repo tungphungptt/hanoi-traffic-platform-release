@@ -1,6 +1,6 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { dashboard: null, cameras: [], alerts: [], modelStatus: null, providerStatus: null, aiccStatus: null, manifest: null, currentPage: 'video', mapLayer: 'status', aiccResults: null, scenarioResult: null, scenarioJobId: null, routeResult: null, routeMap: null, routeMapLayers: [], selectedRouteId: null, selectedCameraId: null, publicDemoMode: false, leafletMap: null, leafletMarkers: new Map(), baseTileLayer: null, trafficTileLayer: null, mapConfig: null, mapPollSeconds: 45, mapPollBusy: false, mapPollTimer: null };
+const state = { dashboard: null, cameras: [], alerts: [], modelStatus: null, providerStatus: null, aiccStatus: null, manifest: null, currentPage: 'video', mapLayer: 'status', aiccResults: null, scenarioResult: null, scenarioJobId: null, scenarioBusy: false, routeResult: null, routeMap: null, routeMapLayers: [], selectedRouteId: null, selectedCameraId: null, publicDemoMode: false, leafletMap: null, leafletMarkers: new Map(), baseTileLayer: null, trafficTileLayer: null, mapConfig: null, mapPollSeconds: 45, mapPollBusy: false, mapPollTimer: null };
 
 function canAnalyzeUploadedScenarioVideo() {
   return Boolean(state.aiccStatus?.video_review_enabled);
@@ -12,12 +12,33 @@ function canAnalyzeStoredScenarioVideo() {
 const PAGE_NAMES = { overview: 'Tổng quan', cameras: 'Điểm giám sát', alerts: 'Cảnh báo', analytics: 'Báo cáo & xu hướng', video: 'Dự báo & phương án', models: 'Nguồn xử lý', settings: 'Cài đặt vận hành' };
 
 async function api(path, options = {}) {
-  const response = await fetch(path, options);
-  const raw = await response.text();
-  let payload = {};
-  try { payload = raw ? JSON.parse(raw) : {}; } catch { payload = { detail: raw }; }
-  if (!response.ok) throw new Error(payload.detail || `Yêu cầu thất bại (${response.status})`);
-  return payload;
+  const { timeoutMs = 30000, ...requestOptions } = options;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(path, { ...requestOptions, signal: controller.signal, cache: 'no-store' });
+    const raw = await response.text();
+    let payload;
+    try { payload = raw ? JSON.parse(raw) : {}; }
+    catch {
+      const error = new Error(`Máy chủ trả phản hồi không phải JSON (HTTP ${response.status}).`);
+      error.status = response.status;
+      throw error;
+    }
+    if (!response.ok) {
+      const detail = typeof payload?.detail === 'string' ? payload.detail
+        : Array.isArray(payload?.detail) ? payload.detail.map(item => item.msg || 'Dữ liệu không hợp lệ').join('; ') : '';
+      const error = new Error(`HTTP ${response.status}: ${detail || 'Yêu cầu thất bại.'}`);
+      error.status = response.status;
+      throw error;
+    }
+    if (!payload || typeof payload !== 'object') throw new Error('Phản hồi JSON không hợp lệ.');
+    return payload;
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error('Yêu cầu quá thời gian chờ. Kiểm tra kết nối và trạng thái tác vụ trước khi gửi lại.');
+    if (error instanceof TypeError) throw new Error('Mất kết nối máy chủ. Kiểm tra backend đang chạy và kết nối mạng.');
+    throw error;
+  } finally { clearTimeout(timer); }
 }
 function numberVN(value, digits = 0) { return Number(value ?? 0).toLocaleString('vi-VN', { maximumFractionDigits: digits, minimumFractionDigits: digits }); }
 function escapeHtml(text) { return String(text ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch])); }
@@ -973,10 +994,43 @@ function renderModelStatus() {
   const dotNav = $('#modelNavDot'); if (dotNav) dotNav.style.background = demo ? '#ce8b4c' : '#70a276';
 }
 
+function scenarioWriteBlockReason() {
+  if (!canAnalyzeUploadedScenarioVideo()) {
+    return state.aiccStatus?.message || 'Tải video phân tích đang tắt hoặc model chưa sẵn sàng.';
+  }
+  return '';
+}
+
+function renderScenarioInputState() {
+  const file = $('#scenarioVideoFile')?.files?.[0];
+  const path = $('#scenarioDataVideo')?.value;
+  const blocked = scenarioWriteBlockReason();
+  const maxMb = Number(state.aiccStatus?.upload_limit_mb || 500);
+  const commonReason = state.scenarioBusy ? 'Tác vụ đang chạy; đợi xử lý xong.' : '';
+  const uploadReason = commonReason || blocked
+    || (!file ? 'Chọn tệp từ máy tính để phân tích clip upload.' : '')
+    || (file && file.size > maxMb * 1024 * 1024 ? `Video vượt giới hạn ${maxMb} MB.` : '');
+  const dataReason = commonReason
+    || (state.publicDemoMode || !state.aiccStatus?.enabled ? 'Video trong data/ chỉ có thể phân tích ở chế độ local.' : '')
+    || (!$('#scenarioOriginSelect')?.value ? 'Chọn đoạn A / điểm đi khi dùng video trong data/.' : '')
+    || (!path ? 'Chọn một video trong data/ để dùng nút Phân tích bên cạnh danh sách.' : '');
+  for (const [selector, reason] of [['#scenarioAnalyzeUploadBtn', uploadReason], ['#scenarioAnalyzeDataBtn', dataReason]]) {
+    const button = $(selector);
+    if (button) { button.disabled = Boolean(reason); button.title = reason; }
+  }
+  const hint = $('#scenarioInputHint');
+  if (hint) hint.textContent = commonReason || blocked || (file
+    ? uploadReason || 'Đã chọn clip từ máy tính. Bấm nút lớn bên dưới để upload và phân tích; không cần chọn camera.'
+    : path ? 'Đã chọn video trong data/. Bấm nút Phân tích bên cạnh danh sách.'
+    : 'Chọn tệp từ máy tính hoặc video trong data/ để bắt đầu.');
+  const mode = $('#scenarioRuntimeMode');
+  if (mode) mode.textContent = blocked ? 'Tải video phân tích đang bị tắt' : 'Sẵn sàng phân tích video';
+}
+
 function renderScenarioCameraOptions() {
   const origin = $('#scenarioOriginSelect');
   const destination = $('#scenarioDestinationSelect');
-  if (!origin || !destination || !state.cameras.length) return;
+  if (!origin || !destination || !state.cameras.length) { renderScenarioInputState(); return; }
   const oldOrigin = origin.value;
   const oldDestination = destination.value;
   const optionHtml = state.cameras.filter(cam => cam.lat != null && cam.lng != null && Number.isFinite(Number(cam.lat)) && Number.isFinite(Number(cam.lng)))
@@ -990,8 +1044,7 @@ function renderScenarioCameraOptions() {
     ? preferredDest : '';
   if (destination.value === origin.value) destination.value = '';
   const button = $('#scenarioFindRoutesBtn'); if (button) button.disabled = !origin.value || !destination.value || state.publicDemoMode;
-  const analyze = $('#scenarioAnalyzeUploadBtn'); if (analyze) analyze.disabled = !canAnalyzeUploadedScenarioVideo() || !$('#scenarioVideoFile')?.files?.[0];
-  const analyzeData = $('#scenarioAnalyzeDataBtn'); if (analyzeData) analyzeData.disabled = !canAnalyzeStoredScenarioVideo() || !$('#scenarioDataVideo')?.value;
+  renderScenarioInputState();
 }
 
 async function refreshScenarioVideoList() {
@@ -1004,11 +1057,12 @@ async function refreshScenarioVideoList() {
       .map(item => `<option value="${escapeHtml(item.path)}">${escapeHtml(item.path)} · ${numberVN(item.size_mb, 1)} MB</option>`).join('');
     if (keep && (payload.items || []).some(item => item.path === keep)) select.value = keep;
     const hint = $('#scenarioJobStatus');
-    if (!payload.total && hint && !state.scenarioResult) hint.textContent = 'Chưa có video trong data/. Hãy chọn video từ máy tính bên trên.';
-    const button = $('#scenarioAnalyzeDataBtn'); if (button) button.disabled = !canAnalyzeStoredScenarioVideo() || !(payload.items || []).length;
+    if (!payload.total && hint && !state.scenarioResult && !state.scenarioBusy && !$('#scenarioVideoFile')?.files?.[0]) hint.textContent = 'Backend chưa tìm thấy video trong data/. Đặt clip vào data/ hoặc thư mục con rồi tải lại danh sách; hoặc chọn tệp từ máy tính để upload.';
+    renderScenarioInputState();
   } catch (error) {
     select.innerHTML = '<option value="">Không tải được danh sách video</option>';
-    const hint = $('#scenarioJobStatus'); if (hint) hint.textContent = error.message;
+    renderScenarioInputState();
+    const hint = $('#scenarioJobStatus'); if (hint && !state.scenarioBusy) hint.textContent = `Không tải được danh sách video: ${error.message}`;
   }
 }
 
@@ -1079,10 +1133,13 @@ async function pollScenarioReviewJob(jobId, filename) {
   const started = Date.now();
   $('#scenarioProgressWrap').hidden = false;
   while (Date.now() - started < 30 * 60 * 1000) {
-    const job = await api(`/api/scenarios/video-reviews/${encodeURIComponent(jobId)}`);
+    let job;
+    try { job = await api(`/api/scenarios/video-reviews/${encodeURIComponent(jobId)}`); }
+    catch (error) { throw new Error(`Không theo dõi được tác vụ ${jobId}: ${error.message} Tác vụ có thể vẫn chạy; kiểm tra trạng thái trước khi gửi lại.`); }
+    if (!['queued', 'running', 'succeeded', 'failed'].includes(job.status)) throw new Error('Trạng thái tác vụ không hợp lệ.');
     const pct = Math.max(0, Math.min(100, Number(job.progress_percent || 0)));
     $('#scenarioProgressBar').style.width = `${pct}%`;
-    $('#scenarioProgressText').textContent = job.status === 'queued' ? 'Đang chờ lượt CPU…' : `Đang xử lý ${numberVN(job.frames_decoded || 0)} / ${numberVN(job.frames_total || 0)} frame · ${pct}%`;
+    $('#scenarioProgressText').textContent = job.status === 'queued' ? 'Đang chờ lượt CPU…' : !job.frames_total ? 'Đang nạp mô hình và mở video trên CPU…' : `Đang xử lý ${numberVN(job.frames_decoded || 0)} / ${numberVN(job.frames_total || 0)} frame · ${pct}%`;
     $('#scenarioJobStatus').textContent = job.status === 'queued' ? `Đã xếp hàng: ${filename}` : `Đang đọc video: ${filename}`;
     if (job.status === 'succeeded') {
       state.scenarioJobId = jobId;
@@ -1099,14 +1156,24 @@ async function pollScenarioReviewJob(jobId, filename) {
 }
 
 async function startScenarioReview({ fromData = false } = {}) {
-  if (fromData && !canAnalyzeStoredScenarioVideo()) { toast('Không khả dụng', 'Chỉ tải video từ máy trong môi trường công khai; video có sẵn trong data/ chỉ dùng local.', 'error'); return; }
-  if (!fromData && !canAnalyzeUploadedScenarioVideo()) { toast('Không khả dụng', 'Tải video lên đang tắt hoặc các model phân tích chưa sẵn sàng.', 'error'); return; }
+  if (state.scenarioBusy) return;
+  const blocked = fromData
+    ? (state.publicDemoMode || !state.aiccStatus?.enabled ? 'Video trong data/ chỉ có thể phân tích ở chế độ local.' : '')
+    : scenarioWriteBlockReason();
+  if (blocked) { renderScenarioInputState(); toast('Chưa thể phân tích video', blocked, 'error'); return; }
   const originId = $('#scenarioOriginSelect').value;
   if (!originId && fromData) { toast('Chưa chọn đoạn A', 'Chọn camera/đoạn đường nguồn trước khi dùng video trong data/.', 'error'); return; }
   const preserve = $('#scenarioPreserveTiming').checked;
   const uploadButton = $('#scenarioAnalyzeUploadBtn'); const dataButton = $('#scenarioAnalyzeDataBtn');
-  uploadButton.disabled = true; dataButton.disabled = true;
-  uploadButton.textContent = 'Đang xếp hàng…';
+  state.scenarioBusy = true;
+  renderScenarioInputState();
+  const activeButton = fromData ? dataButton : uploadButton;
+  const originalLabel = activeButton.textContent;
+  activeButton.textContent = fromData ? 'Đang gửi yêu cầu…' : 'Đang tải video lên…';
+  $('#scenarioProgressWrap').hidden = false;
+  $('#scenarioProgressBar').style.width = '0%';
+  $('#scenarioProgressText').textContent = 'Đang gửi, chờ máy chủ tiếp nhận…';
+  $('#scenarioJobStatus').textContent = fromData ? 'Đang yêu cầu backend kiểm tra video trong data/…' : 'Đang tải tệp từ máy tính lên backend…';
   try {
     let job;
     if (fromData) {
@@ -1120,16 +1187,19 @@ async function startScenarioReview({ fromData = false } = {}) {
       const form = new FormData(); form.append('file', file);
       if (originId) form.append('camera_id', originId);
       form.append('preserve_real_timing', preserve ? 'true' : 'false');
-      job = await api('/api/scenarios/video-review', { method: 'POST', body: form });
+      job = await api('/api/scenarios/video-review', { method: 'POST', body: form, timeoutMs: 5 * 60 * 1000 });
     }
+    if (!/^[a-f0-9]{32}$/.test(job.job_id || '')) throw new Error('Máy chủ không trả job_id hợp lệ.');
+    state.scenarioJobId = job.job_id;
     await pollScenarioReviewJob(job.job_id, job.filename || 'video');
   } catch (error) {
     $('#scenarioJobStatus').textContent = `Không xử lý được video: ${error.message}`;
+    $('#scenarioProgressText').textContent = error.message;
     toast('Video review thất bại', error.message, 'error');
   } finally {
-    uploadButton.textContent = 'Phân tích clip & tạo ảnh minh chứng';
-    uploadButton.disabled = !canAnalyzeUploadedScenarioVideo() || !$('#scenarioVideoFile').files?.[0];
-    dataButton.disabled = !canAnalyzeStoredScenarioVideo() || !$('#scenarioDataVideo').value;
+    state.scenarioBusy = false;
+    activeButton.textContent = originalLabel;
+    renderScenarioInputState();
   }
 }
 
@@ -1305,6 +1375,8 @@ async function refreshAiccStatus({ load = false } = {}) {
       }
     }
     const status = await api('/api/aicc/status');
+    state.aiccStatus = status;
+    renderScenarioInputState();
     await refreshAiccDataVideos();
     const missing = status.missing_files || [];
     $('#aiccDetectorStatus').textContent = missing.some(f => f.endsWith('detector.onnx')) ? 'Thiếu file' : (status.loaded ? 'Đã nạp' : 'Có file / chưa nạp');
@@ -1442,6 +1514,7 @@ function bindEvents() {
   });
   $('#mobileMenu').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
   $('#scenarioOriginSelect')?.addEventListener('change', () => {
+    renderScenarioInputState();
     if (state.scenarioResult?.source_camera_id && state.scenarioResult.source_camera_id !== $('#scenarioOriginSelect').value) {
       $('#scenarioNotice').innerHTML = '<span class="notice-icon">i</span><span>Clip gần nhất thuộc camera khác điểm đi đang chọn. Hãy phân tích lại video tại điểm A nếu muốn gắn dự báo xu hướng với tuyến này.</span>';
     }
@@ -1453,16 +1526,22 @@ function bindEvents() {
   $('#scenarioVideoFile')?.addEventListener('change', () => {
     const file = $('#scenarioVideoFile').files?.[0];
     const maxMb = Number(state.aiccStatus?.upload_limit_mb || 500);
-    $('#scenarioAnalyzeUploadBtn').disabled = !canAnalyzeUploadedScenarioVideo() || !file || file.size > maxMb * 1024 * 1024;
-    if (file) {
-      $('#scenarioJobStatus').textContent = file.size > maxMb * 1024 * 1024
-        ? `${file.name} vượt giới hạn ${maxMb} MB.`
-        : `${file.name} · ${(file.size/1024/1024).toFixed(1)} MB · sẵn sàng xử lý.`;
+    renderScenarioInputState();
+    if (!state.scenarioBusy) {
+      const overLimit = file && file.size > maxMb * 1024 * 1024;
+      $('#scenarioJobStatus').textContent = file
+        ? overLimit
+          ? `${file.name} vượt giới hạn ${maxMb} MB.`
+          : `${file.name} · ${(file.size/1024/1024).toFixed(1)} MB · đã chọn từ máy tính, chưa tải lên backend.`
+        : 'Chưa chọn tệp từ máy tính.';
     }
   });
+  $('#scenarioVideoFile')?.addEventListener('input', renderScenarioInputState);
+  window.addEventListener('pageshow', renderScenarioInputState);
+  renderScenarioInputState();
   $('#scenarioAnalyzeUploadBtn')?.addEventListener('click', () => startScenarioReview({ fromData: false }));
   $('#scenarioAnalyzeDataBtn')?.addEventListener('click', () => startScenarioReview({ fromData: true }));
-  $('#scenarioDataVideo')?.addEventListener('change', () => { $('#scenarioAnalyzeDataBtn').disabled = !canAnalyzeStoredScenarioVideo() || !$('#scenarioDataVideo').value; });
+  $('#scenarioDataVideo')?.addEventListener('change', renderScenarioInputState);
   $('#scenarioFindRoutesBtn')?.addEventListener('click', findScenarioRoutes);
   $('#scenarioExportBtn')?.addEventListener('click', exportScenarioFrames);
   $('#aiccRefresh').addEventListener('click',()=>refreshAiccStatus({load:true}));

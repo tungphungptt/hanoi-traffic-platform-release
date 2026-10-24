@@ -397,6 +397,16 @@ forecast_providers = ForecastProviderManager(runtime, MANIFEST_PATH)
 app = FastAPI(title="Hanoi Traffic Operations", version="8.0.0", description="Nền tảng giám sát và hỗ trợ dự báo giao thông trên CPU")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+
+@app.middleware("http")
+async def video_review_cache_policy(request: Request, call_next):
+    response = await call_next(request)
+    if (request.url.path == "/static/app.js" or request.url.path == "/api/aicc/data-videos"
+            or request.url.path.startswith("/api/scenarios/video-reviews/")):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 DEFAULT_CAMERAS: list[dict[str, Any]] = [
     {"id":"HN-001","name":"Ngã Tư Sở","area":"Đống Đa · Thanh Xuân","lat":21.002,"lng":105.820,"map_x":57,"map_y":54,"status":"online","vehicles":128,"speed":18.6,"occupancy":0.48,"ci":0.48,"updated":"Dữ liệu mẫu"},
     {"id":"HN-002","name":"Cầu Giấy – Xuân Thủy","area":"Cầu Giấy","lat":21.036,"lng":105.790,"map_x":42,"map_y":25,"status":"online","vehicles":156,"speed":12.4,"occupancy":0.67,"ci":0.69,"updated":"Dữ liệu mẫu"},
@@ -893,14 +903,22 @@ def _enqueue_video_review_job(video_path: Path, filename: str, camera_id: str | 
             "frames_decoded": 0, "frames_total": 0,
             "created_at": datetime.now().astimezone().isoformat(timespec="seconds")}
         _prune_video_review_jobs()
-        AICC_EXECUTOR.submit(_run_video_review_job, job_id, video_path, filename, camera_id, preserve_real_timing, cleanup)
+        try:
+            AICC_EXECUTOR.submit(_run_video_review_job, job_id, video_path, filename, camera_id, preserve_real_timing, cleanup)
+        except Exception as exc:
+            # A rejected submission must not leave a queued job blocking every retry.
+            VIDEO_REVIEW_JOBS[job_id].update({"status": "failed", "error": "Không khởi tạo được worker CPU.",
+                "finished_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+                "finished_epoch": __import__("time").time()})
+            logger.exception("Video review submission %s failed", job_id)
+            raise HTTPException(status_code=503, detail="Không khởi tạo được worker CPU; khởi động lại backend rồi thử lại.") from exc
         return {"job_id": job_id, "status": "queued", "filename": filename,
                 "poll_url": f"/api/scenarios/video-reviews/{job_id}"}
 
 
 @app.get("/")
 def index() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
+    return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/api/map/config")
@@ -1500,9 +1518,13 @@ def aicc_data_videos() -> dict[str, Any]:
         if not path.is_file() or path.suffix.lower() not in SUPPORTED_VIDEO_EXTENSIONS:
             continue
         try:
-            if path.resolve().is_relative_to(CAMERA_FEED_DIR.resolve()):
+            if any(path.resolve().is_relative_to(folder.resolve()) for folder in (CAMERA_FEED_DIR, VIDEO_REVIEW_ROOT)):
                 continue
             size = path.stat().st_size
+            if not 0 < size <= MAX_VIDEO_REVIEW_BYTES:
+                continue
+            with path.open("rb") as video:
+                video.read(1)  # Listing promises an accessible file, not codec/model readiness.
             relative = path.resolve().relative_to(DATA_DIR.resolve()).as_posix()
             items.append({"path": relative, "name": path.name, "size_mb": round(size / (1024 * 1024), 2)})
         except (OSError, ValueError):
@@ -1584,7 +1606,6 @@ async def create_video_review(
     """Analyze an uploaded clip in the background and return selected frames + explainable state labels."""
     if not video_review_upload_enabled():
         raise HTTPException(status_code=403, detail="Tính năng tải video để phân tích hiện đang bị tắt.")
-    _load_video_review_models()
     if camera_id:
         _assert_camera_exists(camera_id)
     filename = Path(file.filename or "traffic.mp4").name
@@ -1666,7 +1687,7 @@ def create_video_review_from_data(body: dict[str, Any]) -> dict[str, Any]:
     if candidate.suffix.lower() not in SUPPORTED_VIDEO_EXTENSIONS:
         raise HTTPException(status_code=400, detail="Định dạng video không được hỗ trợ")
     if not candidate.is_file():
-        raise HTTPException(status_code=404, detail="Không tìm thấy video dưới data/")
+        raise HTTPException(status_code=404, detail="Video không còn tồn tại dưới data/. Tải lại danh sách hoặc chọn tệp từ máy tính để upload.")
     if candidate.stat().st_size > MAX_VIDEO_REVIEW_BYTES:
         raise HTTPException(status_code=413, detail=f"Video vượt giới hạn {MAX_VIDEO_REVIEW_BYTES // (1024 * 1024)} MB")
     return _enqueue_video_review_job(candidate, candidate.name, camera_id, preserve_real_timing, cleanup=False)

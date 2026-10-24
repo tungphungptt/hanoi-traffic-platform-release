@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,3 +67,13 @@ def test_local_model_weights_and_video_are_excluded_from_version_control_by_defa
     assert "/models/*.pkl" in gitignore
     assert "/data/*" in gitignore
     assert "!/data/cameras.json" in gitignore
+
+
+def test_local_bootstrap_actually_sets_write_mode_before_launch():
+    # A setting hidden at the end of a comment is not a PowerShell assignment.
+    script = (ROOT / "deploy_demo.ps1").read_text(encoding="utf-8-sig")
+    launch = script.index("$Proc = Start-Process")
+    for name, value in (("PUBLIC_DEMO_MODE", "false"), ("AICC_VIDEO_ENABLED", "true")):
+        assignment = re.search(rf"(?m)^\s*\$env:{name}\s*=\s*'{value}'\s*$", script)
+        assert assignment, f"Local bootstrap must execute the {name} assignment, not comment it out"
+        assert assignment.start() < launch
