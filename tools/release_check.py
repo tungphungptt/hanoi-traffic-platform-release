@@ -3,6 +3,10 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+try:
+    from release_hashing import canonical_release_bytes
+except ModuleNotFoundError:
+    from tools.release_hashing import canonical_release_bytes
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_FILES = (
@@ -126,8 +130,9 @@ def main() -> int:
             if not target.is_file():
                 fail("Release file listed in manifest is missing: " + entry["path"])
             import hashlib
-            digest = hashlib.sha256(target.read_bytes()).hexdigest()
-            if digest != entry.get("sha256") or target.stat().st_size != entry.get("bytes"):
+            data = canonical_release_bytes(target, target.read_bytes())
+            digest = hashlib.sha256(data).hexdigest()
+            if digest != entry.get("sha256") or len(data) != entry.get("bytes"):
                 fail("Release file checksum/size mismatch: " + entry["path"])
     except (OSError, json.JSONDecodeError) as exc:
         fail(f"Could not verify release file manifest: {exc}")

@@ -1,4 +1,4 @@
-﻿# Release QA â€” Hanoi Traffic Platform Final 8.0.0
+# Release QA â€” Hanoi Traffic Platform Final 8.0.0
 
 ## Verified in build environment
 
@@ -32,4 +32,3 @@
 ## Release status
 
 **Hardened local release candidate.** Suitable for controlled local testing after bootstrap succeeds on Windows and, when weights are present, the AICC model smoke passes. It is not certified for traffic-control decisions or public production without verified data ingestion, a trained/evaluated Hanoi forecaster, access controls, persistent storage, TLS, quotas, operational monitoring and an authorized traffic provider.
-

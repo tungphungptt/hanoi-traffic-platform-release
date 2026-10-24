@@ -2,6 +2,10 @@
 """Create a deterministic SHA-256 inventory of release files (not ZIP hash)."""
 from __future__ import annotations
 import argparse, hashlib, json
+try:
+    from release_hashing import canonical_release_bytes
+except ModuleNotFoundError:
+    from tools.release_hashing import canonical_release_bytes
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,7 +18,7 @@ MUTABLE_RUNTIME_PATHS = {
     "data/camera_feeds/index.json",
     "data/manifests/hanoi_videos_manifest.json",
 }
-EXCLUDED_SUFFIXES = {".pyc", ".mp4", ".avi", ".mov", ".mkv", ".webm", ".mpeg", ".mpg", ".m4v", ".mts", ".m2ts", ".npz", ".npy", ".parquet", ".arrow", ".feather", ".h5", ".hdf5", ".tfrecord", ".jsonl", ".ndjson"}
+EXCLUDED_SUFFIXES = {".zip", ".pyc", ".mp4", ".avi", ".mov", ".mkv", ".webm", ".mpeg", ".mpg", ".m4v", ".mts", ".m2ts", ".npz", ".npy", ".parquet", ".arrow", ".feather", ".h5", ".hdf5", ".tfrecord", ".jsonl", ".ndjson"}
 
 def files_to_hash():
     for path in sorted(ROOT.rglob("*")):
@@ -57,8 +61,9 @@ def main() -> int:
     args = parser.parse_args()
     rows = []
     for path, rel in files_to_hash():
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
-        rows.append({"path": rel, "bytes": path.stat().st_size, "sha256": digest})
+        data = canonical_release_bytes(path, path.read_bytes())
+        digest = hashlib.sha256(data).hexdigest()
+        rows.append({"path": rel, "bytes": len(data), "sha256": digest})
     payload = {"manifest_version": "hanoi-release-file-manifest/1.0", "project_version": (ROOT / "VERSION").read_text(encoding="utf-8-sig").strip(), "files_count": len(rows), "files": rows}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
