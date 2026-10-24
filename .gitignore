@@ -41,6 +41,9 @@ artifacts/current/*.onnx
 artifacts/current/*.bak
 /models/*.onnx
 /models/*.pkl
+!/models/hanoi_predictor.onnx
+!/models/hanoi_scaler.pkl
+!/models/hanoi_manifest.json
 
 # Experimental models
 /models/experiments/*
