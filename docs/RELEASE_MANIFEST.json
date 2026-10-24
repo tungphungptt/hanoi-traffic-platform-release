@@ -35,8 +35,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 18609,
-      "sha256": "5248975f215df1cf160d3229233794ee881b7bdcf87546e007bc8701c5f90ce1"
+      "bytes": 18613,
+      "sha256": "c34f0463336ff47343572ae877da4bdc6e47543b39bc6ec7a6a54203f0da97d6"
     },
     {
       "path": "SOURCE_RELEASE_NOTES.md",
@@ -95,8 +95,13 @@
     },
     {
       "path": "app/main.py",
-      "bytes": 110415,
-      "sha256": "87604a50ef4d0bf03674d7ff7fd26a16acc781d448dafd74cb57dbf9ea89ba9c"
+      "bytes": 110444,
+      "sha256": "04936292b6e9f1f4e63072070ef07fab78429d111cb0434b98ab9c94abee6b69"
+    },
+    {
+      "path": "app/public_upload.py",
+      "bytes": 6555,
+      "sha256": "370aeb52e20c6292f156099437a930ba99a49b4c74aa957f9a6bf7d7d1598e3d"
     },
     {
       "path": "app/traffic_baseline.py",
@@ -821,12 +826,12 @@
     {
       "path": "static/app.js",
       "bytes": 92002,
-      "sha256": "17cca8f2f37e4c4f1044e15e743a1d042421e386496de6566baeb86c4cc0be6c"
+      "sha256": "9aba3996bf398f4f2a5686c7a757a05c4ce432a6c77aa30c8e974e3705a155a2"
     },
     {
       "path": "static/index.html",
-      "bytes": 42095,
-      "sha256": "213eeeb9bb5fff58b452ae1188ae5453c3dc971db3a8cba48e802b16b16e0c6f"
+      "bytes": 42056,
+      "sha256": "7027d7322f44e9b497abd8b14dc5a67bcedb2c22c404a9492048cfe050d90c86"
     },
     {
       "path": "static/street-traffic-demo.jpg",
@@ -837,6 +842,11 @@
       "path": "static/styles.css",
       "bytes": 72970,
       "sha256": "31b2314379ca486558a59a2be984fb19e3e41e773a01777ea599890383605955"
+    },
+    {
+      "path": "tests/conftest.py",
+      "bytes": 367,
+      "sha256": "0dcc963eab68dbef3ddabea78330095f26020db914e545e528c6ad4371caab95"
     },
     {
       "path": "tests/test_aicc.py",
@@ -909,14 +919,29 @@
       "sha256": "bd09c7758e08f6593fad79e97bf04835a37ea9b4346067ab63cddfc805d9c6ec"
     },
     {
+      "path": "tests/test_public_video_upload.py",
+      "bytes": 10069,
+      "sha256": "3ed932ec61e92f44f1f1ee0be3104bd44aa8a7d4fc8a2906adb9404ea5d97ae3"
+    },
+    {
       "path": "tests/test_release_integrity.py",
       "bytes": 4258,
       "sha256": "cc533244a6304d043380e4928caae3b074dc151631a75ed6d8ad0f9476d6843e"
     },
     {
+      "path": "tests/test_review_multipart_limits.py",
+      "bytes": 4981,
+      "sha256": "3d6ec5ad5be7c49843c03ff39b3f4027b818ba4313791eb796b63d898b712687"
+    },
+    {
+      "path": "tests/test_review_streaming.py",
+      "bytes": 11862,
+      "sha256": "a9869b26d697b0c653b781545432490746d30d32bc9907d42c958fd6f472ef42"
+    },
+    {
       "path": "tests/test_scenarios.py",
-      "bytes": 13345,
-      "sha256": "bae14e05e30a0d2dd246a4f255bf2a64e56ebaf4d37ea4c156a32c5f78a55462"
+      "bytes": 13340,
+      "sha256": "aedcb632f48b81d05f0b883e00c35044e37da0f4d8de07efbc171fcdb13c65ab"
     },
     {
       "path": "tests/test_temporal_smoothing.py",
@@ -939,6 +964,11 @@
       "sha256": "98d2ea06bd1dc2d8470f6fbfd0a9f0a4744b3de3f34393c99cf56f7c6fa44469"
     },
     {
+      "path": "tests/test_upload_gate_lifecycle.py",
+      "bytes": 14933,
+      "sha256": "5d23170dc184e3032db2dc59c660a4f29738c7d44f978fb71fd4fc1fa42a5426"
+    },
+    {
       "path": "tests/test_verify_video.py",
       "bytes": 1383,
       "sha256": "688daf768c0bc4b10526dbd58e1a46e62fa6e50646b6b845bd90adc26533d65c"
@@ -956,7 +986,7 @@
     {
       "path": "tests/video_review_frontend.test.cjs",
       "bytes": 10042,
-      "sha256": "f71feb6f1cc173f59b05e7dacd48563c03dabf45a4540a6bae26bf3cd491eb04"
+      "sha256": "c2d4562cf54899f8baf2c914a4ee2a6aa4c6511e94125491c890b83ae9b1fde8"
     },
     {
       "path": "tools/build_track1_cnn_lstm_final.ps1",
@@ -1072,36 +1102,6 @@
       "path": "traffic_brain/video_review.py",
       "bytes": 26600,
       "sha256": "892d1a15dbfd58ef1a0e13517e5c913abf7703ab2f894f8ad055f4b4bbaa7242"
-    },
-    {
-      "path": "app/public_upload.py",
-      "bytes": 6555,
-      "sha256": "370aeb52e20c6292f156099437a930ba99a49b4c74aa957f9a6bf7d7d1598e3d"
-    },
-    {
-      "path": "tests/conftest.py",
-      "bytes": 367,
-      "sha256": "0dcc963eab68dbef3ddabea78330095f26020db914e545e528c6ad4371caab95"
-    },
-    {
-      "path": "tests/test_public_video_upload.py",
-      "bytes": 10069,
-      "sha256": "3ed932ec61e92f44f1f1ee0be3104bd44aa8a7d4fc8a2906adb9404ea5d97ae3"
-    },
-    {
-      "path": "tests/test_review_streaming.py",
-      "bytes": 11862,
-      "sha256": "a9869b26d697b0c653b781545432490746d30d32bc9907d42c958fd6f472ef42"
-    },
-    {
-      "path": "tests/test_upload_gate_lifecycle.py",
-      "bytes": 14933,
-      "sha256": "5d23170dc184e3032db2dc59c660a4f29738c7d44f978fb71fd4fc1fa42a5426"
-    },
-    {
-      "path": "tests/test_review_multipart_limits.py",
-      "bytes": 4981,
-      "sha256": "3d6ec5ad5be7c49843c03ff39b3f4027b818ba4313791eb796b63d898b712687"
     },
     {
       "path": "static/vietnam-flag.svg",

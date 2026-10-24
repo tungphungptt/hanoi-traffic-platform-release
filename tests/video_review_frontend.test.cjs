@@ -18,7 +18,7 @@ function setup() {
       send(body){this.body=body;requests.push(this);}
     },fetch:async()=>response({status:'succeeded',result:{frames:[]}})});
   vm.runInContext(source,context);
-  vm.runInContext('state.aiccStatus={video_review_enabled:true,upload_limit_bytes:524288000,upload_limit_mb:500,upload_max_duration_seconds:300}; toast=()=>{}; renderScenarioReview=result=>{state.scenarioResult=result;};',context);
+  vm.runInContext('state.aiccStatus={video_review_enabled:true,upload_limit_bytes:524288000,upload_limit_mb:500,upload_max_duration_seconds:360}; toast=()=>{}; renderScenarioReview=result=>{state.scenarioResult=result;};',context);
   el('#scenarioVideoFile').files=[new Blob(['clip'])];
   return {context,el,requests,storage,run:code=>vm.runInContext(code,context)};
 }
@@ -124,7 +124,7 @@ test('worker failure and expired job clear pending state to allow another upload
 test('public capability and optional camera govern the single upload',()=>{
   const {run,el}=setup();run('renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,false);
-  assert.match(el('#scenarioUploadLimit').textContent,/500 MiB.*5 phút/);
+  assert.match(el('#scenarioUploadLimit').textContent,/500 MiB.*6 phút/);
   run('state.aiccStatus.video_review_enabled=false; renderScenarioInputState()');
   assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,true);
   assert.doesNotMatch(el('#scenarioInputHint').textContent,/local|backend|CPU|data\//);
