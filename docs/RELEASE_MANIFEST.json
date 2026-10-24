@@ -96,7 +96,7 @@
     {
       "path": "app/main.py",
       "bytes": 101846,
-      "sha256": "d5731c12afcf9380e431942aae967754c888612fa493fe8f24b51ce5d03d9a9b"
+      "sha256": "9e508830b35ae2880024e92244f83260249f112d471119a3d164d7240a3d4458"
     },
     {
       "path": "app/traffic_baseline.py",
@@ -826,7 +826,7 @@
     {
       "path": "static/index.html",
       "bytes": 50713,
-      "sha256": "c59b958b57270b94e051296cdc05dec0c1e6672576542d2d3ad2f0c5fa6e2efa"
+      "sha256": "ae486827b0e8c4152d6fc848648ebadd05c09d1e3f97f0c7f90028591bcc30cf"
     },
     {
       "path": "static/street-traffic-demo.jpg",
@@ -889,6 +889,11 @@
       "sha256": "c664071bfc15ff3c67554979dbe7e21e47c12eaf2b0420d72718a6d702131d4e"
     },
     {
+      "path": "tests/test_local_runtime.py",
+      "bytes": 6460,
+      "sha256": "fb117fecda5c29af162e26134c4b9779d43cd560eb034388a9e8e86a6c75471e"
+    },
+    {
       "path": "tests/test_manifest_validation.py",
       "bytes": 2318,
       "sha256": "dec086a6ca62f6da5055bbf54bf624ab52d0f03b7b105b14f77ea72e8c261e44"
@@ -910,8 +915,8 @@
     },
     {
       "path": "tests/test_scenarios.py",
-      "bytes": 12252,
-      "sha256": "1acf8991014e3432c71e3d096b4e12e239d125696d422028ed6a7722e727883c"
+      "bytes": 13178,
+      "sha256": "f546fa1c7036562a6a30fc39f1d6f7dd1f1bd7ecd8c239fb16e1cff190f101ec"
     },
     {
       "path": "tests/test_temporal_smoothing.py",
@@ -957,6 +962,11 @@
       "path": "tools/build_track1_cnn_lstm_final.ps1",
       "bytes": 12845,
       "sha256": "01e66a802b04f92d89ddb4acc63293649ccc9ffd0c00ee0327328521df3f9197"
+    },
+    {
+      "path": "tools/check_local_runtime.py",
+      "bytes": 3892,
+      "sha256": "26d3c9c16b909db5bc3f9d2408c1716631440df802fa4df8aa145aa1b49fecef"
     },
     {
       "path": "tools/evaluate_forecast.py",
@@ -1062,16 +1072,6 @@
       "path": "traffic_brain/video_review.py",
       "bytes": 26600,
       "sha256": "892d1a15dbfd58ef1a0e13517e5c913abf7703ab2f894f8ad055f4b4bbaa7242"
-    },
-    {
-      "path": "tests/test_local_runtime.py",
-      "bytes": 6460,
-      "sha256": "fb117fecda5c29af162e26134c4b9779d43cd560eb034388a9e8e86a6c75471e"
-    },
-    {
-      "path": "tools/check_local_runtime.py",
-      "bytes": 3892,
-      "sha256": "26d3c9c16b909db5bc3f9d2408c1716631440df802fa4df8aa145aa1b49fecef"
     }
   ]
 }
