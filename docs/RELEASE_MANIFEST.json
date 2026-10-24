@@ -1,7 +1,7 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 202,
+  "files_count": 205,
   "files": [
     {
       "path": ".env.example",
@@ -59,9 +59,14 @@
       "sha256": "2fef184511390eb5d222a459cf7747b80f3e77b2a406df03c5da898e572079c9"
     },
     {
+      "path": "app/hanoi_scope.py",
+      "bytes": 3150,
+      "sha256": "10a4ec14ac50ac9c54a43c5683a60ce6f0b717559550e8db28d52d37a5930843"
+    },
+    {
       "path": "app/main.py",
-      "bytes": 95743,
-      "sha256": "4b3029ab3811f2b6b29a978a2f1e108ee4d6f37426abd943ed74fc0420bc4d56"
+      "bytes": 96075,
+      "sha256": "8f57ed3df7359351fb9a773d2d9e1345a2d95ae80f2ac704b53e32a3c19616d5"
     },
     {
       "path": "app/traffic_baseline.py",
@@ -70,8 +75,8 @@
     },
     {
       "path": "app/weather_service.py",
-      "bytes": 7660,
-      "sha256": "f5d0807d8f0131cc5b93c2fa092b2db35f6fe8da36642be238bd16b70183da11"
+      "bytes": 7834,
+      "sha256": "e6065d6c9eb27d0df8142d50f64184f2a278a9d021d61a7380bea97d5b862989"
     },
     {
       "path": "artifacts/audit/.gitkeep",
@@ -384,6 +389,11 @@
       "sha256": "13e7277a1f7d2d9f9534e13480dff4118f343e06f015f54c1b6e89ff23f66022"
     },
     {
+      "path": "data/geo/hanoi_boundary.geojson",
+      "bytes": 137456,
+      "sha256": "b05571f5622dc9b67d2fc4218bdd78eee072d65bd094bca3c4bc316c965c83ae"
+    },
+    {
       "path": "data/labels/forecast-target.schema.json",
       "bytes": 1203,
       "sha256": "f7dbf272e12376569cc204532f6322eb1fcc7e781f5ed5888deec5477900dd2c"
@@ -505,8 +515,8 @@
     },
     {
       "path": "docs/WEATHER_AND_TRAFFIC_FORECAST.md",
-      "bytes": 1032,
-      "sha256": "d2be1a114967707a55fb34b95a39536e7a10ecd12cc06c15f3f2738dfbf74308"
+      "bytes": 2003,
+      "sha256": "fe76119dfbe529fa5d860f14e34075899607e729d6565457d64e1b711e3ae2ab"
     },
     {
       "path": "download_aicc_data.ps1",
@@ -842,6 +852,11 @@
       "path": "tests/test_frontend_structure.py",
       "bytes": 3099,
       "sha256": "54ac9058b055caa232f83972bbb5af6c3c786b369f2a1a31a7041748f1b228c4"
+    },
+    {
+      "path": "tests/test_hanoi_scope.py",
+      "bytes": 683,
+      "sha256": "167729c56cc9cdf3a9516b6d0e01b47e1fd31a1dfe71a93dff6cb372c9198881"
     },
     {
       "path": "tests/test_manifest_validation.py",

@@ -31,6 +31,7 @@ from traffic_brain.video_review import analyze_video, VideoReviewError
 from traffic_brain.routing import RouteServiceError, fetch_route_alternatives, score_routes
 from app.weather_service import WeatherServiceError, get_weather_report
 from app.traffic_baseline import forecast_from_history
+from app.hanoi_scope import is_hanoi_coordinate
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = ROOT / "static"
@@ -1714,6 +1715,9 @@ def segment_traffic_forecasts() -> dict[str, Any]:
 
     items = []
     for camera in CAMERAS:
+        # Forecasts are strictly limited to camera coordinates inside the Hanoi boundary.
+        if not is_hanoi_coordinate(camera.get("lat"), camera.get("lng")):
+            continue
         camera_id = str(camera.get("id", ""))
         live_record = live.get(camera_id)
         history = history_snapshot.get(camera_id, [])
@@ -1737,6 +1741,8 @@ def segment_traffic_forecasts() -> dict[str, Any]:
 
     return {
         "ok": True,
+        "scope": "H\u00e0 N\u1ed9i",
+        "boundary_source": "data/geo/hanoi_boundary.geojson",
         "mode": "baseline_reference",
         "method": "linear_trend_baseline",
         "validated": False,

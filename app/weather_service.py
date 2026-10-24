@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+from app.hanoi_scope import is_hanoi_coordinate
 
 WEATHER_SOURCE = "Open-Meteo"
 WEATHER_SOURCE_URL = "https://open-meteo.com/"
@@ -122,8 +123,10 @@ def normalize_weather_payload(payload, latitude, longitude, *, fetched_at=None, 
 
 
 def get_weather_report(latitude=21.0285, longitude=105.8542, *, timeout=8):
-    lat = _finite(latitude, "latitude", 20.35, 21.65)
-    lon = _finite(longitude, "longitude", 105.0, 106.2)
+    lat = _finite(latitude, "latitude", -90, 90)
+    lon = _finite(longitude, "longitude", -180, 180)
+    if not is_hanoi_coordinate(lat, lon):
+        raise ValueError("outside_hanoi_boundary: weather is only available within Hanoi.")
     key = (round(lat, 3), round(lon, 3))
     now_mono = time.monotonic()
     cached = None
