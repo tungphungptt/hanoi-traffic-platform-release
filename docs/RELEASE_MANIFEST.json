@@ -1,7 +1,7 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 205,
+  "files_count": 208,
   "files": [
     {
       "path": ".env.example",
@@ -20,8 +20,8 @@
     },
     {
       "path": ".gitignore",
-      "bytes": 2657,
-      "sha256": "23908aa0e77b83443da3a75b116e048b622e05c3f20a5b7bc757ca0b8d6aa343"
+      "bytes": 2742,
+      "sha256": "03e10c7a3eca7c365050a89bd09a50e98afc7b0fc343d9dbc8975ca866c8f47e"
     },
     {
       "path": "aicc/__init__.py",
@@ -734,6 +734,21 @@
       "sha256": "4195ae6eb8f42d71e006747d4db51beb650d33c655ff56fdc644fd965692cebb"
     },
     {
+      "path": "models/hanoi_manifest.json",
+      "bytes": 403,
+      "sha256": "e283155ee27d32fee0b68df5ee401c66991c3ba9177fd287851f6ed6174835a2"
+    },
+    {
+      "path": "models/hanoi_predictor.onnx",
+      "bytes": 216937,
+      "sha256": "f4477139ec1d8ee7ef3d3d74dd45d66bca99f0da4b4b2a85cecddf3eb95be5f9"
+    },
+    {
+      "path": "models/hanoi_scaler.pkl",
+      "bytes": 621,
+      "sha256": "7505b5ced53f6005e35080d52dd09d96f16421f1de48cc3a17bc0ef12d4e663d"
+    },
+    {
       "path": "models/predictor.onnx",
       "bytes": 208499,
       "sha256": "35b19d1f3738762a8cc7bca7deff06289af642f68aced723375a6187063173ea"
@@ -745,8 +760,8 @@
     },
     {
       "path": "models/README.md",
-      "bytes": 562,
-      "sha256": "f138227306a6d832659cfde1b48379bb4d986ed526f5c255ad142478a46e9317"
+      "bytes": 1103,
+      "sha256": "9e8c94b014e86a0b2bb6d87e1bd23c3203e20552c12cb012f0e27fe8f3f166aa"
     },
     {
       "path": "models/scaler.pkl",
