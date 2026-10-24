@@ -122,7 +122,7 @@ def test_public_demo_allows_only_capped_uploaded_video_review(monkeypatch, tmp_p
     monkeypatch.setattr(main, "PUBLIC_VIDEO_REVIEW_ENABLED", True)
     status = client.get("/api/aicc/status").json()
     assert status["upload_limit_mb"] == 100
-    assert status["upload_max_duration_seconds"] == 300
+    assert status["upload_max_duration_seconds"] == 360
 
     source = tmp_path / "short.avi"
     writer = cv2.VideoWriter(str(source), cv2.VideoWriter_fourcc(*"MJPG"), 5.0, (96, 64))
@@ -157,12 +157,41 @@ def test_public_demo_allows_only_capped_uploaded_video_review(monkeypatch, tmp_p
     )
     assert oversized.status_code == 413
     monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_BYTES", 100 * 1024 * 1024)
-    monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS", 0)
-    too_long = client.post(
+    monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS", 360)
+
+    class FakeCapture:
+        def __init__(self, frame_count):
+            self.frame_count = frame_count
+
+        def isOpened(self):
+            return True
+
+        def read(self):
+            return True, np.zeros((2, 2, 3), dtype=np.uint8)
+
+        def get(self, property_id):
+            if property_id == cv2.CAP_PROP_FPS:
+                return 30
+            if property_id == cv2.CAP_PROP_FRAME_COUNT:
+                return self.frame_count
+            return 0
+
+        def release(self):
+            return None
+
+    monkeypatch.setattr(cv2, "VideoCapture", lambda _path: FakeCapture(30 * 360))
+    six_minutes = client.post(
         "/api/scenarios/video-review",
         files={"file": ("short.avi", source.read_bytes(), "video/x-msvideo")},
     )
-    assert too_long.status_code == 413
+    assert six_minutes.status_code == 202, six_minutes.text
+
+    monkeypatch.setattr(cv2, "VideoCapture", lambda _path: FakeCapture(30 * 361))
+    over_six_minutes = client.post(
+        "/api/scenarios/video-review",
+        files={"file": ("short.avi", source.read_bytes(), "video/x-msvideo")},
+    )
+    assert over_six_minutes.status_code == 413
 
 
 def test_frame_endpoint_rejects_traversal_and_non_jpeg(monkeypatch, tmp_path):
