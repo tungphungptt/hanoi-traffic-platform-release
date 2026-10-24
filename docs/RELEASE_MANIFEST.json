@@ -1,7 +1,7 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 219,
+  "files_count": 220,
   "files": [
     {
       "path": ".env.example",
@@ -35,8 +35,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 18448,
-      "sha256": "02a698f09419533968ad91dd89aa703689c449029e863c8375f49d5c77a989a0"
+      "bytes": 18609,
+      "sha256": "5248975f215df1cf160d3229233794ee881b7bdcf87546e007bc8701c5f90ce1"
     },
     {
       "path": "SOURCE_RELEASE_NOTES.md",
@@ -95,8 +95,8 @@
     },
     {
       "path": "app/main.py",
-      "bytes": 109522,
-      "sha256": "fe6e2a20c8738a7fcfa495ba9a71bcc8b7926ca053f8bc524cc69314a52ef672"
+      "bytes": 110415,
+      "sha256": "87604a50ef4d0bf03674d7ff7fd26a16acc781d448dafd74cb57dbf9ea89ba9c"
     },
     {
       "path": "app/traffic_baseline.py",
@@ -1097,6 +1097,11 @@
       "path": "tests/test_upload_gate_lifecycle.py",
       "bytes": 14933,
       "sha256": "5d23170dc184e3032db2dc59c660a4f29738c7d44f978fb71fd4fc1fa42a5426"
+    },
+    {
+      "path": "tests/test_review_multipart_limits.py",
+      "bytes": 4981,
+      "sha256": "3d6ec5ad5be7c49843c03ff39b3f4027b818ba4313791eb796b63d898b712687"
     }
   ]
 }

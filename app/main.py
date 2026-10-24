@@ -19,8 +19,9 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, Response
+from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Request, UploadFile, Response
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from app.public_upload import PublicUploadMiddleware, UploadGate, BUSY_MESSAGE
@@ -1772,7 +1773,25 @@ async def _copy_review_upload(file: UploadFile, target, max_bytes: int) -> int:
         await run_in_threadpool(target.write, chunk)
 
 
-@app.post("/api/scenarios/video-review", status_code=202)
+class VideoReviewUploadRoute(APIRoute):
+    """Bound multipart memory before FastAPI parses this upload endpoint."""
+    def get_route_handler(self):
+        original_handler = super().get_route_handler()
+
+        async def bounded_form(request: Request) -> Response:
+            content_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            if content_type != "multipart/form-data":
+                raise HTTPException(status_code=415, detail="Tải video bằng multipart/form-data.")
+            async with request.form(max_files=1, max_fields=2, max_part_size=4096):
+                return await original_handler(request)
+
+        return bounded_form
+
+
+video_review_upload_router = APIRouter(route_class=VideoReviewUploadRoute)
+
+
+@video_review_upload_router.post("/api/scenarios/video-review", status_code=202)
 async def create_video_review(
     file: UploadFile = File(...),
     camera_id: str | None = Form(default=None),
@@ -1820,6 +1839,9 @@ async def create_video_review(
                 finally:
                     with VIDEO_REVIEW_LOCK:
                         ACTIVE_REVIEW_UPLOADS.discard(tmp_path)
+
+
+app.include_router(video_review_upload_router)
 
 
 @app.post("/api/scenarios/video-review-from-data", status_code=202)
