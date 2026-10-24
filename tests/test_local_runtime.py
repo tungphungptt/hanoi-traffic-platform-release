@@ -61,12 +61,12 @@ def test_effective_flags_have_one_backend_source(monkeypatch, public, video):
         assert client.post('/api/scenarios/video-review', files={'file': ('clip.mp4', b'', 'video/mp4')}).status_code == 403
 
 
-def test_public_deployment_stays_read_only():
+def test_public_deployment_enables_only_video_review():
     config = yaml.safe_load((ROOT / 'render.yaml').read_text())
     values = {row['key']: row['value'] for row in config['services'][0]['envVars']}
     assert values['PUBLIC_DEMO_MODE'] == 'true'
     assert values['AICC_VIDEO_ENABLED'] == 'false'
-    assert values['PUBLIC_VIDEO_REVIEW_ENABLED'] == 'false'
+    assert values['PUBLIC_VIDEO_REVIEW_ENABLED'] == 'true'
 
 
 def test_process_environment_wins_over_dotenv_in_child(tmp_path, monkeypatch):

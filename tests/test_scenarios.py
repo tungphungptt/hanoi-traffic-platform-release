@@ -121,7 +121,9 @@ def test_public_demo_allows_only_capped_uploaded_video_review(monkeypatch, tmp_p
     monkeypatch.setattr(main, "AICC_VIDEO_ENABLED", False)
     monkeypatch.setattr(main, "PUBLIC_VIDEO_REVIEW_ENABLED", True)
     status = client.get("/api/aicc/status").json()
-    assert status["upload_limit_mb"] == 100
+    assert status["upload_limit_mb"] == 500
+    assert status["upload_limit_mib"] == 500
+    assert status["upload_limit_bytes"] == 524_288_000
     assert status["upload_max_duration_seconds"] == 360
 
     source = tmp_path / "short.avi"
@@ -156,7 +158,7 @@ def test_public_demo_allows_only_capped_uploaded_video_review(monkeypatch, tmp_p
         files={"file": ("short.avi", source.read_bytes(), "video/x-msvideo")},
     )
     assert oversized.status_code == 413
-    monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_BYTES", 100 * 1024 * 1024)
+    monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_BYTES", 500 * 1024 * 1024)
     monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS", 360)
 
     class FakeCapture:
@@ -284,5 +286,7 @@ def test_v5_ui_explains_video_frames_route_candidates_and_hides_legacy_flow_by_d
     assert 'id="scenarioFindRoutesBtn"' in html
     assert 'id="scenarioRouteMap"' in html
     assert 'id="scenarioPreserveTiming"' in html
-    assert '<details class="advanced-details scenario-advanced">' in html
+    assert 'id="scenarioDataVideo"' not in html
+    assert 'id="aiccVideoFile"' not in html
+    assert 'id="scenarioVideoFile"' in html
     assert "Dự báo & phương án" in html

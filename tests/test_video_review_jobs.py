@@ -104,7 +104,7 @@ def test_upload_and_data_queue_independently(sandbox, clip, monkeypatch):
 
 
 @pytest.mark.parametrize('fail', [False, True])
-def test_worker_terminal_status_and_cleanup(sandbox, clip, monkeypatch, fail):
+def test_worker_terminal_status_and_cleanup(sandbox, clip, monkeypatch, caplog, fail):
     job_id = 'a' * 32
     main.VIDEO_REVIEW_JOBS[job_id] = {'status': 'queued'}
     monkeypatch.setattr(main.aicc_runtime, 'load', lambda: {})
@@ -121,7 +121,9 @@ def test_worker_terminal_status_and_cleanup(sandbox, clip, monkeypatch, fail):
     assert job['finished_at']
     assert not clip.exists()
     if fail:
-        assert 'test decoder failure' in job['error']
+        assert 'test decoder failure' in caplog.text
+        assert 'test decoder failure' not in job['error']
+        assert 'Vui lòng thử lại' in job['error']
     else:
         assert job['result']['frames'][0]['url'].endswith('/frames/frame_001.jpg')
         assert job['progress_percent'] == 100

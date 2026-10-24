@@ -30,33 +30,23 @@ Bootstrap sẽ:
 
 Tắt server bằng `Ctrl+C` trong cửa sổ Uvicorn. Có thể đổi cổng bằng `-Port 8001`. Nếu cổng đang sử dụng, script dừng và báo cách khắc phục. Bản ZIP không kèm footage/video, `.env`, hoặc trọng số model upstream vì chưa đủ xác minh quyền phân phối. Bản local cần các artifact AICC trong đường dẫn nêu trên để chạy inference video.
 
-## Phân biệt bản local và demo Render khi phân tích video
+## Phân tích video trên website public
 
-`https://hanoi-traffic-platform.onrender.com/` là một backend riêng. Cấu hình `render.yaml` giữ bản demo công khai ở chế độ chỉ đọc và tắt phân tích video. Khởi động server trên Windows không bật upload trên trang Render. Hãy mở địa chỉ `http://127.0.0.1:8000` (hoặc cổng đã chọn) do launcher local thông báo để phân tích clip.
+Trên trang “Tải video để bắt đầu phân tích”, chọn video từ máy tính rồi bấm **Phân tích video**. Camera là tùy chọn. Kết quả gồm nhãn trạng thái, CI, ảnh minh chứng, LSTM thử nghiệm theo giây, baseline xu hướng nếu đủ dữ liệu và xuất CSV. Các chỉ số từ clip chưa phải dữ liệu camera trực tiếp đã kiểm định.
 
-Tại checkout Git trên Windows, dừng Uvicorn cũ bằng `Ctrl+C`, cập nhật code rồi chạy:
+Public video review được bật riêng bằng `PUBLIC_VIDEO_REVIEW_ENABLED=true`. `PUBLIC_DEMO_MODE=true` và `AICC_VIDEO_ENABLED=false` vẫn giữ các thao tác model, manifest, clip camera và AICC nội bộ bị khóa. Giới hạn ứng dụng là **500 MiB (524.288.000 byte) và 5 phút**. Trình duyệt kiểm tra theo `upload_limit_bytes` từ `/api/aicc/status`; `upload_limit_mb` được giữ để tương thích với client cũ. Model AICC và Hanoi phải có đủ artifact tương thích trong checkout; không tự tải model hoặc đổi thuật toán khi nhận upload.
 
-```powershell
-git status --short
-git switch main
-git pull --ff-only origin main
-powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy_demo.ps1
-```
+Trình duyệt báo tiến độ từ số byte XHR đã truyền. Sau HTTP 202, giao diện theo dõi `job_id`; phần trăm phân tích lấy từ worker. Nếu mất kết nối, polling tự thử lại và nút **Theo dõi lại kết quả** tiếp tục cùng tác vụ, không upload lại. Chỉ job ID được giữ trong sessionStorage, không lưu video hoặc tên file vào trình duyệt. Lỗi 404 sau khi restart/hết hạn cho phép gửi lại clip.
 
-Nếu có thay đổi local, giữ lại chúng và giải quyết trước khi chuyển branch; không reset hoặc ghi đè dữ liệu cá nhân. Nếu thư mục được giải nén từ ZIP và không có `.git`, cần cập nhật từ bản phát hành đã chứa bản sửa thay vì chạy `git pull`.
+Nạp model và phân tích chạy trong worker sau HTTP 202; kiểm tra codec/thời lượng chạy ngoài event loop. Chỉ một lượt nhận upload public hoặc tác vụ CPU được tiếp nhận cùng lúc. Có quota toàn dịch vụ 6 lượt nhận/phút và phản hồi 429/Retry-After; không dùng `X-Forwarded-For` hoặc IP giả mạo để cấp quota. Middleware chặn body vượt mức kể cả thiếu Content-Length, giới hạn đọc không hoạt động 60 giây và tổng thời gian nhận 30 phút; XHR cũng có deadline 30 phút. Đây là giới hạn ứng dụng, không phải tuyên bố về timeout của Render.
 
-Launcher dùng `.venv\Scripts\python.exe` với Python 3.12/3.11, đặt `PUBLIC_DEMO_MODE=false` và `AICC_VIDEO_ENABLED=true` trước khi tạo process con, đồng thời in đường dẫn dự án/interpreter và các cờ không chứa secret. Nó kiểm tra cổng cả trước setup và trước khi chạy Uvicorn, xác minh `app.main` thuộc checkout hiện tại, rồi chỉ báo `DEMO READY` sau khi `tools/check_local_runtime.py` kiểm tra health, mã phiên khởi chạy được process con kế thừa, PID server thực tế, quyền phân tích thực tế và sự hiện diện của bộ model. Process environment được ưu tiên trước `.env`; không cần ghi đè `.env` cá nhân. Python 3.14 không thuộc bộ runtime được launcher hỗ trợ.
+Kiểm thử hồi quy tái hiện được lỗi vòng đời upload gate: giữ cờ nhận upload đến khi toàn bộ ASGI app kết thúc khiến cleanup sau response vẫn chặn request tiếp theo bằng 409; timeout/cancellation của receive cũng phải nhả đúng lượt sở hữu. Hotfix nhả lease khi response kết thúc hoặc request lỗi/ngắt kết nối; finalizer cũ không được nhả lease của request mới. Tác vụ CPU còn chạy vẫn phải trả 409. Đây là nguyên nhân đã kiểm chứng trong mã nguồn; chưa đủ để khẳng định mọi 409 trên một deployment cụ thể có cùng nguyên nhân. Cần đối chiếu build và trạng thái thực tế sau deploy.
 
-Có thể kiểm tra chế độ của server đang mở bằng PowerShell trong cửa sổ khác:
+Endpoint chỉ nhận multipart với một file và tối đa hai trường metadata, mỗi trường tối đa 4 KiB, để tránh giữ nhiều phần nhỏ trong RAM. Upload được Starlette spool xuống đĩa sau 1 MiB rồi ứng dụng sao chép theo chunk 1 MiB vào file riêng; không đọc toàn bộ video vào RAM. Trong lúc sao chép file 500 MiB, hai bản tạm có thể chiếm khoảng **1 GiB đĩa**, chưa tính model và output. Kiểm tra dung lượng trống trước khi nhận body phải dành chỗ cho cả spool, bản sao và phần dự phòng; cleanup vẫn chạy khi thành công, lỗi hoặc hủy request.
 
-```powershell
-Invoke-RestMethod http://127.0.0.1:8000/api/system | Select-Object public_demo_mode,process_id,video_review
-Invoke-RestMethod http://127.0.0.1:8000/api/aicc/status | Select-Object public_demo_mode,video_enabled,enabled,artifacts_present,blocked_reason
-```
+Video tạm được xóa sau khi xử lý/lỗi. Kết quả tối đa 8 tác vụ và hết hạn sau 1 giờ; cleanup chạy định kỳ, bao gồm output/upload mồ côi sau restart. File nằm trên filesystem ephemeral của Render; restart làm mất trạng thái tác vụ. Render Free có thể spin down sau 15 phút không có lưu lượng và cần khởi động lại khi có request mới (https://render.com/docs/free); thời gian chờ khởi động không phải tiến độ phân tích clip. Không dùng kết quả như kho lưu trữ lâu dài.
 
-Ở bản local được phép phân tích, `public_demo_mode` phải là `False`, `video_enabled`, `enabled` và `artifacts_present` phải là `True`. Nút upload dùng file đã chọn từ máy tính, độc lập với danh sách `data/`; danh sách trống chỉ khóa nút phân tích từ `data/`. File được chọn chưa được upload cho đến khi bấm phân tích. Nếu khởi động lại backend với cấu hình khác, dùng nút làm mới để đọc lại trạng thái có thẩm quyền từ API.
-
-Bộ kiểm thử có test process con/HTTP trên Linux và test tĩnh launcher. Các test đó không thay thế việc chạy Windows PowerShell thực tế trên máy Windows.
+`render.yaml` khai báo cấu hình mong muốn; biến môi trường trên Render Dashboard có thể override và cần được kiểm tra riêng. Sau deploy, đối chiếu `GET /api/health` trường `build_commit` với commit trên `main`, kiểm tra `/api/aicc/status` có `video_review_enabled=true`, và chạy smoke upload nhỏ. **500 MiB là giới hạn trong mã nguồn, chưa phải chứng nhận upload 500 MiB thành công qua Render.** [Render Free](https://render.com/docs/compute-plans) có 0,1 CPU và 512 MB RAM; filesystem ephemeral có giới hạn nhưng [tài liệu xử lý lỗi](https://render.com/docs/troubleshooting-deploys) không nêu quota số cụ thể. [Tài liệu HTTP](https://render.com/docs/render-vs-vercel-comparison) cho phép response tới 100 phút; không suy ra từ đó trần request body hoặc khả năng xử lý video trên gói hiện tại. Chưa xác minh được giới hạn body/proxy trên đường truyền của deployment; cần kiểm tra trước khi thử file lớn. Nếu xác nhận proxy có trần thấp hơn, dùng upload chia chunk/resumable hoặc object storage phù hợp; chỉ tăng timeout không vượt được trần đó.
 
 ## Cấu trúc dự án
 
@@ -94,7 +84,7 @@ The AICC-compatible integration is retained from the operator's earlier project.
 |---|---|---|
 | `GET /api/health` | Service health | Does not assert model/camera health |
 | `GET /api/cameras` | Camera metadata and assigned local clips | Bundled camera status/metrics are fixtures unless replaced with verified ingestion |
-| `POST /api/scenarios/video-review` | Upload and queue video review | Public mode requires `PUBLIC_VIDEO_REVIEW_ENABLED=true`; 100 MB / 5 minute cap |
+| `POST /api/scenarios/video-review` | Upload and queue video review | Public mode requires `PUBLIC_VIDEO_REVIEW_ENABLED=true`; application cap 500 MiB / 5 minutes |
 | `POST /api/scenarios/video-review-from-data` | Queue a file under `data/` | Rejects path escape, unsupported file type, oversize input and public demo writes |
 | `GET /api/scenarios/video-reviews/{job_id}` | Job progress/result | In-memory job state; lost on restart |
 | `GET /api/scenarios/video-reviews/{job_id}/frames/{filename}` | View a generated JPEG | Constrained job ID and filename pattern |
@@ -131,7 +121,7 @@ Useful reference concepts were independently implemented where appropriate: samp
 
 ## Deployment boundaries
 
-The local bootstrap binds only to loopback. `render.yaml` keeps `PUBLIC_DEMO_MODE=true` and `PUBLIC_VIDEO_REVIEW_ENABLED=false`, so the public deployment stays read-only by default. The dedicated upload opt-in is retained for an explicitly configured protected deployment; stored-file and other public writes remain disabled. Public uploads are limited to 100 MB and 5 minutes and consume shared CPU, so deployment should add authentication, rate limits, storage-retention rules, and abuse monitoring before wider use. Video LSTM outputs are experimental, second-based, and uncalibrated. This release is a research/operational prototype, not a certified traffic-control system.
+The local bootstrap binds only to loopback. `render.yaml` keeps `PUBLIC_DEMO_MODE=true` and enables only the dedicated public video-review upload with `PUBLIC_VIDEO_REVIEW_ENABLED=true`; stored-file and other public writes remain disabled. The application limits public uploads to 500 MiB and 5 minutes; actual Render capacity remains subject to deployment verification described above. Uploads consume shared CPU, so deployment should add authentication, rate limits, storage-retention rules, and abuse monitoring before wider use. Video LSTM outputs are experimental, second-based, and uncalibrated. This release is a research/operational prototype, not a certified traffic-control system.
 
 ## Final 8.0 release hardening
 

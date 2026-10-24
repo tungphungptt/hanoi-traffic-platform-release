@@ -27,10 +27,10 @@
         <button class="nav-item" data-page="alerts"><span class="nav-icon">♧</span><span>Cảnh báo</span><span class="nav-count warm" id="navAlertCount">0</span></button>
         <button class="nav-item" data-page="analytics"><span class="nav-icon">⌁</span><span>Báo cáo & xu hướng</span></button>
       </nav>
-      <div class="side-label second-label">HỆ THỐNG</div>
+      <div class="side-label second-label" data-operator-only hidden>HỆ THỐNG</div>
       <nav class="side-nav">
-        <button class="nav-item" data-page="models"><span class="nav-icon">◈</span><span>Nguồn xử lý</span><span class="nav-dot" id="modelNavDot"></span></button>
-        <button class="nav-item" data-page="settings"><span class="nav-icon">⚙</span><span>Cài đặt</span></button>
+        <button class="nav-item" data-page="models" data-operator-only hidden><span class="nav-icon">◈</span><span>Nguồn xử lý</span><span class="nav-dot" id="modelNavDot"></span></button>
+        <button class="nav-item" data-page="settings" data-operator-only hidden><span class="nav-icon">⚙</span><span>Cài đặt</span></button>
       </nav>
       <div class="sidebar-spacer"></div>
       <div class="support-card">
@@ -112,9 +112,8 @@
                   </div>
                   <span class="camera-video-live-tag" id="trafficVideoTag" hidden><i></i> CLIP ĐÃ GÁN</span>
                 </div>
-                <div class="camera-feed-info"><strong id="trafficCameraArea">Chưa có thông tin khu vực</strong><small id="trafficFeedHint" role="status">Gán video theo đúng đoạn đường; ứng dụng sẽ lưu trong data/camera_feeds/.</small></div>
-                <div class="camera-feed-actions"><label class="btn btn-primary camera-feed-upload" for="trafficFeedUpload">↑ Gán video từ máy tính<input id="trafficFeedUpload" type="file" accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,.mp4,.mov,.avi,.mkv,.mpeg,.mpg,.webm" /></label><button class="btn btn-outline" id="removeCameraFeed" type="button" disabled>Gỡ clip</button></div>
-                <div class="camera-data-assign"><label for="cameraFeedDataSelect">Hoặc gán clip đã có trong data/</label><div><select id="cameraFeedDataSelect"><option value="">Đang tải danh sách video…</option></select><button class="btn btn-outline" id="assignCameraDataVideo" type="button">Gán clip</button></div></div>
+                <div class="camera-feed-info"><strong id="trafficCameraArea">Chưa có thông tin khu vực</strong><small id="trafficFeedHint" role="status">Clip được gán cho điểm giám sát này chỉ dùng làm nguồn xem tham khảo.</small></div>
+                <div class="camera-feed-actions" data-operator-only hidden><label class="btn btn-primary camera-feed-upload" for="trafficFeedUpload">↑ Gán video từ máy tính<input id="trafficFeedUpload" type="file" accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,.mp4,.mov,.avi,.mkv,.mpeg,.mpg,.webm" /></label><button class="btn btn-outline" id="removeCameraFeed" type="button" disabled>Gỡ clip</button></div>
                 <small class="camera-feed-disclaimer">Clip chỉ gắn với đúng mã camera đã chọn. Ảnh minh họa không phải camera trực tiếp; số liệu giao thông vẫn là dữ liệu mẫu cho đến khi tích hợp nguồn thật.</small>
               </aside>
               </div>
@@ -143,7 +142,7 @@
             <div id="segmentForecastList" class="segment-forecast-list"></div>
           </section>
 
-          <footer class="page-footer"><span>© 2026 hanoiFlow</span><span>Thiết kế phục vụ điều hành · Tối ưu cho CPU</span><span class="footer-version">Bản vận hành 8.0.0</span></footer>
+          <footer class="page-footer"><span>© 2026 hanoiFlow</span><span>Chỉ báo tham khảo từ dữ liệu hiện có</span><span class="footer-version">Bản vận hành 8.0.0</span></footer>
         </section>
 
         <section class="page" id="page-cameras">
@@ -163,7 +162,7 @@
           <div class="analytics-grid"><section class="panel wide-analytics"><div class="panel-heading"><div><div class="section-kicker">CHỈ SỐ ÙN TẮC</div><h2>Diễn biến theo thời gian</h2><p class="panel-subtitle">Chỉ số CI từ 0 (thông thoáng) đến 1 (tắc nghẽn nghiêm trọng)</p></div><span class="level-chip busy">Toàn khu vực</span></div><div class="analytics-chart" id="analyticsChart"></div><div class="chart-foot"><span><i class="legend-line"></i>Chỉ số CI</span><span>Khoảng thời gian: gần đây</span></div></section><section class="panel"><div class="section-kicker">MỨC ĐỘ ÙN TẮC</div><h2>Phân bổ trạng thái</h2><div class="distribution-list" id="distributionList"></div></section><section class="panel"><div class="section-kicker">MỤC TIÊU KỸ THUẬT</div><h2>Chỉ số tham chiếu</h2><div class="kpi-reference"><div><span>Độ trễ toàn pipeline</span><strong>&lt; 30 ms/frame</strong><small>Mục tiêu theo đề án</small></div><div><span>Bộ nhớ</span><strong>&lt; 600 MB</strong><small>Mục tiêu trên mỗi luồng</small></div><div><span>Khung hình xử lý</span><strong>5–10 FPS</strong><small>Chiến lược lấy mẫu CPU</small></div></div></section><section class="panel"><div class="section-kicker">GHI CHÚ</div><h2>Đọc các chỉ số</h2><div class="definition-list"><div><span class="level-dot free"></span><p><strong>0,00–0,29</strong><small>Thông thoáng</small></p></div><div><span class="level-dot busy"></span><p><strong>0,30–0,54</strong><small>Đông đúc</small></p></div><div><span class="level-dot heavy"></span><p><strong>0,55–0,77</strong><small>Ùn ứ cục bộ</small></p></div><div><span class="level-dot gridlock"></span><p><strong>0,78–1,00</strong><small>Tắc nghẽn nghiêm trọng</small></p></div></div></section></div>
         </section>
 
-        <section class="page" id="page-models">
+        <section class="page" id="page-models" data-operator-only hidden>
           <div class="page-heading"><div><div class="eyebrow">CẤU HÌNH VẬN HÀNH</div><h1>Nguồn xử lý</h1><p class="page-subtitle">Chọn cách hệ thống nhận kết quả dự báo. Tệp mô hình và manifest nằm trong phần nâng cao, không làm rối màn hình điều hành.</p></div><div class="heading-actions"><button class="btn btn-outline" id="downloadManifest">↓ Tải cấu hình</button><button class="btn btn-primary" id="reloadModels">↻ Nạp lại</button></div></div>
           <section class="panel provider-overview-panel">
             <div class="provider-overview-top"><div><div class="section-kicker">NGUỒN DỰ BÁO</div><h2 id="providerUiTitle">Mô hình cục bộ</h2><p class="panel-subtitle" id="providerUiMessage">Đang kiểm tra cấu hình hiện tại…</p></div><span class="mode-chip demo" id="modelModeChip">DEMO</span></div>
@@ -181,19 +180,19 @@
         </section>
 
         <section class="page active" id="page-video">
-          <div class="page-heading"><div><div class="eyebrow">DỰ BÁO TUYẾN ĐƯỜNG</div><h1>Đánh giá nguy cơ & chọn tuyến thay thế</h1><p class="page-subtitle">Nạp clip của đoạn A để trích xuất các khung hình minh chứng trạng thái giao thông; xem xu hướng khi đủ dữ liệu, sau đó so sánh các tuyến thay thế trên mạng đường bộ Hà Nội.</p></div><div class="heading-actions"><span class="last-updated" id="scenarioRuntimeMode">Ưu tiên xử lý cục bộ</span></div></div>
-          <div class="demo-notice" id="scenarioNotice"><span class="notice-icon">i</span><span>Phân biệt rõ ảnh phân tích, dự báo baseline và dữ liệu giao thông trực tiếp. Clip nén/timelapse không được dùng để ngoại suy thời gian.</span></div>
+          <div class="page-heading"><div><div class="eyebrow">DỰ BÁO TUYẾN ĐƯỜNG</div><h1>Đánh giá nguy cơ & chọn tuyến thay thế</h1><p class="page-subtitle">Nạp clip của đoạn A để trích xuất các khung hình minh chứng trạng thái giao thông; xem xu hướng khi đủ dữ liệu, sau đó so sánh các tuyến thay thế trên mạng đường bộ Hà Nội.</p></div><div class="heading-actions"><span class="last-updated" id="scenarioRuntimeMode">Đang kiểm tra…</span></div></div>
+          <div class="demo-notice" id="scenarioNotice"><span class="notice-icon">i</span><span>Tải video lên để phân tích. Kết quả là chỉ báo tham khảo từ clip, không phải dữ liệu camera trực tiếp đã kiểm định.</span></div>
           <div class="scenario-workspace">
             <section class="panel scenario-input-panel">
               <div class="section-kicker">01 · NGUỒN VIDEO</div><h2>Tải video để bắt đầu phân tích</h2>
               <div class="scenario-field"><label for="scenarioOriginSelect">Đoạn A / điểm đi (không bắt buộc)</label><select id="scenarioOriginSelect" class="scenario-select"><option value="">Đang tải camera…</option></select><small>Chỉ cần chọn nếu muốn gắn clip với một camera/đoạn đường cụ thể.</small></div>
-              <div class="scenario-field"><label for="scenarioDataVideo">Video có sẵn trong thư mục data/</label><div class="scenario-inline"><select id="scenarioDataVideo" class="scenario-select"><option value="">Đang tải danh sách video…</option></select><button class="btn btn-outline" id="scenarioAnalyzeDataBtn" type="button">Phân tích</button></div></div>
-              <div class="scenario-upload"><label for="scenarioVideoFile">Hoặc thêm video từ máy tính</label><input id="scenarioVideoFile" type="file" accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,.mp4,.mov,.avi,.mkv,.mpeg,.mpg,.webm"/><small>Public demo: tối đa 100 MB / 6 phút. Tác vụ chạy nền trên CPU; video chỉ dùng phân tích clip, không phải feed trực tiếp.</small></div>
+              <div class="scenario-upload"><label for="scenarioVideoFile">Chọn video từ máy tính</label><input id="scenarioVideoFile" type="file" accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,.mp4,.mov,.avi,.mkv,.mpeg,.mpg,.webm"/><small id="scenarioUploadLimit">Tối đa 500 MiB và 6 phút.</small></div>
               <label class="timing-consent"><input id="scenarioPreserveTiming" type="checkbox"/><span><strong>Clip giữ đúng thời gian quay (không timelapse / không tăng tốc)</strong><small>Chỉ bật nếu chắc chắn timestamp phản ánh thời gian thực. Tùy chọn này chỉ áp dụng cho baseline xu hướng theo phút.</small></span></label>
-              <div class="scenario-job-status" id="scenarioInputHint" role="status" aria-live="polite">Chọn tệp từ máy tính hoặc video trong data/ để bắt đầu.</div>
-              <button class="btn btn-primary scenario-main-action" id="scenarioAnalyzeUploadBtn" type="button" disabled>Phân tích clip & tạo ảnh minh chứng</button>
+              <div class="scenario-job-status" id="scenarioInputHint" role="status" aria-live="polite">Chọn một video để bắt đầu.</div>
+              <button class="btn btn-primary scenario-main-action" id="scenarioAnalyzeUploadBtn" type="button" disabled>Phân tích video</button>
+              <button class="btn btn-outline" id="scenarioResumeBtn" type="button" hidden>Theo dõi lại kết quả</button>
               <div class="scenario-job-status" id="scenarioJobStatus" role="status" aria-live="polite">Chưa có lượt xử lý. Tải video lên để bắt đầu; chọn đoạn A là tùy chọn.</div>
-              <div class="scenario-progress" id="scenarioProgressWrap" hidden><div class="scenario-progress-bar"><span id="scenarioProgressBar"></span></div><small id="scenarioProgressText">Đang chờ CPU…</small></div>
+              <div class="scenario-progress" id="scenarioProgressWrap" hidden><div class="scenario-progress-bar"><span id="scenarioProgressBar"></span></div><small id="scenarioProgressText">Chưa bắt đầu</small></div>
             </section>
             <section class="panel scenario-result-panel">
               <div class="section-kicker">02 · ẢNH MINH CHỨNG VÀ XU HƯỚNG</div><h2>Đoạn nào thông thoáng, đoạn nào ùn ứ?</h2>
@@ -202,7 +201,7 @@
               <div class="scenario-forecast-block" id="scenarioForecastBlock"><div class="scenario-forecast-heading"><strong>Baseline xu hướng +5 / +10 phút</strong><span id="scenarioForecastBadge" class="status-tag">Chưa đủ dữ liệu</span></div><div id="scenarioForecastText" class="scenario-forecast-text">Baseline riêng, chỉ xuất hiện nếu clip giữ đúng thời gian và đủ mẫu; không phải kết quả LSTM.</div><div id="scenarioForecastCards" class="scenario-forecast-cards"></div></div>
               <div class="scenario-forecast-block"><div class="scenario-forecast-heading"><strong>LSTM thử nghiệm +5 / +10 / +15 giây</strong><span id="hanoiForecastBadge" class="status-tag">Chưa đủ dữ liệu</span></div><div id="hanoiForecastText" class="scenario-forecast-text">Cần ít nhất 30 giây video lấy mẫu 1 frame/giây. Xác suất chưa hiệu chuẩn và không thay thế dự báo theo phút.</div><div id="hanoiForecastCards" class="scenario-forecast-cards"></div></div>
               <div class="scenario-frames-heading"><div><strong>Khung hình theo thời điểm</strong><small id="scenarioFramesCaption">Ảnh sẽ xuất hiện sau khi xử lý xong.</small></div><button class="btn btn-outline" id="scenarioExportBtn" type="button" disabled>Xuất dữ liệu CSV</button></div>
-              <div class="scenario-frame-gallery" id="scenarioFrameGallery"><div class="empty-state">Chưa có ảnh minh chứng. Chọn clip của đoạn A rồi nhấn phân tích.</div></div>
+              <div class="scenario-frame-gallery" id="scenarioFrameGallery"><div class="empty-state">Chưa có ảnh minh chứng. Tải video rồi nhấn Phân tích video.</div></div>
             </section>
           </div>
           <section class="panel scenario-route-panel">
@@ -212,28 +211,8 @@
             <div id="scenarioRouteMessage" class="scenario-job-status" role="status">Chọn điểm đến để so sánh các tuyến. Kết quả video chỉ được dùng cho điểm đi khớp camera.</div>
             <div class="scenario-route-layout"><div id="scenarioRouteList" class="scenario-route-list"><div class="empty-state">Chưa có phương án tuyến.</div></div><div class="scenario-route-map-wrap"><div class="route-map-title"><strong>Bản đồ tuyến đi</strong><small>Đường đi thực trên OpenStreetMap · cần Internet</small></div><div id="scenarioRouteMap" class="scenario-route-map" role="region" aria-label="Bản đồ các tuyến thay thế"></div><div id="scenarioRouteMapError" class="map-tile-error" hidden>Không tải được bản đồ tuyến. Danh sách tuyến vẫn có thể hiển thị.</div></div></div>
           </section>
-          <details class="advanced-details scenario-advanced"><summary>Chẩn đoán kỹ thuật AICC Phase 1 (phân loại video, không phải dự báo tuyến)</summary>
-
-          <div class="page-heading"><div><div class="eyebrow">PHÂN TÍCH CLIP</div><h1>Phân tích video giao thông</h1><p class="page-subtitle">Chạy pipeline nhận diện xe, theo vết centroid và phân loại mức độ ùn tắc từ video tải lên.</p></div><div class="heading-actions"><button class="btn btn-outline" id="aiccRefresh">↻ Kiểm tra model</button></div></div>
-          <div class="demo-notice" id="aiccNotice"><span class="notice-icon">i</span><span>Đang kiểm tra model AICC…</span></div>
-          <div class="content-grid">
-            <section class="panel">
-              <div class="panel-heading"><div><div class="section-kicker">VIDEO ĐẦU VÀO</div><h2>Chọn video cần phân tích</h2><p class="panel-subtitle">Khuyến nghị clip 10–60 giây, định dạng MP4/AVI/MKV/MOV. Detector lấy mẫu khoảng 6 FPS để giảm tải CPU.</p></div></div>
-              <div class="aicc-upload-box"><div class="aicc-data-source"><label for="aiccDataVideo">Video đã giải nén trong thư mục <code>data/</code></label><div class="aicc-data-controls"><select id="aiccDataVideo"><option value="">Đang tải danh sách video…</option></select><button class="btn btn-outline" id="aiccAnalyzeDataBtn">Phân tích video trong data/</button></div><small id="aiccDataVideoHint">Nếu đã giải nén video vào data/, chọn video ở đây để không phải tải lại qua trình duyệt.</small></div><div class="aicc-source-divider"><span>HOẶC TẢI VIDEO TỪ MÁY TÍNH</span></div><label for="aiccVideoFile" class="aicc-dropzone"><span class="aicc-upload-icon">↑</span><strong>Chọn tệp video từ máy tính</strong><small>Không tải video lên GitHub. Giới hạn <span id="aiccLimit">500</span> MB mỗi lần.</small><input type="file" id="aiccVideoFile" accept="video/*,.mp4,.avi,.mkv,.mov,.mpeg,.mpg,.webm" /></label><div class="aicc-selected-file" id="aiccSelectedFile">Chưa chọn tệp</div><button class="btn btn-primary" id="aiccAnalyzeBtn">▶ Phân tích video</button><p class="integration-note">Pipeline giữ đúng thứ tự đặc trưng AICC: car_count → avg_speed (pixel/giây) → speed_cv. Tốc độ chưa hiệu chuẩn sang km/h; nhãn dự báo là lớp của mô hình, không phải dự báo +5/+10/+15 phút.</p></div>
-            </section>
-            <section class="panel video-status-panel">
-              <div class="section-kicker">TRẠNG THÁI XỬ LÝ</div><h2>Khả năng phân tích clip</h2>
-              <p class="panel-subtitle" id="aiccOperationalStatus">Đang kiểm tra các tệp cần thiết…</p>
-              <div class="video-status-items"><div><span class="tiny-indicator green-indicator"></span><span>Ưu tiên xử lý trên CPU</span></div><div><span class="tiny-indicator green-indicator"></span><span>Nhận clip từ thư mục dữ liệu hoặc tải lên</span></div><div><span class="tiny-indicator amber-indicator"></span><span>Kết quả phân loại không phải dự báo +5/+10/+15 phút</span></div></div>
-              <p class="integration-note">Clip được gắn với camera chỉ là nguồn xem trước. Để dùng vận hành, cần camera được cấp quyền, cấu hình vùng quan tâm và kiểm định số liệu thực tế.</p>
-              <div hidden><strong id="aiccDetectorStatus">Chưa kiểm tra</strong><strong id="aiccPredictorStatus">Chưa kiểm tra</strong><strong id="aiccScalerStatus">Chưa kiểm tra</strong><strong id="aiccModelVersion">—</strong><strong id="aiccSequenceLength">—</strong></div>
-            </section>
-          </div>
-          <section class="panel aicc-results-panel"><div class="panel-heading"><div><div class="section-kicker">WINDOW PREDICTIONS</div><h2>Kết quả theo cửa sổ video</h2><p class="panel-subtitle" id="aiccResultMeta">Chưa có lượt phân tích nào.</p></div><button class="btn btn-outline" id="aiccExportResults" disabled>↓ Xuất CSV</button></div><div class="compact-metrics aicc-video-metrics"><article class="metric-card"><div class="metric-label">Thời lượng video</div><div class="metric-value"><strong id="aiccDuration">—</strong></div><div class="metric-foot">giây</div></article><article class="metric-card"><div class="metric-label">Số frame đã xử lý</div><div class="metric-value"><strong id="aiccFrames">—</strong></div></article><article class="metric-card"><div class="metric-label">Cửa sổ dự báo</div><div class="metric-value"><strong id="aiccResultCount">—</strong></div></article></div><div class="responsive-table"><table><thead><tr><th>THỜI ĐIỂM (GIÂY)</th><th>LỚP DỰ BÁO</th><th>CLASS ID</th><th>TRACK XE TRONG CỬA SỔ</th><th>TỐC ĐỘ PIXEL/GIÂY</th><th>SPEED CV</th></tr></thead><tbody id="aiccResultsBody"><tr><td colspan="6" class="empty-state">Chưa có dữ liệu. Chọn video và chạy phân tích sau khi các model artifacts đã sẵn sàng.</td></tr></tbody></table></div><p class="integration-note" id="aiccResultNote">Kết quả video được tính từ mô hình AICC và không thay thế hiệu chuẩn camera hoặc kiểm định hiện trường.</p></section>
-        
-          </details>
         </section>
-        <section class="page" id="page-settings">
+        <section class="page" id="page-settings" data-operator-only hidden>
           <div class="page-heading"><div><div class="eyebrow">THIẾT LẬP VẬN HÀNH</div><h1>Cài đặt vận hành</h1><p class="page-subtitle">Thiết lập nguồn dữ liệu, cách xử lý và điều kiện an toàn khi đưa hệ thống vào sử dụng.</p></div></div>
           <div class="settings-grid">
             <section class="panel"><div class="section-kicker">THÔNG TIN HỆ THỐNG</div><h2>Thông tin triển khai</h2><div class="settings-list"><div><span>Nền tảng</span><strong>hanoiFlow</strong></div><div><span>Mã đề án</span><strong>HN-TRAFFIC-AI-2026</strong></div><div><span>Kiến trúc</span><strong>FastAPI · CPU · ONNX</strong></div><div><span>Phiên bản giao diện</span><strong>8.0.0</strong></div><div><span>Thư mục cấu hình model</span><code>artifacts/current/</code></div><div><span>Cấu hình cục bộ</span><code>.env</code></div></div></section>
@@ -248,6 +227,6 @@
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
   <div class="modal-backdrop" id="cameraModal" hidden><div class="modal"><div class="modal-head"><div><span class="section-kicker">CHI TIẾT ĐIỂM GIÁM SÁT</span><h2 id="cameraModalTitle">Camera</h2></div><button class="modal-close" id="closeCameraModal">×</button></div><div id="cameraModalContent"></div><div class="modal-actions"><button class="btn btn-outline" id="closeCameraModal2">Đóng</button><button class="btn btn-primary" data-page="alerts" id="cameraModalAlerts">Xem cảnh báo liên quan</button></div></div></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
-  <script src="/static/app.js?v=20261024-video-modes-3" defer></script>
+  <script src="/static/app.js?v=20261024-public-upload-500mib-5" defer></script>
 </body>
 </html>

@@ -1,193 +1,173 @@
-const { test } = require('node:test');
+const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const source = fs.readFileSync('static/app.js', 'utf8').split('\nif (!window.__weatherTrafficPollerV1)')[0];
+const source = fs.readFileSync('static/app.js','utf8').split('\nif (!window.__weatherTrafficPollerV1)')[0];
+const jobId = 'a'.repeat(32);
+function response(payload,status=200) {return {ok:status<400,status,text:async()=>JSON.stringify(payload)};}
 function setup() {
-  const elements = new Map();
-  const el = id => {
-    if (!elements.has(id)) elements.set(id, { value: '', files: [], textContent: '', innerHTML: '', style: {}, disabled: false });
-    return elements.get(id);
-  };
-  const context = vm.createContext({ console, AbortController, FormData, setTimeout, clearTimeout,
-    document: {querySelector: el}, window: {location:{hostname:'127.0.0.1'}}, fetch: async () => { throw new TypeError('offline'); } });
-  vm.runInContext(source, context);
-  vm.runInContext("state.aiccStatus = {enabled:true, public_demo_mode:false, video_review_enabled:true, upload_limit_mb:500}; toast = () => {}; renderScenarioReview = result => { state.scenarioResult = result; };", context);
-  return { context, el, run: code => vm.runInContext(code, context) };
+  const nodes = new Map(), requests=[], storage=new Map();
+  const el=id=>{if(!nodes.has(id))nodes.set(id,{value:'',files:[],checked:false,textContent:'',hidden:false,disabled:false,style:{}});return nodes.get(id);};
+  const context=vm.createContext({console,AbortController,FormData,Blob,
+    setTimeout:(fn,ms)=>setTimeout(fn,ms<=5000?0:ms),clearTimeout,
+    document:{querySelector:el},window:{},
+    sessionStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k),removeItem:k=>storage.delete(k)},
+    XMLHttpRequest:class {
+      constructor(){this.upload={};}
+      open(method,path){this.method=method;this.path=path;}
+      send(body){this.body=body;requests.push(this);}
+    },fetch:async()=>response({status:'succeeded',result:{frames:[]}})});
+  vm.runInContext(source,context);
+  vm.runInContext('state.aiccStatus={video_review_enabled:true,upload_limit_bytes:524288000,upload_limit_mb:500,upload_max_duration_seconds:360}; toast=()=>{}; renderScenarioReview=result=>{state.scenarioResult=result;};',context);
+  el('#scenarioVideoFile').files=[new Blob(['clip'])];
+  return {context,el,requests,storage,run:code=>vm.runInContext(code,context)};
 }
-function response(payload, status=200) { return { ok: status < 400, status, text: async () => JSON.stringify(payload) }; }
+function accept(xhr) {xhr.upload.onload();xhr.status=202;xhr.responseText=JSON.stringify({job_id:jobId});xhr.onload();}
 
-test('api reports HTTP validation, non-JSON, network, and hung-request errors', async () => {
-  const { context, run } = setup();
-  for (const status of [403, 404, 409, 413, 422, 500]) {
-    context.fetch = async () => response({detail: status === 422 ? [{msg: 'Sai path'}] : 'CPU bận'}, status);
-    await assert.rejects(run("api('/test')"), new RegExp(`HTTP ${status}`));
-  }
-  context.fetch = async () => ({ok: false, status: 500, text: async () => '<html>error</html>'});
-  await assert.rejects(run("api('/test')"), /không phải JSON/);
-  run("fetch = async () => { throw new TypeError('offline'); };");
-  await assert.rejects(run("api('/test')"), /Mất kết nối/);
-  context.fetch = (_, {signal}) => new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted'))));
-  await assert.rejects(run("api('/test', {timeoutMs: 1})"), /quá thời gian/);
+test('one upload reports actual byte progress and changes phase before job polling',async()=>{
+  const {run,el,requests}=setup();
+  const pending=run('startScenarioReview()');const xhr=requests[0];
+  assert.equal(xhr.path,'/api/scenarios/video-review');
+  assert.equal(xhr.timeout,1800000);
+  assert.equal(xhr.body.has('file'),true);assert.equal(xhr.body.has('camera_id'),false);
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,true);
+  xhr.upload.onprogress({loaded:25,total:100,lengthComputable:true});
+  assert.equal(el('#scenarioProgressBar').style.width,'25%');
+  assert.match(el('#scenarioProgressText').textContent,/25%/);
+  xhr.upload.onprogress({loaded:60,total:100,lengthComputable:true});
+  assert.equal(el('#scenarioProgressBar').style.width,'60%');
+  xhr.upload.onload();assert.match(el('#scenarioAnalyzeUploadBtn').textContent,/kiểm tra/);
+  accept(xhr);await pending;
+  assert.equal(el('#scenarioProgressText').textContent,'Hoàn tất');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,false);
+  assert.equal(run('state.scenarioPendingJobId'),null);
 });
 
-test('empty list disables only data button; selected upload is explicitly local', async () => {
-  const {context, el, run} = setup();
-  context.fetch = async () => response({items: [], total: 0});
-  await run('refreshScenarioVideoList()');
-  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
-  assert.match(el('#scenarioJobStatus').textContent, /chưa tìm thấy/);
-  // Presence of list items must not enable an unselected placeholder.
-  context.fetch = async () => response({items: [{path:'nested/clip.avi',size_mb:1}],total:1});
-  await run('refreshScenarioVideoList()');
-  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
-  context.fetch = async () => response({detail:'unavailable'},500);
-  await run('refreshScenarioVideoList()');
-  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
+test('unknown transfer length shows measured bytes without invented percentages',async()=>{
+  const {run,el,requests}=setup();const pending=run('startScenarioReview()');
+  requests[0].upload.onprogress({loaded:1048576,lengthComputable:false});
+  assert.match(el('#scenarioProgressText').textContent,/1.*MiB/);
+  assert.equal(el('#scenarioProgressBar').style.width,'0%');
+  accept(requests[0]);await pending;
 });
 
-test('both analysis flows submit correct inputs and restore independent buttons on 409', async () => {
-  for (const fromData of [false, true]) {
-    const {context, el, run} = setup();
-    el('#scenarioOriginSelect').value = 'HN-001';
-    el('#scenarioDataVideo').value = fromData ? 'nested/clip.avi' : '';
-    run("state.scenarioDataVideos = [{path:'nested/clip.avi'}]");
-    el('#scenarioVideoFile').files = fromData ? [] : [new Blob(['clip'])];
-    let called;
-    context.fetch = async (path, options) => {
-      called = {path, options};
-      assert.match(el('#scenarioJobStatus').textContent, /Đang/);
-      assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
-      assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
-      return response({detail:'CPU đang bận; thử lại.'},409);
-    };
-    await run(`startScenarioReview({fromData:${fromData}})`);
-    assert.equal(called.path, fromData ? '/api/scenarios/video-review-from-data' : '/api/scenarios/video-review');
-    if (fromData) assert.equal(JSON.parse(called.options.body).path, 'nested/clip.avi');
-    else assert.equal(called.options.body.has('file'), true);
-    assert.match(el('#scenarioJobStatus').textContent, /HTTP 409.*thử lại/);
-    assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, fromData);
-    assert.equal(el('#scenarioAnalyzeDataBtn').disabled, !fromData);
+test('HTTP failures restore controls and show actionable messages',async()=>{
+  for(const status of [403,409,413,422,500,503]){
+    const {run,el,requests}=setup();const pending=run('startScenarioReview()');
+    const xhr=requests[0];xhr.status=status;xhr.responseText=JSON.stringify({detail:'Lỗi từ dịch vụ'});xhr.onload();await pending;
+    assert.equal(run('state.scenarioBusy'),false);
+    assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,false);
+    assert.equal(el('#scenarioVideoFile').disabled,false);
+    if(status===409)assert.match(el('#scenarioJobStatus').textContent,/Hệ thống đang phân tích một video khác/);
+    else assert.ok(el('#scenarioJobStatus').textContent.length>0);
   }
 });
 
-test('polling renders success and surfaces failed, unknown, 404 and disconnected jobs', async () => {
-  const {context, run} = setup();
-  context.fetch = async () => response({status:'succeeded', result:{frames:[]}});
-  await run("pollScenarioReviewJob('abc', 'clip')");
-  assert.ok(run('state.scenarioResult'));
-  for (const job of [{status:'failed',error:'Decoder lỗi'}, {status:'surprise'}]) {
-    context.fetch = async () => response(job);
-    await assert.rejects(run("pollScenarioReviewJob('abc', 'clip')"), /Decoder lỗi|không hợp lệ/);
+test('connection loss, abort and upload timeout restore controls',async()=>{
+  for(const event of ['onerror','ontimeout','onabort']){
+    const {run,el,requests}=setup();const pending=run('startScenarioReview()');
+    requests[0][event]();await pending;
+    assert.equal(run('state.scenarioBusy'),false);
+    assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,false);
+    assert.ok(el('#scenarioJobStatus').textContent.length>0);
   }
-  context.fetch = async () => response({detail:'Tác vụ đã hết hạn'},404);
-  await assert.rejects(run("pollScenarioReviewJob('abc', 'clip')"), /abc.*404/);
-  context.fetch = async () => {throw new Error('offline');};
-  await assert.rejects(run("pollScenarioReviewJob('abc', 'clip')"), /abc.*offline.*vẫn chạy/);
 });
 
-
-test('accepted job polls queued/running/success without allowing a second submission', async () => {
-  const {context, el, run} = setup();
-  el('#scenarioOriginSelect').value = 'HN-001';
-  el('#scenarioDataVideo').value = 'nested/clip.avi';
-  run("state.scenarioDataVideos = [{path:'nested/clip.avi'}]");
-  const jobId = 'a'.repeat(32);
-  let polls = 0;
-  context.setTimeout = (callback, ms) => setTimeout(callback, ms === 900 ? 0 : ms);
-  context.fetch = async (path, options) => {
-    if (options.method === 'POST') return response({job_id:jobId, filename:'clip.avi'});
-    assert.equal(run('state.scenarioBusy'), true);
-    assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
-    const status = ['queued','running','succeeded'][polls++];
-    return response({status, frames_total:10, frames_decoded:5, progress_percent:50, result:{frames:[]}});
-  };
-  await run('startScenarioReview({fromData:true})');
-  assert.equal(polls, 3);
-  assert.equal(run('state.scenarioBusy'), false);
-  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, false);
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
-  assert.equal(el('#scenarioProgressText').textContent, 'Hoàn tất');
+test('invalid acceptance JSON fails instead of starting polling',async()=>{
+  const {run,el,requests}=setup();const pending=run('startScenarioReview()');
+  const xhr=requests[0];xhr.status=202;xhr.responseText='<html>error</html>';xhr.onload();await pending;
+  assert.equal(run('state.scenarioBusy'),false);assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,false);
 });
 
-
-test('upload selection enables its button even when data listing is empty or fails', async () => {
-  const {context, el, run} = setup();
-  el('#scenarioOriginSelect').value = 'HN-001';
-  el('#scenarioVideoFile').files = [new Blob(['selected clip'])];
-  run('renderScenarioInputState()');
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
-  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
-  context.fetch = async () => response({items: [],total:0});
-  await run('refreshScenarioVideoList()');
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
-  context.fetch = async () => response({detail:'listing unavailable'},500);
-  await run('refreshScenarioVideoList()');
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
-  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
+test('temporary polling disconnection retries the same job without uploading again',async()=>{
+  const {context,run,requests}=setup();let polls=0;
+  context.fetch=async()=>{polls++;if(polls<3)throw new Error('offline');return response({status:'succeeded',result:{frames:[]}});};
+  const pending=run('startScenarioReview()');accept(requests[0]);await pending;
+  assert.equal(polls,3);assert.equal(requests.length,1);assert.ok(run('state.scenarioResult'));
 });
 
-test('public opt-in uses upload capability while stored files remain local-only', () => {
-  const {el, run} = setup();
-  el('#scenarioVideoFile').files = [new Blob(['clip'])];
-  run('state.publicDemoMode = true; state.aiccStatus = {enabled:false, public_demo_mode:true, video_review_enabled:true, upload_limit_mb:100}; renderScenarioInputState()');
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
-  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
-  run('state.aiccStatus.video_review_enabled = false; renderScenarioInputState()');
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
-  assert.match(el('#scenarioInputHint').textContent, /chế độ chỉ đọc/);
-  run('state.publicDemoMode = false; state.aiccStatus = {enabled:false,public_demo_mode:false,video_review_enabled:false}; renderScenarioInputState()');
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
-  assert.match(el('#scenarioInputHint').textContent, /chưa bật phân tích/);
-  run('state.aiccStatus = {enabled:true,public_demo_mode:false,video_review_enabled:true}; renderScenarioInputState()');
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
+test('persistent polling loss keeps a recoverable job; resume never reuploads',async()=>{
+  const {context,run,el,requests,storage}=setup();
+  context.fetch=async()=>{throw new Error('offline');};
+  const pending=run('startScenarioReview()');accept(requests[0]);await pending;
+  assert.equal(run('state.scenarioPendingJobId'),jobId);
+  assert.equal(storage.get('scenario-review-job'),jobId);
+  assert.equal(el('#scenarioResumeBtn').hidden,false);
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,true);
+  context.fetch=async()=>response({status:'succeeded',result:{frames:[]}});
+  await run('startScenarioReview()');
+  assert.equal(requests.length,1);assert.equal(run('state.scenarioPendingJobId'),null);
+  assert.equal(storage.size,0);assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,false);
 });
 
-test('refresh cannot enable either input during an active review', async () => {
-  const {context, el, run} = setup();
-  el('#scenarioOriginSelect').value = 'HN-001';
-  el('#scenarioVideoFile').files = [new Blob(['selected clip'])];
-  el('#scenarioDataVideo').value = 'nested/clip.avi';
-  context.fetch = async () => response({items:[{path:'nested/clip.avi'}],total:1});
-  run('state.scenarioBusy = true; renderScenarioInputState()');
-  await run('refreshScenarioVideoList()');
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
-  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
-  run('state.scenarioBusy = false; renderScenarioInputState()');
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
-  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, false);
+test('queued/running progress uses server frame counts and percentages',async()=>{
+  const {context,run,el}=setup();let polls=0;
+  context.fetch=async()=>{polls++;if(polls===1)return response({status:'queued'});
+    if(polls===2)return response({status:'running',frames_decoded:38,frames_total:50,progress_percent:76});
+    assert.equal(el('#scenarioProgressBar').style.width,'76%');
+    assert.match(el('#scenarioProgressText').textContent,/38.*50.*76%/);
+    return response({status:'succeeded',result:{frames:[]}});};
+  await run(`pollScenarioReviewJob('${jobId}','clip')`);assert.equal(polls,3);
 });
 
-
-test('public website explains that starting local does not enable the remote demo', () => {
-  const {el, run} = setup();
-  run("window.location.hostname = 'hanoi-traffic-platform.onrender.com'; state.aiccStatus = {enabled:false,public_demo_mode:true,video_review_enabled:false}; renderScenarioInputState()");
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
-  assert.match(el('#scenarioInputHint').textContent, /demo công khai/);
-  assert.match(el('#scenarioInputHint').textContent, /không thay đổi trang demo này/);
-  assert.equal(el('#scenarioVideoFile').disabled, true);
+test('worker failure and expired job clear pending state to allow another upload',async()=>{
+  for(const expired of [false,true]){
+    const {context,run,requests,el}=setup();
+    context.fetch=async()=>response(expired?{detail:'Tác vụ đã hết hạn'}:{status:'failed',error:'Không đọc được video'},expired?404:200);
+    const pending=run('startScenarioReview()');accept(requests[0]);await pending;
+    assert.equal(run('state.scenarioPendingJobId'),null);
+    assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,false);
+    assert.match(el('#scenarioJobStatus').textContent,expired?/hết hạn/:/Không đọc được/);
+  }
 });
 
-test('fresh backend mode overrides stale read-only dashboard state', () => {
-  const {el, run} = setup();
-  el('#scenarioOriginSelect').value = 'HN-001';
-  el('#scenarioVideoFile').files = [new Blob(['clip'])];
-  run('state.publicDemoMode = true; state.aiccStatus = {enabled:true,public_demo_mode:false,video_review_enabled:true}; renderScenarioInputState()');
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, false);
-  assert.equal(el('#scenarioVideoFile').disabled, false);
-  run('state.aiccStatus = null; renderScenarioInputState()');
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
-  assert.match(el('#scenarioInputHint').textContent, /Chưa xác minh/);
+test('public capability and optional camera govern the single upload',()=>{
+  const {run,el}=setup();run('renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,false);
+  assert.match(el('#scenarioUploadLimit').textContent,/500 MiB.*6 phút/);
+  run('state.aiccStatus.video_review_enabled=false; renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,true);
+  assert.doesNotMatch(el('#scenarioInputHint').textContent,/local|backend|CPU|data\//);
 });
 
-test('a data path must belong to the current backend listing', () => {
-  const {el, run} = setup();
-  el('#scenarioOriginSelect').value = 'HN-001';
-  el('#scenarioDataVideo').value = 'stale.mp4';
-  run("state.scenarioDataVideos = [{path:'nested/clip.avi'}]; renderScenarioInputState()");
-  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, true);
-  el('#scenarioDataVideo').value = 'nested/clip.avi';
-  run('renderScenarioInputState()');
-  assert.equal(el('#scenarioAnalyzeDataBtn').disabled, false);
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled, true);
+test('500 MiB admits files one byte below or at the cap and blocks one byte above',async()=>{
+  // Metadata exercises browser admission without allocating or uploading a 500 MiB fixture.
+  for(const size of [524287999,524288000,524288001]){
+    const {run,el,requests}=setup();
+    el('#scenarioVideoFile').files=[{name:'clip.mp4',size}];
+    run('renderScenarioInputState()');
+    const blocked=size===524288001;
+    assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,blocked);
+    const pending=run('startScenarioReview()');
+    assert.equal(requests.length,blocked?0:1,'submit must enforce the same cap as the button');
+    if(blocked)assert.match(el('#scenarioInputHint').textContent,/500 MiB/);
+    else accept(requests[0]);
+    await pending;
+  }
+});
+
+test('byte limit overrides rounded legacy MiB and older status responses remain supported',async()=>{
+  const {run,el,requests}=setup();
+  el('#scenarioVideoFile').files=[{name:'clip.mp4',size:524288000}];
+  run('state.aiccStatus.upload_limit_bytes=524287999; renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,true);
+  await run('startScenarioReview()');
+  assert.equal(requests.length,0);
+  run('delete state.aiccStatus.upload_limit_bytes; state.aiccStatus.upload_limit_mb=100; renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,true);
+  assert.match(el('#scenarioInputHint').textContent,/100 MiB/);
+  run('delete state.aiccStatus.upload_limit_mb; renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,false);
+  assert.match(el('#scenarioUploadLimit').textContent,/500 MiB/);
+  const pending=run('startScenarioReview()');accept(requests[0]);await pending;
+});
+
+test('API polling errors preserve HTTP status and requests have a deadline',async()=>{
+  const {context,run}=setup();
+  for(const status of [403,404,409,413,422,500]){
+    context.fetch=async()=>response({detail:[{msg:'Sai dữ liệu'}]},status);
+    await assert.rejects(run("api('/test')"),new RegExp(`HTTP ${status}`));
+  }
+  context.fetch=(_, {signal})=>new Promise((resolve,reject)=>signal.addEventListener('abort',()=>reject(new Error('aborted'))));
+  await assert.rejects(run("api('/test',{timeoutMs:1})"),/quá thời gian/);
 });

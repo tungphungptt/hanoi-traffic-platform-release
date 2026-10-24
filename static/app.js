@@ -1,16 +1,10 @@
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { dashboard: null, cameras: [], alerts: [], modelStatus: null, providerStatus: null, aiccStatus: null, manifest: null, currentPage: 'video', mapLayer: 'status', aiccResults: null, scenarioResult: null, scenarioJobId: null, scenarioBusy: false, scenarioDataVideos: [], routeResult: null, routeMap: null, routeMapLayers: [], selectedRouteId: null, selectedCameraId: null, publicDemoMode: false, leafletMap: null, leafletMarkers: new Map(), baseTileLayer: null, trafficTileLayer: null, mapConfig: null, mapPollSeconds: 45, mapPollBusy: false, mapPollTimer: null };
+const state = { dashboard: null, cameras: [], alerts: [], modelStatus: null, providerStatus: null, aiccStatus: null, manifest: null, currentPage: 'video', mapLayer: 'status', scenarioResult: null, scenarioJobId: null, scenarioBusy: false, scenarioPendingJobId: null, routeResult: null, routeMap: null, routeMapLayers: [], selectedRouteId: null, selectedCameraId: null, publicDemoMode: false, leafletMap: null, leafletMarkers: new Map(), baseTileLayer: null, trafficTileLayer: null, mapConfig: null, mapPollSeconds: 45, mapPollBusy: false, mapPollTimer: null };
 
 
 function canAnalyzeUploadedScenarioVideo() {
   return Boolean(state.aiccStatus?.video_review_enabled);
-}
-
-function canAnalyzeStoredScenarioVideo() {
-  const status = state.aiccStatus;
-  const publicMode = typeof status?.public_demo_mode === 'boolean' ? status.public_demo_mode : state.publicDemoMode;
-  return !publicMode && Boolean(status?.enabled && status?.video_review_enabled);
 }
 
 const PAGE_NAMES = { overview: 'Tổng quan', cameras: 'Điểm giám sát', alerts: 'Cảnh báo', analytics: 'Báo cáo & xu hướng', video: 'Dự báo & phương án', models: 'Nguồn xử lý', settings: 'Cài đặt vận hành' };
@@ -180,16 +174,16 @@ async function loadAll({ quiet = false } = {}) {
       api('/api/dashboard'), api('/api/system'), api('/api/cameras'), api('/api/alerts'), api('/api/models/status'), api('/api/models/manifest'), api('/api/providers/status'), api('/api/aicc/status')
     ]);
     state.dashboard = dashboard; state.cameras = cameras.items || []; state.alerts = alerts.items || []; state.modelStatus = modelStatus; state.manifest = manifest; state.providerStatus = providerStatus; state.aiccStatus = aiccStatus; state.publicDemoMode = Boolean(system?.public_demo_mode);
-    renderScenarioCameraOptions(); refreshScenarioVideoList();
+    $$('[data-operator-only]').forEach(el => { el.hidden = state.publicDemoMode; });
+    renderScenarioCameraOptions();
     renderDashboard(dashboard, system);
     renderCameraTable();
-    await refreshCameraDataVideoOptions(); renderAlertFeed(); renderModelStatus(); renderAnalytics();
+    renderAlertFeed(); renderModelStatus(); renderAnalytics();
     if ($('#manifestEditor')) $('#manifestEditor').value = JSON.stringify(manifest, null, 2);
     renderProviderStatus();
-    renderAiccFileStatus();
     if (!quiet) toast('Đã cập nhật dữ liệu', modelStatus.mode === 'production' ? 'Runtime đang dùng mô hình dự báo ONNX.' : 'Dữ liệu trên bảng điều khiển hiện là dữ liệu minh họa.');
   } catch (error) {
-    toast('Không thể tải dữ liệu', `${error.message}. Hãy chạy backend bằng hướng dẫn trong README.`, 'error');
+    toast('Không thể tải dữ liệu', `${error.message}. Vui lòng thử làm mới trang.`, 'error');
   } finally { refresh?.classList.remove('rotating'); }
 }
 
@@ -691,62 +685,8 @@ function selectTrafficCamera(cameraId, forceReload = false, focusMap = false) {
   upload.dataset.cameraId = cameraId;
   upload.disabled = state.publicDemoMode;
   $('.camera-feed-upload')?.classList.toggle('is-disabled', state.publicDemoMode);
-  const dataSelect = $('#cameraFeedDataSelect');
-  const assignButton = $('#assignCameraDataVideo');
-  if (dataSelect) dataSelect.disabled = state.publicDemoMode || !dataSelect.options.length || ![...dataSelect.options].some(option => option.value);
-  if (assignButton) assignButton.disabled = state.publicDemoMode || !dataSelect?.value;
   remove.disabled = state.publicDemoMode || remove.disabled;
-  if (state.publicDemoMode) $('#trafficFeedHint').textContent = 'Bản demo công khai ở chế độ chỉ đọc; thay đổi video chỉ dùng ở bản local.';
-}
 
-async function refreshCameraDataVideoOptions() {
-  const select = $('#cameraFeedDataSelect');
-  if (!select) return;
-  try {
-    const payload = await api('/api/aicc/data-videos');
-    const oldValue = select.value;
-    const items = (payload.items || []).filter(item => item.path && !String(item.path).replace(/\\/g, '/').startsWith('camera_feeds/'));
-    select.innerHTML = items.length
-      ? '<option value="">Chọn video trong data/…</option>' + items.map(item => `<option value="${escapeHtml(item.path)}">${escapeHtml(item.name)} · ${numberVN(item.size_mb, 1)} MB</option>`).join('')
-      : '<option value="">Chưa có video trong data/</option>';
-    if (oldValue && items.some(item => item.path === oldValue)) select.value = oldValue;
-    const canAssign = !state.publicDemoMode && Boolean(select.value);
-    select.disabled = state.publicDemoMode || !items.length;
-    $('#assignCameraDataVideo').disabled = !canAssign;
-  } catch (error) {
-    select.innerHTML = '<option value="">Không tải được danh sách video</option>';
-    select.disabled = true;
-    $('#assignCameraDataVideo').disabled = true;
-    $('#trafficFeedHint').textContent = `Không tải được danh sách data/: ${error.message}`;
-  }
-}
-
-async function assignDataVideoToCamera() {
-  const cameraId = state.selectedCameraId;
-  const sourcePath = $('#cameraFeedDataSelect')?.value;
-  if (!cameraId || !sourcePath) {
-    toast('Chưa chọn dữ liệu', 'Chọn camera và một clip trong data/ trước khi gán.', 'error');
-    return;
-  }
-  const button = $('#assignCameraDataVideo');
-  button.disabled = true; button.textContent = 'Đang gán…';
-  $('#trafficFeedHint').textContent = `Đang kiểm tra và gán data/${sourcePath} cho ${cameraId}…`;
-  try {
-    const result = await api(`/api/cameras/${encodeURIComponent(cameraId)}/feed-from-data`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: sourcePath })
-    });
-    const cam = state.cameras.find(item => item.id === cameraId);
-    if (cam) cam.feed = result.feed;
-    selectTrafficCamera(cameraId, true);
-    await refreshCameraDataVideoOptions();
-    toast('Đã gán video', `${sourcePath} · ${cameraId}`);
-  } catch (error) {
-    $('#trafficFeedHint').textContent = `Không thể gán video: ${error.message}`;
-    toast('Gán video thất bại', error.message, 'error');
-  } finally {
-    button.textContent = 'Gán clip';
-    button.disabled = state.publicDemoMode || !$('#cameraFeedDataSelect')?.value;
-  }
 }
 
 async function uploadTrafficCameraClip(file) {
@@ -999,48 +939,39 @@ function renderModelStatus() {
 }
 
 function scenarioWriteBlockReason() {
-  const status = state.aiccStatus;
-  if (!status || typeof status.video_review_enabled !== 'boolean') return 'Chưa xác minh được quyền phân tích video từ máy chủ. Nhấn làm mới để kiểm tra lại kết nối.';
-  const publicMode = typeof status.public_demo_mode === 'boolean' ? status.public_demo_mode : state.publicDemoMode;
-  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
-  if (publicMode && !canAnalyzeUploadedScenarioVideo()) return loopback
-    ? 'Máy chủ local đang ở chế độ chỉ đọc. Dừng backend và chạy deploy_demo.ps1 để bật phân tích cục bộ.'
-    : 'Bạn đang mở bản demo công khai chỉ đọc. Trang này không nhận hoặc phân tích video upload. Hãy chạy bản local trên máy và mở địa chỉ 127.0.0.1 do launcher thông báo; khởi động local không thay đổi trang demo này.';
-  if (!status.enabled && !canAnalyzeUploadedScenarioVideo()) return loopback
-    ? 'Máy chủ local chưa bật phân tích video. Dừng backend và chạy deploy_demo.ps1 để bật chế độ local.'
-    : 'Máy chủ này đã tắt phân tích video. Dùng bản local hoặc liên hệ người vận hành môi trường được bảo vệ.';
-  if (!canAnalyzeUploadedScenarioVideo()) return status.message || 'Thiếu bộ model cần cho phân tích video; kiểm tra nguồn xử lý.';
+  if (!state.aiccStatus) return 'Đang kiểm tra khả năng phân tích…';
+  if (!canAnalyzeUploadedScenarioVideo()) return 'Tính năng phân tích video hiện chưa sẵn sàng. Vui lòng thử lại sau.';
   return '';
+}
+
+function scenarioUploadLimitBytes() {
+  const bytes = Number(state.aiccStatus?.upload_limit_bytes);
+  if (Number.isSafeInteger(bytes) && bytes > 0) return bytes;
+  const legacyBytes = Number(state.aiccStatus?.upload_limit_mb) * 1024 * 1024;
+  return Number.isSafeInteger(legacyBytes) && legacyBytes > 0 ? legacyBytes : 500 * 1024 * 1024;
 }
 
 function renderScenarioInputState() {
   const file = $('#scenarioVideoFile')?.files?.[0];
-  const path = $('#scenarioDataVideo')?.value;
   const blocked = scenarioWriteBlockReason();
-  const maxMb = Number(state.aiccStatus?.upload_limit_mb || 500);
-  const busyReason = state.scenarioBusy ? 'Tác vụ đang chạy; đợi xử lý xong.' : '';
-  const uploadReason = busyReason || blocked
-    || (!file ? 'Chọn tệp từ máy tính để phân tích clip upload.' : '')
-    || (file.size > maxMb * 1024 * 1024 ? `Video vượt giới hạn ${maxMb} MB.` : '');
-  const dataReason = busyReason
-    || (!canAnalyzeStoredScenarioVideo() ? 'Video trong data/ chỉ có thể phân tích ở chế độ local với bộ model hợp lệ.' : '')
-    || (!$('#scenarioOriginSelect')?.value ? 'Chọn đoạn A / điểm đi khi dùng video trong data/.' : '')
-    || (!state.scenarioDataVideos.some(item => item.path === path) ? 'Chọn một video trong data/ để dùng nút Phân tích bên cạnh danh sách.' : '');
-  for (const [selector, reason] of [['#scenarioAnalyzeUploadBtn', uploadReason], ['#scenarioAnalyzeDataBtn', dataReason]]) {
-    const button = $(selector);
-    if (button) { button.disabled = Boolean(reason); button.title = reason; }
-  }
-  const uploadInput = $('#scenarioVideoFile');
-  if (uploadInput) uploadInput.disabled = Boolean(blocked) || state.scenarioBusy;
-  const dataSelect = $('#scenarioDataVideo');
-  if (dataSelect) dataSelect.disabled = !canAnalyzeStoredScenarioVideo() || state.scenarioBusy || !state.scenarioDataVideos.length;
+  const maxBytes = scenarioUploadLimitBytes();
+  const maxMiB = Number((maxBytes / 1024 / 1024).toFixed(2));
+  const reason = blocked || (state.scenarioBusy ? 'Đang xử lý yêu cầu của bạn…' : '')
+    || (state.scenarioPendingJobId ? 'Video đã được tiếp nhận. Hãy theo dõi lại kết quả.' : '')
+    || (!file ? 'Chọn một video để bắt đầu.' : '')
+    || (file.size > maxBytes ? `Video vượt giới hạn ${maxMiB} MiB.` : '');
+  const button = $('#scenarioAnalyzeUploadBtn');
+  if (button) { button.disabled = Boolean(reason); button.title = reason; }
+  const input = $('#scenarioVideoFile');
+  if (input) input.disabled = state.scenarioBusy;
+  const resume = $('#scenarioResumeBtn');
+  if (resume) { resume.hidden = !state.scenarioPendingJobId || state.scenarioBusy; resume.disabled = state.scenarioBusy; }
   const hint = $('#scenarioInputHint');
-  if (hint) hint.textContent = busyReason || blocked || (file
-    ? uploadReason || 'Đã chọn clip từ máy tính. Bấm nút lớn bên dưới để upload và phân tích; không cần chọn camera hoặc video trong data/.'
-    : path ? dataReason || 'Đã chọn video trong data/. Bấm nút Phân tích bên cạnh danh sách.'
-    : 'Chọn tệp từ máy tính hoặc video trong data/ để bắt đầu.');
+  if (hint) hint.textContent = reason || 'Video đã chọn. Bấm Phân tích video để bắt đầu.';
+  const limit = $('#scenarioUploadLimit');
+  if (limit) limit.textContent = `Tối đa ${maxMiB} MiB và ${Math.floor(Number(state.aiccStatus?.upload_max_duration_seconds || 360) / 60)} phút.`;
   const mode = $('#scenarioRuntimeMode');
-  if (mode) mode.textContent = blocked ? 'Phân tích video chưa được phép' : 'Máy chủ cho phép phân tích video';
+  if (mode) mode.textContent = blocked ? 'Chưa sẵn sàng' : 'Sẵn sàng nhận video';
 }
 
 function renderScenarioCameraOptions() {
@@ -1061,27 +992,6 @@ function renderScenarioCameraOptions() {
   if (destination.value === origin.value) destination.value = '';
   const button = $('#scenarioFindRoutesBtn'); if (button) button.disabled = !origin.value || !destination.value || state.publicDemoMode;
   renderScenarioInputState();
-}
-
-async function refreshScenarioVideoList() {
-  const select = $('#scenarioDataVideo');
-  if (!select) return;
-  const keep = select.value;
-  try {
-    const payload = await api('/api/aicc/data-videos');
-    state.scenarioDataVideos = payload.items || [];
-    select.innerHTML = '<option value="">Chọn video trong data/…</option>' + state.scenarioDataVideos
-      .map(item => `<option value="${escapeHtml(item.path)}">${escapeHtml(item.path)} · ${numberVN(item.size_mb, 1)} MB</option>`).join('');
-    if (keep && (payload.items || []).some(item => item.path === keep)) select.value = keep;
-    const hint = $('#scenarioJobStatus');
-    if (!payload.total && hint && !state.scenarioResult && !state.scenarioBusy && !$('#scenarioVideoFile')?.files?.[0]) hint.textContent = 'Backend chưa tìm thấy video trong data/. Đặt clip vào data/ hoặc thư mục con rồi tải lại danh sách; hoặc chọn tệp từ máy tính để upload.';
-    renderScenarioInputState();
-  } catch (error) {
-    state.scenarioDataVideos = [];
-    select.innerHTML = '<option value="">Không tải được danh sách video</option>';
-    renderScenarioInputState();
-    const hint = $('#scenarioJobStatus'); if (hint && !state.scenarioBusy) hint.textContent = `Không tải được danh sách video: ${error.message}`;
-  }
 }
 
 function routePointFromCamera(cameraId) {
@@ -1147,76 +1057,132 @@ function renderScenarioReview(result) {
   }
 }
 
+function videoRequestError(status, raw) {
+  let payload;
+  try { payload = raw ? JSON.parse(raw) : {}; } catch { payload = {}; }
+  const detail = typeof payload?.detail === 'string' ? payload.detail
+    : Array.isArray(payload?.detail) ? payload.detail.map(item => item.msg).join('; ') : '';
+  const message = status === 409 ? 'Hệ thống đang phân tích một video khác. Vui lòng thử lại sau'
+    : status === 413 ? detail || 'Video vượt giới hạn kích thước hoặc thời lượng.'
+    : status === 403 ? 'Tính năng phân tích video hiện đang bị tắt.'
+    : detail || `Không thể tải video lên (HTTP ${status}). Vui lòng thử lại.`;
+  const error = new Error(message); error.status = status; return error;
+}
+
+function uploadScenarioVideo(form, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/scenarios/video-review');
+    xhr.timeout = 30 * 60 * 1000;
+    xhr.upload.onprogress = event => onProgress(event.loaded, event.lengthComputable ? event.total : null);
+    xhr.upload.onload = () => {
+      $('#scenarioProgressText').textContent = 'Đã tải video lên. Đang kiểm tra video…';
+      $('#scenarioJobStatus').textContent = 'Đã tải video lên. Đang kiểm tra video…';
+      $('#scenarioAnalyzeUploadBtn').textContent = 'Đang kiểm tra video…';
+    };
+    xhr.onload = () => {
+      if (xhr.status !== 202) { reject(videoRequestError(xhr.status, xhr.responseText)); return; }
+      try {
+        const job = JSON.parse(xhr.responseText);
+        if (!/^[a-f0-9]{32}$/.test(job.job_id || '')) throw new Error('Phản hồi tiếp nhận video không hợp lệ.');
+        resolve(job);
+      } catch (error) { reject(error); }
+    };
+    xhr.onerror = () => reject(new Error('Kết nối tải video bị gián đoạn. Kiểm tra mạng rồi thử lại.'));
+    xhr.ontimeout = () => reject(new Error('Tải video quá thời gian chờ. Chưa xác nhận được tác vụ; kiểm tra kết nối trước khi gửi lại.'));
+    xhr.onabort = () => reject(new Error('Đã dừng tải video.'));
+    xhr.send(form);
+  });
+}
+
+function rememberScenarioJob(jobId) {
+  state.scenarioPendingJobId = jobId;
+  try {
+    if (jobId) sessionStorage.setItem('scenario-review-job', jobId);
+    else sessionStorage.removeItem('scenario-review-job');
+  } catch {}
+}
+
 async function pollScenarioReviewJob(jobId, filename) {
   const started = Date.now();
+  let failures = 0;
   $('#scenarioProgressWrap').hidden = false;
   while (Date.now() - started < 30 * 60 * 1000) {
     let job;
-    try { job = await api(`/api/scenarios/video-reviews/${encodeURIComponent(jobId)}`); }
-    catch (error) { throw new Error(`Không theo dõi được tác vụ ${jobId}: ${error.message} Tác vụ có thể vẫn chạy; kiểm tra trạng thái trước khi gửi lại.`); }
-    if (!['queued', 'running', 'succeeded', 'failed'].includes(job.status)) throw new Error('Trạng thái tác vụ không hợp lệ.');
+    try {
+      job = await api(`/api/scenarios/video-reviews/${encodeURIComponent(jobId)}`, {timeoutMs: 15000});
+      failures = 0;
+    } catch (error) {
+      if (error.status && error.status < 500) { rememberScenarioJob(null); throw error; }
+      failures++;
+      $('#scenarioProgressText').textContent = 'Kết nối bị gián đoạn. Đang thử kết nối lại để theo dõi kết quả…';
+      $('#scenarioJobStatus').textContent = 'Video đã được tiếp nhận; không cần tải lại video.';
+      if (failures >= 5) throw new Error('Chưa kết nối lại được. Bấm “Theo dõi lại kết quả” để tiếp tục; không cần tải lại video.');
+      await new Promise(resolve => setTimeout(resolve, Math.min(failures * 1000, 5000)));
+      continue;
+    }
+    if (!['queued', 'running', 'succeeded', 'failed'].includes(job.status)) throw new Error('Trạng thái phân tích không hợp lệ. Hãy theo dõi lại kết quả.');
     const pct = Math.max(0, Math.min(100, Number(job.progress_percent || 0)));
     $('#scenarioProgressBar').style.width = `${pct}%`;
-    $('#scenarioProgressText').textContent = job.status === 'queued' ? 'Đang chờ lượt CPU…' : !job.frames_total ? 'Đang nạp mô hình và mở video trên CPU…' : `Đang xử lý ${numberVN(job.frames_decoded || 0)} / ${numberVN(job.frames_total || 0)} frame · ${pct}%`;
-    $('#scenarioJobStatus').textContent = job.status === 'queued' ? `Đã xếp hàng: ${filename}` : `Đang đọc video: ${filename}`;
+    $('#scenarioProgressText').textContent = job.status === 'queued' ? 'Đang chờ phân tích…'
+      : !job.frames_total ? 'Đang chuẩn bị phân tích…'
+      : `Đang phân tích ${numberVN(job.frames_decoded || 0)} / ${numberVN(job.frames_total)} khung hình · ${pct}%`;
+    $('#scenarioJobStatus').textContent = job.status === 'queued' ? 'Video đã được tiếp nhận.' : 'Đang phân tích video của bạn…';
     if (job.status === 'succeeded') {
+      rememberScenarioJob(null);
       state.scenarioJobId = jobId;
       const result = { ...job.result, job_id: jobId };
       renderScenarioReview(result);
       $('#scenarioProgressText').textContent = 'Hoàn tất';
-      toast('Đã tạo ảnh minh chứng', `${numberVN((result.frames || []).length)} ảnh được trích xuất từ video.`);
+      toast('Đã phân tích video', `${numberVN((result.frames || []).length)} ảnh minh chứng.`);
       return result;
     }
-    if (job.status === 'failed') throw new Error(job.error || 'Không xử lý được video.');
+    if (job.status === 'failed') { rememberScenarioJob(null); throw new Error(job.error || 'Không xử lý được video.'); }
     await new Promise(resolve => setTimeout(resolve, 900));
   }
-  throw new Error('Video review đã chạy hơn 30 phút; cần kiểm tra log và độ dài clip.');
+  throw new Error('Phân tích đang mất nhiều thời gian. Bấm “Theo dõi lại kết quả” để kiểm tra tiến độ.');
 }
 
-async function startScenarioReview({ fromData = false } = {}) {
+async function startScenarioReview() {
   if (state.scenarioBusy) return;
-  const blocked = fromData
-    ? (!canAnalyzeStoredScenarioVideo() ? 'Video trong data/ chỉ có thể phân tích ở chế độ local với bộ model hợp lệ.' : '')
-    : scenarioWriteBlockReason();
-  if (blocked) { renderScenarioInputState(); toast('Chưa thể phân tích video', blocked, 'error'); return; }
-  const originId = $('#scenarioOriginSelect').value;
-  if (!originId && fromData) { toast('Chưa chọn đoạn A', 'Chọn camera/đoạn đường nguồn trước khi dùng video trong data/.', 'error'); return; }
-  const preserve = $('#scenarioPreserveTiming').checked;
-  const uploadButton = $('#scenarioAnalyzeUploadBtn'); const dataButton = $('#scenarioAnalyzeDataBtn');
+  const pending = state.scenarioPendingJobId;
+  const file = $('#scenarioVideoFile').files?.[0];
+  if (!pending && (scenarioWriteBlockReason() || !file)) { renderScenarioInputState(); return; }
+  if (!pending && file.size > scenarioUploadLimitBytes()) { renderScenarioInputState(); return; }
+  const button = $('#scenarioAnalyzeUploadBtn');
   state.scenarioBusy = true;
   renderScenarioInputState();
-  const activeButton = fromData ? dataButton : uploadButton;
-  const originalLabel = activeButton.textContent;
-  activeButton.textContent = fromData ? 'Đang gửi yêu cầu…' : 'Đang tải video lên…';
   $('#scenarioProgressWrap').hidden = false;
-  $('#scenarioProgressBar').style.width = '0%';
-  $('#scenarioProgressText').textContent = 'Đang gửi, chờ máy chủ tiếp nhận…';
-  $('#scenarioJobStatus').textContent = fromData ? 'Đang yêu cầu backend kiểm tra video trong data/…' : 'Đang tải tệp từ máy tính lên backend…';
   try {
-    let job;
-    if (fromData) {
-      const path = $('#scenarioDataVideo').value;
-      if (!state.scenarioDataVideos.some(item => item.path === path)) throw new Error('Chọn video hợp lệ trong danh sách data/ mới nhất.');
-      job = await api('/api/scenarios/video-review-from-data', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path, camera_id: originId, preserve_real_timing: preserve }) });
-    } else {
-      const file = $('#scenarioVideoFile').files?.[0];
-      if (!file) throw new Error('Chọn video từ máy tính hoặc dùng danh sách data/.');
+    let jobId = pending;
+    if (!jobId) {
+      button.textContent = 'Đang tải video lên…';
+      $('#scenarioProgressBar').style.width = '0%';
+      $('#scenarioProgressText').textContent = 'Đang bắt đầu tải video…';
+      $('#scenarioJobStatus').textContent = 'Đang tải video của bạn…';
       const form = new FormData(); form.append('file', file);
+      const originId = $('#scenarioOriginSelect')?.value;
       if (originId) form.append('camera_id', originId);
-      form.append('preserve_real_timing', preserve ? 'true' : 'false');
-      job = await api('/api/scenarios/video-review', { method: 'POST', body: form, timeoutMs: 5 * 60 * 1000 });
+      form.append('preserve_real_timing', $('#scenarioPreserveTiming').checked ? 'true' : 'false');
+      const job = await uploadScenarioVideo(form, (loaded, total) => {
+        const pct = total ? Math.max(0, Math.min(100, Math.floor(loaded / total * 100))) : null;
+        if (pct !== null) $('#scenarioProgressBar').style.width = `${pct}%`;
+        const progress = pct === null ? `${numberVN(loaded / 1024 / 1024, 1)} MiB` : `${pct}% · ${numberVN(loaded / 1024 / 1024, 1)} / ${numberVN(total / 1024 / 1024, 1)} MiB`;
+        $('#scenarioProgressText').textContent = `Đang tải video lên: ${progress}`;
+      });
+      jobId = job.job_id;
+      rememberScenarioJob(jobId);
     }
-    if (!/^[a-f0-9]{32}$/.test(job.job_id || '')) throw new Error('Máy chủ không trả job_id hợp lệ.');
-    state.scenarioJobId = job.job_id;
-    await pollScenarioReviewJob(job.job_id, job.filename || 'video');
+    button.textContent = 'Đang phân tích…';
+    $('#scenarioProgressBar').style.width = '0%';
+    await pollScenarioReviewJob(jobId, file?.name || 'Video');
   } catch (error) {
-    $('#scenarioJobStatus').textContent = `Không xử lý được video: ${error.message}`;
+    $('#scenarioJobStatus').textContent = error.message;
     $('#scenarioProgressText').textContent = error.message;
-    toast('Video review thất bại', error.message, 'error');
+    toast('Chưa hoàn tất phân tích', error.message, 'error');
   } finally {
     state.scenarioBusy = false;
-    activeButton.textContent = originalLabel;
+    button.textContent = 'Phân tích video';
     renderScenarioInputState();
   }
 }
@@ -1319,18 +1285,6 @@ function exportScenarioFrames() {
     ]));
 }
 
-function renderAiccFileStatus() {
-  const status = state.aiccStatus || {};
-  const missing = status.missing_files || [];
-  const fileNodes = {
-    aiccDetectorFileState: missing.some(name => name.endsWith('detector.onnx')) ? 'Thiếu tệp' : (status.loaded ? 'Đã nạp' : status.artifacts_present ? 'Đã có tệp' : 'Chưa có tệp'),
-    aiccPredictorFileState: missing.some(name => name.endsWith('predictor.onnx')) ? 'Thiếu tệp' : (status.loaded ? 'Đã nạp' : status.artifacts_present ? 'Đã có tệp' : 'Chưa có tệp'),
-    aiccScalerFileState: missing.some(name => name.endsWith('scaler.pkl')) ? 'Thiếu tệp' : (status.loaded ? 'Đã nạp' : status.artifacts_present ? 'Đã có tệp' : 'Chưa có tệp'),
-    aiccManifestFileState: missing.some(name => name.endsWith('manifest.json')) ? 'Thiếu tệp' : 'Đã có cấu hình',
-  };
-  for (const [id, value] of Object.entries(fileNodes)) { const el = $(`#${id}`); if (el) el.textContent = value; }
-}
-
 function renderProviderStatus() {
   const status = state.providerStatus || {};
   const nodes = {
@@ -1383,146 +1337,10 @@ async function updateAlertStatus(alertId, status) {
   catch(error){toast('Không cập nhật được',error.message,'error');}
 }
 
-async function refreshAiccStatus({ load = false } = {}) {
-  try {
-    if (load) {
-      const before = await api('/api/aicc/status');
-      if (before.enabled && before.artifacts_present && !before.loaded) {
-        $('#aiccNotice').innerHTML = '<span class="notice-icon">i</span><span><strong>Đang nạp model AICC…</strong> Lần đầu nạp ONNX có thể mất vài giây.</span>';
-        await api('/api/aicc/load', {method:'POST'});
-      }
-    }
-    const status = await api('/api/aicc/status');
-    state.aiccStatus = status;
-    renderScenarioInputState();
-    await refreshAiccDataVideos();
-    const missing = status.missing_files || [];
-    $('#aiccDetectorStatus').textContent = missing.some(f => f.endsWith('detector.onnx')) ? 'Thiếu file' : (status.loaded ? 'Đã nạp' : 'Có file / chưa nạp');
-    $('#aiccPredictorStatus').textContent = missing.some(f => f.endsWith('predictor.onnx')) ? 'Thiếu file' : (status.loaded ? 'Đã nạp' : 'Có file / chưa nạp');
-    $('#aiccScalerStatus').textContent = missing.some(f => f.endsWith('scaler.pkl')) ? 'Thiếu file' : (status.loaded ? 'Đã nạp' : 'Có file / chưa nạp');
-    $('#aiccModelVersion').textContent = status.model_version || '—';
-    $('#aiccSequenceLength').textContent = status.sequence_length ?? '—';
-    $('#aiccLimit').textContent = status.upload_limit_mb ?? 500;
-    const ok = Boolean(status.ready && status.enabled);
-    const op = $('#aiccOperationalStatus');
-    if (op) op.textContent = ok ? 'Sẵn sàng xử lý clip trên máy này.' : (status.enabled ? 'Chưa thể phân tích clip: cần kiểm tra tệp xử lý hoặc cấu hình.' : 'Đang ở chế độ chỉ đọc; phân tích video local chưa được bật.');
-    $('#aiccNotice').innerHTML = `<span class="notice-icon">i</span><span><strong>${ok ? 'AICC sẵn sàng.' : 'AICC chưa sẵn sàng.'}</strong> ${escapeHtml(status.message || '')} ${!status.enabled ? 'Upload inference đang bị tắt trong môi trường này.' : ''}</span>`;
-    $('#aiccAnalyzeBtn').disabled = !status.enabled || !status.artifacts_present;
-    $('#aiccAnalyzeDataBtn').disabled = !status.enabled || !status.artifacts_present || $('#aiccDataVideo').options.length <= 1;
-    if (!status.enabled) $('#aiccAnalyzeBtn').title = 'Phân tích video chỉ bật khi chạy local';
-    else if (!status.artifacts_present) $('#aiccAnalyzeBtn').title = 'Cần đủ model artifacts trong folder models';
-    else $('#aiccAnalyzeBtn').title = '';
-  } catch (error) {
-    $('#aiccNotice').textContent = `Không đọc được trạng thái AICC: ${error.message}`;
-    $('#aiccAnalyzeBtn').disabled = true;
-  }
-}
-
-async function refreshAiccDataVideos() {
-  const select = $('#aiccDataVideo');
-  if (!select) return;
-  try {
-    const payload = await api('/api/aicc/data-videos');
-    const current = select.value;
-    select.innerHTML = '<option value="">Chọn video trong data/…</option>' + (payload.items || []).map(item => `<option value="${escapeHtml(item.path)}">${escapeHtml(item.path)} · ${numberVN(item.size_mb,2)} MB</option>`).join('');
-    if (current && [...select.options].some(option => option.value === current)) select.value = current;
-    $('#aiccDataVideoHint').textContent = payload.total ? `Tìm thấy ${numberVN(payload.total)} video trong data/. Chọn một video để chạy trực tiếp từ ổ đĩa.` : 'Chưa tìm thấy file video. Giải nén clip video vào data/ hoặc dùng bộ chọn upload bên dưới.';
-    $('#aiccAnalyzeDataBtn').disabled = payload.total === 0;
-  } catch (error) {
-    select.innerHTML = '<option value="">Không tải được danh sách</option>';
-    $('#aiccDataVideoHint').textContent = error.message;
-    $('#aiccAnalyzeDataBtn').disabled = true;
-  }
-}
-
-async function pollAiccJob(jobId, filename, button, buttonText) {
-  const started = Date.now();
-  while (Date.now() - started < 30 * 60 * 1000) {
-    const job = await api(`/api/aicc/jobs/${encodeURIComponent(jobId)}`);
-    if (job.status === 'succeeded') {
-      renderAiccResults(job.result, filename);
-      toast('Phân tích video hoàn tất', `${numberVN(job.result.results_count)} cửa sổ đã được phân loại.`);
-      return job.result;
-    }
-    if (job.status === 'failed') throw new Error(job.error || 'Tác vụ AICC thất bại. Kiểm tra log backend.');
-    const pct = Math.max(0, Number(job.progress_percent || 0));
-    const frameText = job.frames_total ? ` · ${numberVN(job.frames_decoded)}/${numberVN(job.frames_total)} frame` : '';
-    $('#aiccResultMeta').textContent = `${job.status === 'queued' ? 'Đang chờ CPU' : 'Đang xử lý'} ${filename}${frameText}`;
-    if (button) button.textContent = `${buttonText} ${pct}%`;
-    await new Promise(resolve => setTimeout(resolve, 900));
-  }
-  throw new Error('Tác vụ đã chạy hơn 30 phút. Kiểm tra tiến trình backend và log để xác định nguyên nhân.');
-}
-
-async function analyzeAiccDataVideo() {
-  const path = $('#aiccDataVideo').value;
-  if (!path) { toast('Chưa chọn video', 'Giải nén video vào data/ rồi chọn tệp cần xử lý.', 'error'); return; }
-  const button = $('#aiccAnalyzeDataBtn'); button.disabled = true; button.textContent = 'Đang phân tích…';
-  $('#aiccResultMeta').textContent = `Đang xử lý data/${path} trên CPU…`;
-  try {
-    const job = await api('/api/aicc/predict-data-video', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({path})});
-    await pollAiccJob(job.job_id, path, button, 'Đang phân tích');
-  } catch (error) {
-    $('#aiccResultMeta').textContent = `Phân tích thất bại: ${error.message}`;
-    toast('Không phân tích được video', error.message, 'error');
-    await refreshAiccStatus();
-  } finally {
-    button.textContent = 'Phân tích video trong data/';
-    button.disabled = !$('#aiccDataVideo').value;
-  }
-}
-
-function renderAiccResults(result, fallbackName) {
-  state.aiccResults = result;
-  const video = result.video || {};
-  $('#aiccDuration').textContent = numberVN(video.duration_seconds || 0, 1);
-  $('#aiccFrames').textContent = numberVN(video.frames_processed || 0);
-  $('#aiccResultCount').textContent = numberVN(result.results_count || 0);
-  $('#aiccResultMeta').textContent = `${result.filename || fallbackName || 'video'} · ${numberVN(video.fps || 0, 2)} FPS gốc · chạy detector ${numberVN(video.detector_sample_fps || video.fps || 0, 2)} FPS · ${video.width || '?'}×${video.height || '?'}`;
-  $('#aiccResultNote').textContent = result.note || 'Kết quả được sinh từ pipeline AICC.';
-  const rows = result.results || [];
-  $('#aiccResultsBody').innerHTML = rows.length ? rows.map(r => `<tr><td>${numberVN(r.timestamp_seconds,3)}</td><td>${escapeHtml(r.congestion_label || r.congestion_class)}</td><td>${numberVN(r.class_id)}</td><td>${numberVN(r.vehicle_tracks_in_window)}</td><td>${numberVN(r.avg_speed_pixels_per_second,3)}</td><td>${numberVN(r.speed_cv,4)}</td></tr>`).join('') : '<tr><td colspan="6" class="empty-state">Chưa sinh ra cửa sổ phân loại. Dùng clip dài tối thiểu khoảng 5 giây để đủ chuỗi đầu vào.</td></tr>';
-  $('#aiccExportResults').disabled = !rows.length;
-}
-
-async function analyzeAiccVideo() {
-  const file = $('#aiccVideoFile').files?.[0];
-  if (!file) { toast('Chưa chọn video', 'Chọn một clip ngắn trước khi phân tích.', 'error'); return; }
-  const button = $('#aiccAnalyzeBtn');
-  button.disabled = true; button.textContent = 'Đang phân tích…';
-  $('#aiccResultMeta').textContent = `Đang xử lý ${file.name} · ${(file.size/1024/1024).toFixed(1)} MB. Video dài có thể mất thời gian trên CPU.`;
-  try {
-    const form = new FormData(); form.append('file', file);
-    const job = await api('/api/aicc/predict-video', { method: 'POST', body: form });
-    await pollAiccJob(job.job_id, file.name, button, 'Đang phân tích');
-  } catch (error) {
-    $('#aiccResultMeta').textContent = `Phân tích thất bại: ${error.message}`;
-    toast('Không phân tích được video', error.message, 'error');
-    await refreshAiccStatus();
-  } finally {
-    button.textContent = '▶ Phân tích video';
-    if ($('#aiccVideoFile').files?.[0]) {
-      try { const status = await api('/api/aicc/status'); button.disabled = !status.enabled || !status.artifacts_present; } catch { button.disabled = true; }
-    } else button.disabled = false;
-  }
-}
-
-function exportAiccResults() {
-  const result = state.aiccResults;
-  if (!result?.results?.length) return;
-  const headers = ['timestamp_seconds','congestion_label','raw_congestion_label','class_id','raw_class_id','model_confidence','vehicle_tracks_in_window','avg_speed_pixels_per_second','speed_cv'];
-  downloadCsv('aicc-video-results.csv', headers,
-    result.results.map(r => [
-      r.timestamp_seconds,
-      r.congestion_label || r.congestion_class,
-      r.raw_congestion_label || r.raw_congestion_class || r.congestion_label,
-      r.class_id,
-      r.raw_class_id ?? r.class_id,
-      r.model_confidence != null ? r.model_confidence : '',
-      r.vehicle_tracks_in_window,
-      r.avg_speed_pixels_per_second,
-      r.speed_cv
-    ]));
+async function refreshAiccStatus() {
+  try { state.aiccStatus = await api('/api/aicc/status'); }
+  catch { state.aiccStatus = null; }
+  renderScenarioInputState();
 }
 
 function bindEvents() {
@@ -1543,35 +1361,28 @@ function bindEvents() {
   });
   $('#scenarioVideoFile')?.addEventListener('change', () => {
     const file = $('#scenarioVideoFile').files?.[0];
-    const maxMb = Number(state.aiccStatus?.upload_limit_mb || 500);
+    const maxBytes = scenarioUploadLimitBytes();
+    const maxMiB = Number((maxBytes / 1024 / 1024).toFixed(2));
     renderScenarioInputState();
     if (!state.scenarioBusy) {
-      const overLimit = file && file.size > maxMb * 1024 * 1024;
+      const overLimit = file && file.size > maxBytes;
       $('#scenarioJobStatus').textContent = file
         ? overLimit
-          ? `${file.name} vượt giới hạn ${maxMb} MB.`
-          : `${file.name} · ${(file.size/1024/1024).toFixed(1)} MB · đã chọn từ máy tính, chưa tải lên backend.`
+          ? `${file.name} vượt giới hạn ${maxMiB} MiB.`
+          : `${file.name} · ${(file.size/1024/1024).toFixed(1)} MiB · đã chọn.`
         : 'Chưa chọn tệp từ máy tính.';
     }
   });
   $('#scenarioVideoFile')?.addEventListener('input', renderScenarioInputState);
   window.addEventListener('pageshow', renderScenarioInputState);
   renderScenarioInputState();
-  $('#scenarioAnalyzeUploadBtn')?.addEventListener('click', () => startScenarioReview({ fromData: false }));
-  $('#scenarioAnalyzeDataBtn')?.addEventListener('click', () => startScenarioReview({ fromData: true }));
-  $('#scenarioDataVideo')?.addEventListener('change', renderScenarioInputState);
+  $('#scenarioAnalyzeUploadBtn')?.addEventListener('click', () => startScenarioReview());
+  $('#scenarioResumeBtn')?.addEventListener('click', () => startScenarioReview());
   $('#scenarioFindRoutesBtn')?.addEventListener('click', findScenarioRoutes);
   $('#scenarioExportBtn')?.addEventListener('click', exportScenarioFrames);
-  $('#aiccRefresh').addEventListener('click',()=>refreshAiccStatus({load:true}));
   $('#trafficCameraSelect').addEventListener('change',event=>selectTrafficCamera(event.target.value, false, true));
   $('#trafficFeedUpload').addEventListener('change',event=>uploadTrafficCameraClip(event.target.files?.[0]));
   $('#removeCameraFeed').addEventListener('click',removeTrafficCameraClip);
-  $('#assignCameraDataVideo').addEventListener('click', assignDataVideoToCamera);
-  $('#cameraFeedDataSelect').addEventListener('change', () => { $('#assignCameraDataVideo').disabled = state.publicDemoMode || !$('#cameraFeedDataSelect').value; });
-  $('#aiccAnalyzeDataBtn').addEventListener('click',analyzeAiccDataVideo);
-  $('#aiccVideoFile').addEventListener('change',()=>{const file=$('#aiccVideoFile').files?.[0];$('#aiccSelectedFile').textContent=file?`${file.name} · ${(file.size/1024/1024).toFixed(1)} MB`:'Chưa chọn tệp';});
-  $('#aiccAnalyzeBtn').addEventListener('click',analyzeAiccVideo);
-  $('#aiccExportResults').addEventListener('click',exportAiccResults);
   $('#refreshBtn').addEventListener('click',()=>loadAll());
   $('#noticeDismiss').addEventListener('click',()=>{$('#demoNotice').style.display='none';});
   $('#cameraSearch').addEventListener('input',renderCameraTable); $('#cameraStatusFilter').addEventListener('change',renderCameraTable);
@@ -1603,4 +1414,5 @@ if (!window.__weatherTrafficPollerV1) {
 }
 $('#weatherRefreshButton')?.addEventListener('click', () => void refreshWeatherForecast(true));
 $('#segmentForecastRefresh')?.addEventListener('click', () => void refreshSegmentForecasts(true));
-updateDate(); bindEvents(); initLeafletMap(); setPage('overview'); loadAll({quiet:true});
+try { const savedJob = sessionStorage.getItem('scenario-review-job'); if (/^[a-f0-9]{32}$/.test(savedJob || '')) state.scenarioPendingJobId = savedJob; } catch {}
+updateDate(); bindEvents(); initLeafletMap(); setPage('video'); loadAll({quiet:true});
