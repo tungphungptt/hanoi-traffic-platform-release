@@ -29,6 +29,8 @@ from traffic_brain.feature_engine import FeatureContractError, aggregate_traffic
 from traffic_brain.analytics import AnalyticsInputError, TrafficAnalyticsEngine
 from traffic_brain.video_review import analyze_video, VideoReviewError
 from traffic_brain.routing import RouteServiceError, fetch_route_alternatives, score_routes
+from app.weather_service import WeatherServiceError, get_weather_report
+from app.traffic_baseline import forecast_from_history
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = ROOT / "static"
@@ -679,6 +681,9 @@ VIDEO_REVIEW_JOBS: dict[str, dict[str, Any]] = {}
 VIDEO_REVIEW_MAX_STORED_JOBS = 8
 LIVE_TELEMETRY: dict[str, dict[str, Any]] = {}
 LIVE_TELEMETRY_LOCK = threading.RLock()
+LIVE_TELEMETRY_HISTORY: dict[str, list[dict[str, Any]]] = {}
+LIVE_TELEMETRY_HISTORY_MAX_AGE_SECONDS = 900
+LIVE_TELEMETRY_HISTORY_MAX_SAMPLES = 60
 MAX_LIVE_TELEMETRY_CAMERAS = 512
 
 
@@ -927,6 +932,17 @@ def map_config() -> dict[str, Any]:
 def health() -> dict[str, Any]:
     return {"ok": True, "service": "hanoi-traffic-forecasting", "time": datetime.now().astimezone().isoformat(timespec="seconds")}
 
+
+# WEATHER_TRAFFIC_TERMINAL_V1
+@app.get("/api/weather")
+def weather_forecast(latitude: float = 21.0285, longitude: float = 105.8542) -> dict[str, Any]:
+    """Current conditions and hourly weather forecast for the selected Hanoi coordinate."""
+    try:
+        return get_weather_report(latitude, longitude)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except WeatherServiceError as exc:
+        raise HTTPException(status_code=502, detail="Nguồn thời tiết Open-Meteo hiện không khả dụng; thử lại sau.") from exc
 
 @app.get("/api/system")
 def system_status() -> dict[str, Any]:
@@ -1673,14 +1689,63 @@ def ingest_live_traffic_telemetry(body: LiveTelemetryRequest) -> dict[str, Any]:
               "ci": float(body.ci), "speed_kmh": body.speed_kmh, "flow_pcu": body.flow_pcu}
     with LIVE_TELEMETRY_LOCK:
         LIVE_TELEMETRY[body.camera_id] = record
+        history = LIVE_TELEMETRY_HISTORY.setdefault(body.camera_id, [])
+        if not history or record["observed_epoch"] > history[-1].get("observed_epoch", 0):
+            history.append(dict(record))
+        cutoff = now_dt.timestamp() - LIVE_TELEMETRY_HISTORY_MAX_AGE_SECONDS
+        history[:] = [item for item in history if float(item.get("observed_epoch", 0)) >= cutoff][-LIVE_TELEMETRY_HISTORY_MAX_SAMPLES:]
         while len(LIVE_TELEMETRY) > MAX_LIVE_TELEMETRY_CAMERAS:
             oldest = min(LIVE_TELEMETRY, key=lambda key: LIVE_TELEMETRY[key].get("observed_epoch", 0))
             LIVE_TELEMETRY.pop(oldest, None)
+            LIVE_TELEMETRY_HISTORY.pop(oldest, None)
     return {"ok": True, "camera_id": body.camera_id, "source": "rtsp", "observed_at": observed.isoformat(),
             "age_seconds": round(max(0, age), 1), "stored": True,
             "notice": "Đây là điểm tiếp nhận từ collector RTSP đã xác thực; endpoint không tự mở luồng RTSP.",
             "persistent": False}
 
+
+@app.get("/api/traffic/segment-forecasts")
+def segment_traffic_forecasts() -> dict[str, Any]:
+    """Return a clearly-labeled linear baseline only when real, fresh history is sufficient."""
+    now = datetime.now(timezone.utc).timestamp()
+    live = _recent_live_telemetry()
+    with LIVE_TELEMETRY_LOCK:
+        history_snapshot = {key: [dict(row) for row in rows] for key, rows in LIVE_TELEMETRY_HISTORY.items()}
+
+    items = []
+    for camera in CAMERAS:
+        camera_id = str(camera.get("id", ""))
+        live_record = live.get(camera_id)
+        history = history_snapshot.get(camera_id, [])
+        result = forecast_from_history(history, now_epoch=now)
+        if not live_record:
+            result = {
+                **result,
+                "available": False,
+                "predictions": [],
+                "reason": "no_fresh_telemetry",
+                "message": "Chưa có telemetry thật mới trong 180 giây từ collector được phép.",
+            }
+        items.append({
+            "camera_id": camera_id,
+            "name": str(camera.get("name", camera_id)),
+            "area": str(camera.get("area", "")),
+            "lat": camera.get("lat"),
+            "lng": camera.get("lng"),
+            **result,
+        })
+
+    return {
+        "ok": True,
+        "mode": "baseline_reference",
+        "method": "linear_trend_baseline",
+        "validated": False,
+        "persistent": False,
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "source": "authorized_rtsp_collector",
+        "message": "Dự báo baseline chỉ xuất hiện sau khi có đủ telemetry thật; chưa phải mô hình AI đã kiểm định.",
+        "items": items,
+    }
 
 @app.get("/api/traffic/telemetry/status")
 def live_traffic_telemetry_status() -> dict[str, Any]:

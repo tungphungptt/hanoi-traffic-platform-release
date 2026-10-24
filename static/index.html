@@ -52,6 +52,20 @@
           <div class="page-heading"><div><div class="eyebrow"><span class="eyebrow-dot"></span> THỨ NĂM, <span id="dateToday">22 THÁNG 10, 2026</span></div><h1>Trung tâm điều hành giao thông</h1><p class="page-subtitle">Theo dõi điểm giám sát, hình ảnh đoạn đường và xu hướng lưu thông tại các khu vực.</p></div><div class="heading-actions"><span class="last-updated"><span class="mini-pulse"></span><span id="updatedAt">Cập nhật vừa xong</span></span><button class="btn btn-outline" id="exportOverview">↓ <span>Xuất báo cáo</span></button></div></div>
           <div class="demo-notice" id="demoNotice"><span class="notice-icon">i</span><span><strong>Đang ở chế độ dữ liệu minh họa.</strong> Số liệu dưới đây giúp bạn trải nghiệm giao diện; kết quả dự báo thật sẽ xuất hiện khi nạp mô hình và kết nối nguồn dữ liệu.</span><button id="noticeDismiss" aria-label="Ẩn thông báo">×</button></div>
 
+          <section class="panel weather-panel" id="weatherCard" aria-labelledby="weatherCardTitle">
+            <div class="panel-heading">
+              <div><div class="section-kicker">THỜI TIẾT · HÀ NỘI</div><h2 id="weatherCardTitle">Thời tiết hiện tại & dự báo theo giờ</h2><p class="panel-subtitle">Dữ liệu thời tiết từ Open-Meteo; không thay thế cảnh báo khí tượng chính thức.</p></div>
+              <button class="btn btn-outline" id="weatherRefreshButton" type="button">Cập nhật</button>
+            </div>
+            <div class="weather-summary">
+              <div class="weather-temperature"><strong id="weatherTemperature">—</strong><span id="weatherDescription">Đang tải dữ liệu thời tiết…</span></div>
+              <div class="weather-metrics"><span> Cảm nhận <strong id="weatherFeelsLike">—</strong></span><span>Độ ẩm <strong id="weatherHumidity">—</strong></span><span>Gió <strong id="weatherWind">—</strong></span><span>Mưa hiện tại <strong id="weatherRain">—</strong></span></div>
+            </div>
+            <div class="weather-hourly" id="weatherHourly" aria-live="polite"></div>
+            <div class="weather-footer"><span id="weatherUpdatedAt">Nguồn: Open-Meteo</span><span id="weatherStatus" role="status"></span><a href="https://open-meteo.com/" target="_blank" rel="noopener">Weather data by Open-Meteo</a></div>
+          </section>
+
+
           <div class="metric-grid">
             <article class="metric-card"><div class="metric-top"><span class="metric-label">Điểm có telemetry mới</span><span class="metric-icon green">▣</span></div><div class="metric-value"><strong id="metricOnline">—</strong><span class="metric-denom">điểm tham chiếu</span></div><div class="metric-foot"><span class="tiny-indicator green-indicator"></span><span id="metricOnlineFoot">Chưa có telemetry</span><span class="metric-foot-right">Toàn thành phố</span></div><div class="metric-progress"><span id="onlineProgress" style="width:0%"></span></div></article>
             <article class="metric-card"><div class="metric-top"><span class="metric-label">Phương tiện ghi nhận</span><span class="metric-icon blue">⇄</span></div><div class="metric-value"><strong id="metricVehicles">—</strong><span class="metric-change neutral">trong vùng theo dõi</span></div><div class="metric-foot"><span class="trend-icon">↗</span><span>Chưa có dữ liệu tracker</span><span class="metric-foot-right">Cửa sổ 60 giây</span></div><div class="metric-sparkline" id="vehicleSpark" style="background:#eef1ec"></div></article>
@@ -122,6 +136,13 @@
             <section class="panel trend-panel"><div class="panel-heading"><div><div class="section-kicker">DIỄN BIẾN GẦN ĐÂY</div><h2>Chỉ số ùn tắc toàn khu vực</h2></div><span class="trend-badge"><span>●</span> Chưa có telemetry</span></div><div class="trend-stat-row"><div><strong id="trendAvg">—</strong><span>Chỉ số trung bình</span></div></div><div class="trend-chart" id="trendChart"></div><div class="chart-foot"><span><i class="legend-line"></i>Chỉ số ùn tắc (CI)</span><span id="trendSourceNote">Biểu đồ xuất hiện sau khi có dữ liệu đo theo thời gian.</span></div></section>
             <section class="panel alerts-panel"><div class="panel-heading"><div><div class="section-kicker">CẦN QUAN TÂM</div><h2>Cảnh báo mới nhất</h2></div><button class="link-button" data-page="alerts">Tất cả <span>→</span></button></div><div id="alertPreview" class="alert-preview-list"></div><div class="alert-panel-footer"><span class="alert-footer-dot"></span><span id="alertFooterText">Chưa có nguồn sinh cảnh báo</span><button class="arrow-circle" data-page="alerts">→</button></div></section>
           </div>
+
+          <section class="panel segment-forecast-panel" aria-labelledby="segmentForecastTitle">
+            <div class="panel-heading"><div><div class="section-kicker">DỰ BÁO THEO ĐOẠN</div><h2 id="segmentForecastTitle">Nguy cơ ùn tắc trong +5 / +10 phút</h2><p class="panel-subtitle">Chỉ hiển thị baseline từ chuỗi telemetry thật; kết quả chưa được hiệu chuẩn/kiểm định.</p></div><button class="btn btn-outline" id="segmentForecastRefresh" type="button">Làm mới</button></div>
+            <div id="segmentForecastStatus" class="empty-state" role="status">Đang kiểm tra telemetry…</div>
+            <div id="segmentForecastList" class="segment-forecast-list"></div>
+          </section>
+
           <footer class="page-footer"><span>© 2026 Hanoi Traffic Forecasting</span><span>Thiết kế phục vụ điều hành · Tối ưu cho CPU</span><span class="footer-version">Bản vận hành 8.0.0</span></footer>
         </section>
 

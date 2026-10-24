@@ -39,6 +39,7 @@ function setPage(page) {
     requestAnimationFrame(() => state.leafletMap.invalidateSize({ pan: false }));
     if (state.dashboard) void pollCameraMapData();
   }
+  if (page === 'overview') { void refreshWeatherForecast(); void refreshSegmentForecasts(true); }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -51,6 +52,92 @@ function ciColorClass(ci) { return severityFromCI(Number(ci)); }
 function updateDate() {
   const d = new Date();
   $('#dateToday').textContent = d.toLocaleDateString('vi-VN', { day:'numeric', month:'long', year:'numeric' }).toLocaleUpperCase('vi-VN');
+}
+
+
+let weatherLastSuccessMs = 0;
+let weatherRequestBusy = false;
+let segmentForecastBusy = false;
+
+function fmtValue(value, suffix = '', digits = 1) {
+  const num = Number(value);
+  return value == null || !Number.isFinite(num) ? '—' : `${numberVN(num, digits)}${suffix}`;
+}
+
+function renderWeatherForecast(payload) {
+  const current = payload?.current || {};
+  $('#weatherTemperature').textContent = fmtValue(current.temperature_c, '°C');
+  $('#weatherDescription').textContent = current.description || 'Không có mô tả';
+  $('#weatherFeelsLike').textContent = fmtValue(current.apparent_temperature_c, '°C');
+  $('#weatherHumidity').textContent = fmtValue(current.relative_humidity_pct, '%', 0);
+  $('#weatherWind').textContent = fmtValue(current.wind_speed_kmh, ' km/h');
+  $('#weatherRain').textContent = fmtValue(current.precipitation_mm, ' mm');
+  const stale = Boolean(payload?.is_stale);
+  const fetchedAt = payload?.fetched_at ? new Date(payload.fetched_at) : null;
+  $('#weatherUpdatedAt').textContent = `Quan trắc: ${current.time || '—'} · lấy dữ liệu: ${fetchedAt && !Number.isNaN(fetchedAt.getTime()) ? fetchedAt.toLocaleTimeString('vi-VN') : '—'}`;
+  $('#weatherStatus').textContent = stale ? `Dữ liệu cache cũ (${fmtValue(payload.stale_age_seconds, ' giây', 0)})` : 'Đã cập nhật';
+  $('#weatherStatus').classList.toggle('is-stale', stale);
+  const rows = Array.isArray(payload?.hourly) ? payload.hourly.slice(0, 6) : [];
+  $('#weatherHourly').innerHTML = rows.length ? rows.map(item => {
+    const date = new Date(item.time);
+    const hour = Number.isNaN(date.getTime()) ? String(item.time).slice(-5) : date.toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'});
+    return `<article class="weather-hour"><small>${escapeHtml(hour)}</small><strong>${escapeHtml(fmtValue(item.temperature_c, '°C'))}</strong><span>${escapeHtml(item.description || '—')}</span><small>Mưa ${escapeHtml(fmtValue(item.precipitation_probability_pct, '%', 0))}</small></article>`;
+  }).join('') : '<div class="empty-state">Nhà cung cấp chưa trả dữ liệu theo giờ.</div>';
+  weatherLastSuccessMs = Date.now();
+}
+
+async function refreshWeatherForecast(force = false) {
+  if (weatherRequestBusy || !$('#weatherCard')) return;
+  if (!force && weatherLastSuccessMs && Date.now() - weatherLastSuccessMs < 10 * 60 * 1000) return;
+  weatherRequestBusy = true;
+  const status = $('#weatherStatus');
+  if (status) status.textContent = 'Đang lấy dữ liệu…';
+  try {
+    const payload = await api('/api/weather?latitude=21.0285&longitude=105.8542');
+    renderWeatherForecast(payload);
+  } catch (error) {
+    if (status) status.textContent = `Chưa có dữ liệu thời tiết: ${error.message}`;
+    $('#weatherDescription').textContent = 'Không thể lấy dữ liệu từ nhà cung cấp';
+    $('#weatherHourly').innerHTML = '<div class="empty-state">Kiểm tra kết nối backend/upstream rồi nhấn Cập nhật.</div>';
+  } finally {
+    weatherRequestBusy = false;
+  }
+}
+
+function renderSegmentForecasts(payload) {
+  const status = $('#segmentForecastStatus');
+  const host = $('#segmentForecastList');
+  if (!status || !host) return;
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const ready = items.filter(item => item.available && Array.isArray(item.predictions) && item.predictions.length);
+  if (!ready.length) {
+    status.textContent = payload?.message || 'Chưa có dự báo theo đoạn đường.';
+    host.innerHTML = items.length ? items.map(item => `<article class="segment-forecast-row unavailable"><div><strong>${escapeHtml(item.name || item.camera_id)}</strong><small>${escapeHtml(item.area || item.camera_id)}</small></div><span>${escapeHtml(item.message || 'Chưa đủ chuỗi telemetry thật')}</span></article>`).join('') : '';
+    return;
+  }
+  status.textContent = `Có ${ready.length}/${items.length} đoạn đủ điều kiện baseline · chưa được kiểm định độc lập.`;
+  host.innerHTML = items.map(item => {
+    if (!item.available || !Array.isArray(item.predictions) || !item.predictions.length) {
+      return `<article class="segment-forecast-row unavailable"><div><strong>${escapeHtml(item.name || item.camera_id)}</strong><small>${escapeHtml(item.area || item.camera_id)}</small></div><span>${escapeHtml(item.message || 'Chưa đủ dữ liệu')}</span></article>`;
+    }
+    const predictions = item.predictions.map(pred => `<span class="segment-horizon"><small>+${numberVN(pred.horizon_minutes, 0)} phút</small><strong>${escapeHtml(pred.level || 'Chưa xác định')}</strong><em>CI ${escapeHtml(fmtValue(pred.ci, '', 2))}</em></span>`).join('');
+    return `<article class="segment-forecast-row"><div><strong>${escapeHtml(item.name || item.camera_id)}</strong><small>${escapeHtml(item.area || item.camera_id)} · hiện tại ${escapeHtml(fmtValue(item.current_ci, '', 2))}</small></div><div class="segment-horizons">${predictions}</div><small class="segment-method">Baseline ngoại suy tuyến tính · ${numberVN(item.sample_count || 0)} mẫu · không phải mô hình AI đã kiểm định</small></article>`;
+  }).join('');
+}
+
+async function refreshSegmentForecasts(force = false) {
+  if (segmentForecastBusy || !$('#segmentForecastList')) return;
+  if (document.hidden || state.currentPage !== 'overview') return;
+  segmentForecastBusy = true;
+  try {
+    const payload = await api('/api/traffic/segment-forecasts');
+    renderSegmentForecasts(payload);
+  } catch (error) {
+    const status = $('#segmentForecastStatus');
+    if (status) status.textContent = `Không đọc được dữ liệu dự báo đoạn đường: ${error.message}`;
+  } finally {
+    segmentForecastBusy = false;
+  }
 }
 
 async function loadAll({ quiet = false } = {}) {
@@ -1378,4 +1465,14 @@ function bindEvents() {
   $('#manifestEditor').addEventListener('input',()=>{try{JSON.parse($('#manifestEditor').value);$('#manifestValidation').innerHTML='<span class="tiny-indicator green-indicator"></span> JSON hợp lệ · chưa lưu thay đổi';}catch{$('#manifestValidation').innerHTML='<span class="tiny-indicator red-indicator"></span> JSON chưa hợp lệ';}});
 }
 
+if (!window.__weatherTrafficPollerV1) {
+  window.__weatherTrafficPollerV1 = true;
+  window.setInterval(() => {
+    if (document.hidden || state.currentPage !== 'overview') return;
+    void refreshWeatherForecast();
+    void refreshSegmentForecasts(true);
+  }, 45_000);
+}
+$('#weatherRefreshButton')?.addEventListener('click', () => void refreshWeatherForecast(true));
+$('#segmentForecastRefresh')?.addEventListener('click', () => void refreshSegmentForecasts(true));
 updateDate(); bindEvents(); initLeafletMap(); setPage('overview'); loadAll({quiet:true});

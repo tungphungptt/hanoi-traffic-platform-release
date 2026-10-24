@@ -1,7 +1,7 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 197,
+  "files_count": 202,
   "files": [
     {
       "path": ".env.example",
@@ -60,8 +60,18 @@
     },
     {
       "path": "app/main.py",
-      "bytes": 92678,
-      "sha256": "c524af787e92487c583c14349b71740e2215f3b97cf95e43f8faf3f004cc5a6a"
+      "bytes": 95743,
+      "sha256": "4b3029ab3811f2b6b29a978a2f1e108ee4d6f37426abd943ed74fc0420bc4d56"
+    },
+    {
+      "path": "app/traffic_baseline.py",
+      "bytes": 3260,
+      "sha256": "780abb5e0b17586fd94d98476780a51d53f89d009de8d295f2c55249c0db7556"
+    },
+    {
+      "path": "app/weather_service.py",
+      "bytes": 7660,
+      "sha256": "f5d0807d8f0131cc5b93c2fa092b2db35f6fe8da36642be238bd16b70183da11"
     },
     {
       "path": "artifacts/audit/.gitkeep",
@@ -494,6 +504,11 @@
       "sha256": "812a88e3a49cc9f163a668a39f0e3613e7e55217b7dc354d0efdd44613406790"
     },
     {
+      "path": "docs/WEATHER_AND_TRAFFIC_FORECAST.md",
+      "bytes": 1032,
+      "sha256": "d2be1a114967707a55fb34b95a39536e7a10ecd12cc06c15f3f2738dfbf74308"
+    },
+    {
       "path": "download_aicc_data.ps1",
       "bytes": 1126,
       "sha256": "8ae716725535846f76c0fec03bdb2997966fd7c08352113f54055a617fc46944"
@@ -770,13 +785,13 @@
     },
     {
       "path": "static/app.js",
-      "bytes": 92832,
-      "sha256": "cdc0fa237beea84a434d11faf841ea4e82f8749295c36fdc8a06578a9d1be0e4"
+      "bytes": 99140,
+      "sha256": "1d5286554100662997ac49b764a60b1009593a77d500a01410f979492d5dcd51"
     },
     {
       "path": "static/index.html",
-      "bytes": 47795,
-      "sha256": "32f553179aad751a0f531a5316fb85b9d6fc185afb14367692ea8683df96558c"
+      "bytes": 49990,
+      "sha256": "4fa0a99325a0ea444430c38d2081ba2ed3ea5f297b0b5c6c9e2a94e80dd9256c"
     },
     {
       "path": "static/street-traffic-demo.jpg",
@@ -785,8 +800,8 @@
     },
     {
       "path": "static/styles.css",
-      "bytes": 67416,
-      "sha256": "bc74ee0f50e067cf8726844ad7db721a29313767588df71144c3ef1b8477ca4a"
+      "bytes": 70477,
+      "sha256": "485bb1782b2dfab39481aaf816c8fb884f796ccbbe589862d154bad94c183010"
     },
     {
       "path": "tests/test_aicc.py",
@@ -869,9 +884,19 @@
       "sha256": "537eff25773c30f0f05ba4ba96088ab8dca62ca0c44d40d5ce9ec9ea10337878"
     },
     {
+      "path": "tests/test_traffic_baseline.py",
+      "bytes": 1228,
+      "sha256": "98d2ea06bd1dc2d8470f6fbfd0a9f0a4744b3de3f34393c99cf56f7c6fa44469"
+    },
+    {
       "path": "tests/test_verify_video.py",
       "bytes": 1383,
       "sha256": "688daf768c0bc4b10526dbd58e1a46e62fa6e50646b6b845bd90adc26533d65c"
+    },
+    {
+      "path": "tests/test_weather_service.py",
+      "bytes": 1675,
+      "sha256": "3556adb4f70544b30853a958067369b9180205a8091e293865895d1043c8bd8b"
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
