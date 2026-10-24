@@ -825,8 +825,8 @@
     },
     {
       "path": "static/app.js",
-      "bytes": 92602,
-      "sha256": "d85cb9209edeb89387984c7be1230b4b04505e5b5bc6816e9d0d4c62770e2878"
+      "bytes": 92695,
+      "sha256": "9ab3171cae8d43a68df0a5f83cc8e676ac709636fe2f2ae2474c931ffd3df102"
     },
     {
       "path": "static/index.html",
@@ -975,8 +975,8 @@
     },
     {
       "path": "tests/test_video_review_jobs.py",
-      "bytes": 6461,
-      "sha256": "feebc764370dbfc2cf39a637a364f57526c099fb293ba475bd8a9739c36dd8e6"
+      "bytes": 7440,
+      "sha256": "a0e890ec179cb16246b815ca3b9c876a7ae4b8d3ee6ebacf29802477b65bf3d3"
     },
     {
       "path": "tests/test_weather_service.py",
@@ -985,8 +985,8 @@
     },
     {
       "path": "tests/video_review_frontend.test.cjs",
-      "bytes": 10042,
-      "sha256": "c2d4562cf54899f8baf2c914a4ee2a6aa4c6511e94125491c890b83ae9b1fde8"
+      "bytes": 10427,
+      "sha256": "bb818b844b9049cdc0a3fb9cf6b5f7e730c0af0a3430dab45e4214a4dd122f91"
     },
     {
       "path": "tools/build_track1_cnn_lstm_final.ps1",

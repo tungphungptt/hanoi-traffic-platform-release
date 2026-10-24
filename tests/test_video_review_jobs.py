@@ -141,6 +141,25 @@ def test_submission_failure_does_not_poison_cpu_slot(sandbox, clip, monkeypatch)
     assert client.post('/api/scenarios/video-review-from-data', json={'path': 'nested/small.avi'}).status_code == 202
 
 
+def test_next_video_can_be_enqueued_immediately_after_review_completes(sandbox, clip, monkeypatch):
+    monkeypatch.setattr(main.AICC_EXECUTOR, 'submit', lambda *args: None)
+    monkeypatch.setattr(main.aicc_runtime, 'load', lambda: {})
+    monkeypatch.setattr(main, '_load_video_review_models', lambda: None)
+    monkeypatch.setattr(main, 'analyze_video', lambda *args, **kwargs: {'frames': []})
+
+    first = main._enqueue_video_review_job(clip, clip.name, None, False, cleanup=False)
+    main._run_video_review_job(first['job_id'], clip, clip.name, None, False, cleanup=False)
+
+    assert main.VIDEO_REVIEW_JOBS[first['job_id']]['status'] == 'succeeded'
+    assert not main._active_aicc_job_exists()
+
+    next_clip = clip.with_name('next.avi')
+    next_clip.write_bytes(clip.read_bytes())
+    second = main._enqueue_video_review_job(next_clip, next_clip.name, None, False, cleanup=False)
+    assert second['status'] == 'queued'
+    assert second['job_id'] != first['job_id']
+
+
 def test_unknown_job_and_no_stale_cache(sandbox):
     assert client.get('/api/scenarios/video-reviews/' + 'b' * 32).status_code == 404
     for path in ('/api/aicc/data-videos', '/static/app.js'):

@@ -39,8 +39,15 @@ test('one upload reports actual byte progress and changes phase before job polli
   xhr.upload.onload();assert.match(el('#scenarioAnalyzeUploadBtn').textContent,/kiểm tra/);
   accept(xhr);await pending;
   assert.equal(el('#scenarioProgressText').textContent,'Hoàn tất');
-  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,false);
   assert.equal(run('state.scenarioPendingJobId'),null);
+  assert.equal(el('#scenarioVideoFile').value,'');
+  el('#scenarioVideoFile').files=[];
+  run('renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,true);
+  assert.match(el('#scenarioInputHint').textContent,/chọn video khác để phân tích tiếp/);
+  el('#scenarioVideoFile').files=[new Blob(['next clip'])];
+  run('renderScenarioInputState()');
+  assert.equal(el('#scenarioAnalyzeUploadBtn').disabled,false);
 });
 
 test('unknown transfer length shows measured bytes without invented percentages',async()=>{

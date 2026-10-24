@@ -958,7 +958,7 @@ function renderScenarioInputState() {
   const maxMiB = Number((maxBytes / 1024 / 1024).toFixed(2));
   const reason = blocked || (state.scenarioBusy ? 'Đang xử lý yêu cầu của bạn…' : '')
     || (state.scenarioPendingJobId ? 'Video đã được tiếp nhận. Hãy theo dõi lại kết quả.' : '')
-    || (!file ? 'Chọn một video để bắt đầu.' : '')
+    || (!file ? 'Chọn một video để bắt đầu hoặc chọn video khác để phân tích tiếp.' : '')
     || (file.size > maxBytes ? `Video vượt giới hạn ${maxMiB} MiB.` : '');
   const button = $('#scenarioAnalyzeUploadBtn');
   if (button) { button.disabled = Boolean(reason); button.title = reason; }
@@ -1133,6 +1133,7 @@ async function pollScenarioReviewJob(jobId, filename) {
       state.scenarioJobId = jobId;
       const result = { ...job.result, job_id: jobId };
       renderScenarioReview(result);
+      $('#scenarioVideoFile').value = '';
       $('#scenarioProgressText').textContent = 'Hoàn tất';
       toast('Đã phân tích video', `${numberVN((result.frames || []).length)} ảnh minh chứng.`);
       return result;
