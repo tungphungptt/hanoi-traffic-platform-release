@@ -16,29 +16,52 @@ class UploadGate:
         self.attempts = attempts
         self.window_seconds = window_seconds
         self.starts = deque()
-        self.inflight = False
+        self._lease = None
+        self._started_at = None
         self.lock = threading.Lock()
+
+    @property
+    def inflight(self):
+        with self.lock:
+            return self._lease is not None
+
+    def snapshot(self):
+        """Expose ingress state without request identifiers or uploaded filenames."""
+        with self.lock:
+            return {
+                'upload_in_progress': self._lease is not None,
+                'upload_age_seconds': (round(max(0, time.monotonic() - self._started_at), 3)
+                                       if self._started_at is not None else None),
+            }
 
     def admit(self, busy):
         with self.lock:
             now = time.monotonic()
             while self.starts and now - self.starts[0] >= self.window_seconds:
                 self.starts.popleft()
-            if self.inflight or busy():
-                return 409, BUSY_MESSAGE
+            if self._lease is not None:
+                return None, (409, BUSY_MESSAGE, 'upload_in_progress')
+            if busy():
+                return None, (409, BUSY_MESSAGE, 'analysis_in_progress')
             if len(self.starts) >= self.attempts:
-                return 429, "Có quá nhiều lượt tải video. Vui lòng thử lại sau một phút."
+                return None, (429, "Có quá nhiều lượt tải video. Vui lòng thử lại sau một phút.", None)
             self.starts.append(now)
-            self.inflight = True
-            return None
+            self._lease = object()
+            self._started_at = now
+            return self._lease, None
 
-    def release(self):
+    def release(self, lease):
         with self.lock:
-            self.inflight = False
+            # A completed request may still be doing post-response cleanup after
+            # the next upload has entered. Its finalizer only owns its own lease.
+            if self._lease is lease:
+                self._lease = None
+                self._started_at = None
 
 
 class PublicUploadMiddleware:
-    def __init__(self, app, public_mode, enabled, max_bytes, busy, gate, idle_timeout=60, total_timeout=600):
+    def __init__(self, app, public_mode, enabled, max_bytes, busy, gate, idle_timeout=60,
+                 total_timeout=1800, storage_check=None):
         self.app = app
         self.public_mode = public_mode
         self.enabled = enabled
@@ -47,6 +70,7 @@ class PublicUploadMiddleware:
         self.gate = gate
         self.idle_timeout = idle_timeout
         self.total_timeout = total_timeout
+        self.storage_check = storage_check
 
     async def __call__(self, scope, receive, send):
         if (scope['type'] != 'http' or scope['method'] != 'POST'
@@ -67,10 +91,13 @@ class PublicUploadMiddleware:
             if oversized:
                 return await JSONResponse({'detail': 'Video vượt giới hạn tải lên.'}, 413)(scope, receive, send)
         gate = self.gate()
-        rejected = gate.admit(self.busy)
+        lease, rejected = gate.admit(self.busy)
         if rejected:
-            code, detail = rejected
-            return await JSONResponse({'detail': detail}, code, headers={'Retry-After': '60' if code == 429 else '5'})(scope, receive, send)
+            code, detail, busy_reason = rejected
+            payload = {'detail': detail}
+            if busy_reason:
+                payload['busy_reason'] = busy_reason
+            return await JSONResponse(payload, code, headers={'Retry-After': '60' if code == 429 else '5'})(scope, receive, send)
         consumed = 0
         deadline = time.monotonic() + self.total_timeout
 
@@ -78,18 +105,45 @@ class PublicUploadMiddleware:
             nonlocal consumed
             remaining = deadline - time.monotonic()
             if remaining <= 0:
+                gate.release(lease)
                 raise HTTPException(408, 'Tải video quá thời gian cho phép. Vui lòng thử lại.')
             try:
-                message = await asyncio.wait_for(receive(), timeout=min(self.idle_timeout, remaining))
+                # Keep receive in this ASGI task; a child task changes cancellation
+                # ownership for middleware and multipart parser cleanup.
+                async with asyncio.timeout(min(self.idle_timeout, remaining)):
+                    message = await receive()
             except asyncio.TimeoutError:
+                gate.release(lease)
                 raise HTTPException(408, 'Kết nối tải video bị gián đoạn. Vui lòng thử lại.') from None
+            except BaseException:
+                gate.release(lease)
+                raise
             if message['type'] == 'http.request':
                 consumed += len(message.get('body', b''))
                 if consumed > body_limit:
+                    gate.release(lease)
                     raise HTTPException(413, 'Video vượt giới hạn tải lên.')
+            elif message['type'] == 'http.disconnect':
+                gate.release(lease)
             return message
 
+        async def bounded_send(message):
+            try:
+                await send(message)
+            except BaseException:
+                gate.release(lease)
+                raise
+            if message['type'] == 'http.response.body' and not message.get('more_body', False):
+                gate.release(lease)
+
         try:
-            await self.app(scope, bounded_receive, send)
+            if self.storage_check is not None:
+                expected_bytes = min(int(length), body_limit) if length else body_limit
+                try:
+                    self.storage_check(expected_bytes)
+                except HTTPException as exc:
+                    return await JSONResponse({'detail': exc.detail}, exc.status_code,
+                                              headers=exc.headers)(scope, receive, bounded_send)
+            await self.app(scope, bounded_receive, bounded_send)
         finally:
-            gate.release()
+            gate.release(lease)
