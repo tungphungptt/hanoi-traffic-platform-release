@@ -3,20 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#f6f7f4" />
+  <meta name="theme-color" content="#b52226" />
   <meta name="description" content="Bảng điều hành giám sát và dự báo ùn tắc giao thông Hà Nội." />
   <title>hanoiFlow — Điều hành giao thông</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/styles.css?v=20261024-vietnam-theme-1" />
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#video" aria-label="Mở luồng dự báo và phương án">
-        <span class="brand-mark"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M7 29V12.5c0-2 1.6-3.5 3.6-3.5h18.8c2 0 3.6 1.5 3.6 3.5V29"/><path d="M13 29V16h14v13M20 16v13M7 22h6m14 0h6"/><circle cx="20" cy="8" r="2.3"/></svg></span>
+        <span class="brand-mark"><img src="/static/vietnam-flag.svg" width="30" height="20" alt="Quốc kỳ Việt Nam" /></span>
         <span class="brand-copy"><strong>hanoi<span>Flow</span></strong><small>TRUNG TÂM ĐIỀU HÀNH</small></span>
       </a>
       <div class="side-label">KHÔNG GIAN LÀM VIỆC</div>
@@ -65,13 +65,6 @@
             <div class="weather-footer"><span id="weatherUpdatedAt">Nguồn: Open-Meteo</span><span id="weatherStatus" role="status"></span><a href="https://open-meteo.com/" target="_blank" rel="noopener">Weather data by Open-Meteo</a></div>
           </section>
 
-
-          <div class="metric-grid">
-            <article class="metric-card"><div class="metric-top"><span class="metric-label">Điểm có telemetry mới</span><span class="metric-icon green">▣</span></div><div class="metric-value"><strong id="metricOnline">—</strong><span class="metric-denom">điểm tham chiếu</span></div><div class="metric-foot"><span class="tiny-indicator green-indicator"></span><span id="metricOnlineFoot">Chưa có telemetry</span><span class="metric-foot-right">Toàn thành phố</span></div><div class="metric-progress"><span id="onlineProgress" style="width:0%"></span></div></article>
-            <article class="metric-card"><div class="metric-top"><span class="metric-label">Phương tiện ghi nhận</span><span class="metric-icon blue">⇄</span></div><div class="metric-value"><strong id="metricVehicles">—</strong><span class="metric-change neutral">trong vùng theo dõi</span></div><div class="metric-foot"><span class="trend-icon">↗</span><span>Chưa có dữ liệu tracker</span><span class="metric-foot-right">Cửa sổ 60 giây</span></div><div class="metric-sparkline" id="vehicleSpark" style="background:#eef1ec"></div></article>
-            <article class="metric-card"><div class="metric-top"><span class="metric-label">Tốc độ đo trung bình</span><span class="metric-icon amber">⌁</span></div><div class="metric-value"><strong id="metricSpeed">—</strong><span class="metric-unit">km/h</span></div><div class="metric-foot"><span class="tiny-indicator amber-indicator"></span><span>Chưa có tốc độ đã hiệu chuẩn</span><span class="metric-foot-right">Mốc tham chiếu 42 km/h</span></div><div class="speed-track"><span id="speedProgress" style="width:0%"></span></div></article>
-            <article class="metric-card"><div class="metric-top"><span class="metric-label">Điểm vượt ngưỡng CI</span><span class="metric-icon red">!</span></div><div class="metric-value"><strong id="metricCritical">—</strong><span class="metric-change danger">cần theo dõi</span></div><div class="metric-foot"><span class="tiny-indicator red-indicator"></span><span>Chưa có dự báo đã kiểm định</span><button class="inline-arrow" data-page="alerts">Xem <span>→</span></button></div><div class="severity-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></article>
-          </div>
 
           <div class="content-grid top-content-grid">
             <section class="panel map-panel">
@@ -199,7 +192,7 @@
               <p class="panel-subtitle">Ảnh được lấy mẫu từ clip và gắn nhãn theo logic giải thích được (số xe + diện tích hộp + chuyển động pixel). Đây là chỉ báo thị giác cho đoạn clip, không phải đo tốc độ km/h đã hiệu chuẩn.</p>
               <div class="scenario-kpis"><article><small>Trạng thái cuối clip</small><strong id="scenarioCurrentState">—</strong></article><article><small>CI thị giác hiện tại</small><strong id="scenarioCurrentCI">—</strong></article><article><small>Ảnh đã lưu</small><strong id="scenarioSnapshotCount">—</strong></article></div>
               <div class="scenario-forecast-block" id="scenarioForecastBlock"><div class="scenario-forecast-heading"><strong>Baseline xu hướng +5 / +10 phút</strong><span id="scenarioForecastBadge" class="status-tag">Chưa đủ dữ liệu</span></div><div id="scenarioForecastText" class="scenario-forecast-text">Baseline riêng, chỉ xuất hiện nếu clip giữ đúng thời gian và đủ mẫu; không phải kết quả LSTM.</div><div id="scenarioForecastCards" class="scenario-forecast-cards"></div></div>
-              <div class="scenario-forecast-block"><div class="scenario-forecast-heading"><strong>LSTM thử nghiệm +5 / +10 / +15 giây</strong><span id="hanoiForecastBadge" class="status-tag">Chưa đủ dữ liệu</span></div><div id="hanoiForecastText" class="scenario-forecast-text">Cần ít nhất 30 giây video lấy mẫu 1 frame/giây. Xác suất chưa hiệu chuẩn và không thay thế dự báo theo phút.</div><div id="hanoiForecastCards" class="scenario-forecast-cards"></div></div>
+              <div class="scenario-forecast-block"><div class="scenario-forecast-heading"><strong>LSTM thử nghiệm +5 / +10 / +15 phút</strong><span id="hanoiForecastBadge" class="status-tag">Chưa đủ dữ liệu</span></div><div id="hanoiForecastText" class="scenario-forecast-text">Cần ít nhất 30 giây video lấy mẫu 1 frame/giây. Xác suất chưa hiệu chuẩn.</div><div id="hanoiForecastCards" class="scenario-forecast-cards"></div></div>
               <div class="scenario-frames-heading"><div><strong>Khung hình theo thời điểm</strong><small id="scenarioFramesCaption">Ảnh sẽ xuất hiện sau khi xử lý xong.</small></div><button class="btn btn-outline" id="scenarioExportBtn" type="button" disabled>Xuất dữ liệu CSV</button></div>
               <div class="scenario-frame-gallery" id="scenarioFrameGallery"><div class="empty-state">Chưa có ảnh minh chứng. Tải video rồi nhấn Phân tích video.</div></div>
             </section>
@@ -227,6 +220,6 @@
   <div class="toast-stack" id="toastStack" aria-live="polite"></div>
   <div class="modal-backdrop" id="cameraModal" hidden><div class="modal"><div class="modal-head"><div><span class="section-kicker">CHI TIẾT ĐIỂM GIÁM SÁT</span><h2 id="cameraModalTitle">Camera</h2></div><button class="modal-close" id="closeCameraModal">×</button></div><div id="cameraModalContent"></div><div class="modal-actions"><button class="btn btn-outline" id="closeCameraModal2">Đóng</button><button class="btn btn-primary" data-page="alerts" id="cameraModalAlerts">Xem cảnh báo liên quan</button></div></div></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
-  <script src="/static/app.js?v=20261024-public-upload-500mib-5" defer></script>
+  <script src="/static/app.js?v=20261024-vietnam-theme-1" defer></script>
 </body>
 </html>

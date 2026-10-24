@@ -70,7 +70,7 @@ def test_video_upload_works_without_camera_selection_and_shows_experimental_hano
     backend = (root / "app/main.py").read_text(encoding="utf-8")
     render = (root / "render.yaml").read_text(encoding="utf-8")
     assert "Đoạn A / điểm đi (không bắt buộc)" in html
-    assert "LSTM thử nghiệm +5 / +10 / +15 giây" in html
+    assert "LSTM thử nghiệm +5 / +10 / +15 phút" in html
     assert "if (originId) form.append('camera_id', originId)" in js
     assert "canAnalyzeUploadedScenarioVideo" in js
     assert "PUBLIC_VIDEO_REVIEW_ENABLED" in backend
