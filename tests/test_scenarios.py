@@ -122,7 +122,7 @@ def test_public_demo_allows_only_capped_uploaded_video_review(monkeypatch, tmp_p
     monkeypatch.setattr(main, "PUBLIC_VIDEO_REVIEW_ENABLED", True)
     status = client.get("/api/aicc/status").json()
     assert status["upload_limit_mb"] == 100
-    assert status["upload_max_duration_seconds"] == 360
+    assert status["upload_max_duration_seconds"] == 300
 
     source = tmp_path / "short.avi"
     writer = cv2.VideoWriter(str(source), cv2.VideoWriter_fourcc(*"MJPG"), 5.0, (96, 64))
@@ -157,7 +157,7 @@ def test_public_demo_allows_only_capped_uploaded_video_review(monkeypatch, tmp_p
     )
     assert oversized.status_code == 413
     monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_BYTES", 100 * 1024 * 1024)
-    monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS", 360)
+    monkeypatch.setattr(main, "MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS", 300)
 
     class FakeCapture:
         def __init__(self, frame_count):
@@ -179,19 +179,19 @@ def test_public_demo_allows_only_capped_uploaded_video_review(monkeypatch, tmp_p
         def release(self):
             return None
 
-    monkeypatch.setattr(cv2, "VideoCapture", lambda _path: FakeCapture(30 * 360))
-    six_minutes = client.post(
+    monkeypatch.setattr(cv2, "VideoCapture", lambda _path: FakeCapture(30 * 300))
+    five_minutes = client.post(
         "/api/scenarios/video-review",
         files={"file": ("short.avi", source.read_bytes(), "video/x-msvideo")},
     )
-    assert six_minutes.status_code == 202, six_minutes.text
+    assert five_minutes.status_code == 202, five_minutes.text
 
-    monkeypatch.setattr(cv2, "VideoCapture", lambda _path: FakeCapture(30 * 361))
-    over_six_minutes = client.post(
+    monkeypatch.setattr(cv2, "VideoCapture", lambda _path: FakeCapture(30 * 301))
+    over_five_minutes = client.post(
         "/api/scenarios/video-review",
         files={"file": ("short.avi", source.read_bytes(), "video/x-msvideo")},
     )
-    assert over_six_minutes.status_code == 413
+    assert over_five_minutes.status_code == 413
 
 
 def test_frame_endpoint_rejects_traversal_and_non_jpeg(monkeypatch, tmp_path):
@@ -284,5 +284,7 @@ def test_v5_ui_explains_video_frames_route_candidates_and_hides_legacy_flow_by_d
     assert 'id="scenarioFindRoutesBtn"' in html
     assert 'id="scenarioRouteMap"' in html
     assert 'id="scenarioPreserveTiming"' in html
-    assert '<details class="advanced-details scenario-advanced">' in html
+    assert 'id="scenarioDataVideo"' not in html
+    assert 'id="aiccVideoFile"' not in html
+    assert 'id="scenarioVideoFile"' in html
     assert "Dự báo & phương án" in html

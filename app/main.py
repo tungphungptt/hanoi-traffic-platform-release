@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import asyncio
+from contextlib import asynccontextmanager
 import math
 import mimetypes
 import os
@@ -20,6 +22,8 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, Response
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
+from app.public_upload import PublicUploadMiddleware, UploadGate, BUSY_MESSAGE
 import cv2
 from pydantic import BaseModel, Field, field_validator
 
@@ -54,9 +58,12 @@ AICC_VIDEO_ENABLED = os.getenv("AICC_VIDEO_ENABLED", "true").strip().lower() in 
 PUBLIC_VIDEO_REVIEW_ENABLED = os.getenv("PUBLIC_VIDEO_REVIEW_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 VIDEO_REVIEW_ROOT = DATA_DIR / "video_reviews"
 VIDEO_REVIEW_ROOT.mkdir(parents=True, exist_ok=True)
+VIDEO_REVIEW_UPLOAD_ROOT = DATA_DIR / "uploads" / "video_reviews"
+VIDEO_REVIEW_UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+ACTIVE_REVIEW_UPLOADS: set[Path] = set()
 MAX_VIDEO_REVIEW_BYTES = 500 * 1024 * 1024
 MAX_PUBLIC_VIDEO_REVIEW_BYTES = 100 * 1024 * 1024
-MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS = 6 * 60
+MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS = 5 * 60
 MAX_VIDEO_REVIEW_DURATION_SECONDS = 20 * 60
 
 
@@ -404,14 +411,41 @@ class ArtifactRuntime:
 
 runtime = ArtifactRuntime()
 forecast_providers = ForecastProviderManager(runtime, MANIFEST_PATH)
-app = FastAPI(title="Hanoi Traffic Operations", version="8.0.0", description="Nền tảng giám sát và hỗ trợ dự báo giao thông trên CPU")
+
+
+@asynccontextmanager
+async def app_lifespan(app):
+    async def maintain_reviews():
+        while True:
+            try:
+                await run_in_threadpool(_cleanup_video_reviews)
+            except Exception:
+                logger.exception("Video review retention cleanup failed")
+            await asyncio.sleep(60)
+    task = asyncio.create_task(maintain_reviews())
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+
+PUBLIC_UPLOAD_GATE = UploadGate()
+app = FastAPI(lifespan=app_lifespan, title="Hanoi Traffic Operations", version="8.0.0", description="Nền tảng giám sát và hỗ trợ dự báo giao thông trên CPU")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.add_middleware(PublicUploadMiddleware, public_mode=lambda: PUBLIC_DEMO_MODE,
+                   enabled=video_review_upload_enabled, max_bytes=lambda: MAX_PUBLIC_VIDEO_REVIEW_BYTES,
+                   busy=lambda: _active_aicc_job_exists(), gate=lambda: PUBLIC_UPLOAD_GATE)
+
 
 
 @app.middleware("http")
 async def video_review_cache_policy(request: Request, call_next):
     response = await call_next(request)
-    if (request.url.path == "/static/app.js" or request.url.path == "/api/aicc/data-videos"
+    if (request.url.path in {"/static/app.js", "/api/health", "/api/aicc/status", "/api/aicc/data-videos"}
             or request.url.path.startswith("/api/scenarios/video-reviews/")):
         response.headers["Cache-Control"] = "no-store"
     return response
@@ -712,6 +746,7 @@ AICC_MAX_STORED_JOBS = 12
 VIDEO_REVIEW_LOCK = AICC_JOB_LOCK
 VIDEO_REVIEW_JOBS: dict[str, dict[str, Any]] = {}
 VIDEO_REVIEW_MAX_STORED_JOBS = 8
+VIDEO_REVIEW_RETENTION_SECONDS = 3600
 LIVE_TELEMETRY: dict[str, dict[str, Any]] = {}
 LIVE_TELEMETRY_LOCK = threading.RLock()
 LIVE_TELEMETRY_HISTORY: dict[str, list[dict[str, Any]]] = {}
@@ -774,8 +809,9 @@ def _prune_aicc_jobs() -> None:
 
 
 def _active_aicc_job_exists() -> bool:
-    return (any(job.get("status") in {"queued", "running"} for job in AICC_JOBS.values())
-            or any(job.get("status") in {"queued", "running"} for job in VIDEO_REVIEW_JOBS.values()))
+    with AICC_JOB_LOCK:
+        return (any(job.get("status") in {"queued", "running"} for job in AICC_JOBS.values())
+                or any(job.get("status") in {"queued", "running"} for job in VIDEO_REVIEW_JOBS.values()))
 
 
 def _run_aicc_job(job_id: str, video_path: Path, filename: str, source_path: str | None, cleanup: bool) -> None:
@@ -828,16 +864,29 @@ def _enqueue_aicc_job(video_path: Path, filename: str, source_path: str | None =
 
 
 def _prune_video_review_jobs() -> None:
-    completed = [(job_id, job.get("finished_epoch", 0)) for job_id, job in VIDEO_REVIEW_JOBS.items()
+    now = __import__("time").time()
+    completed = [(job_id, job.get("finished_epoch", now)) for job_id, job in VIDEO_REVIEW_JOBS.items()
                  if job.get("status") in {"succeeded", "failed"}]
     completed.sort(key=lambda row: row[1])
-    while len(VIDEO_REVIEW_JOBS) > VIDEO_REVIEW_MAX_STORED_JOBS and completed:
-        old_id, _ = completed.pop(0)
-        VIDEO_REVIEW_JOBS.pop(old_id, None)
-        try:
-            shutil.rmtree(VIDEO_REVIEW_ROOT / old_id, ignore_errors=True)
-        except OSError:
-            logger.warning("Không dọn được output video review %s", old_id)
+    for job_id, finished in completed:
+        if now - finished >= VIDEO_REVIEW_RETENTION_SECONDS or len(VIDEO_REVIEW_JOBS) > VIDEO_REVIEW_MAX_STORED_JOBS:
+            VIDEO_REVIEW_JOBS.pop(job_id, None)
+            shutil.rmtree(VIDEO_REVIEW_ROOT / job_id, ignore_errors=True)
+
+
+def _cleanup_video_reviews() -> None:
+    with VIDEO_REVIEW_LOCK:
+        _prune_video_review_jobs()
+        now = __import__("time").time()
+        for upload in VIDEO_REVIEW_UPLOAD_ROOT.glob("traffic_review_*"):
+            if upload.is_file() and upload not in ACTIVE_REVIEW_UPLOADS and now - upload.stat().st_mtime >= VIDEO_REVIEW_RETENTION_SECONDS:
+                upload.unlink(missing_ok=True)
+        # Remove only our generated UUID directories left behind by a previous process.
+        for folder in VIDEO_REVIEW_ROOT.iterdir():
+            if (re.fullmatch(r"[a-f0-9]{32}", folder.name) and folder.is_dir()
+                    and folder.name not in VIDEO_REVIEW_JOBS
+                    and now - folder.stat().st_mtime >= VIDEO_REVIEW_RETENTION_SECONDS):
+                shutil.rmtree(folder, ignore_errors=True)
 
 
 def _run_video_review_job(job_id: str, video_path: Path, filename: str, camera_id: str | None,
@@ -846,6 +895,7 @@ def _run_video_review_job(job_id: str, video_path: Path, filename: str, camera_i
         with VIDEO_REVIEW_LOCK:
             job = VIDEO_REVIEW_JOBS[job_id]
             job.update({"status": "running", "started_at": datetime.now().astimezone().isoformat(timespec="seconds")})
+        _load_video_review_models()
         bundle = aicc_runtime.load()
         output_dir = VIDEO_REVIEW_ROOT / job_id
         def on_progress(percent: int, processed: int, total: int) -> None:
@@ -872,11 +922,13 @@ def _run_video_review_job(job_id: str, video_path: Path, filename: str, camera_i
         with VIDEO_REVIEW_LOCK:
             active = VIDEO_REVIEW_JOBS.get(job_id)
             if active is not None:
-                active.update({"status": "failed", "error": f"{type(exc).__name__}: {str(exc)[:400]}"})
+                active.update({"status": "failed", "error": str(exc)[:400] if isinstance(exc, VideoReviewError) else "Không thể hoàn tất phân tích video. Vui lòng thử lại hoặc chọn clip khác."})
     finally:
         if cleanup:
             try:
                 video_path.unlink(missing_ok=True)
+                with VIDEO_REVIEW_LOCK:
+                    ACTIVE_REVIEW_UPLOADS.discard(video_path)
             except OSError:
                 logger.warning("Không xóa được file video tạm %s", video_path)
         with VIDEO_REVIEW_LOCK:
@@ -901,12 +953,28 @@ def _load_video_review_models() -> None:
         ) from exc
 
 
+def _review_future_done(future, job_id: str, video_path: Path, cleanup: bool) -> None:
+    if not future.cancelled() and future.exception() is None:
+        return
+    logger.error("Video review worker stopped before completing job %s", job_id)
+    with VIDEO_REVIEW_LOCK:
+        job = VIDEO_REVIEW_JOBS.get(job_id)
+        if job and job.get("status") in {"queued", "running"}:
+            job.update(status="failed", error="Tác vụ bị gián đoạn. Vui lòng thử lại.",
+                       finished_epoch=__import__("time").time(),
+                       finished_at=datetime.now().astimezone().isoformat(timespec="seconds"))
+    if cleanup:
+        video_path.unlink(missing_ok=True)
+        with VIDEO_REVIEW_LOCK:
+            ACTIVE_REVIEW_UPLOADS.discard(video_path)
+
+
 def _enqueue_video_review_job(video_path: Path, filename: str, camera_id: str | None,
                               preserve_real_timing: bool, cleanup: bool) -> dict[str, Any]:
-    _load_video_review_models()
+    # Model loading belongs to the worker, never to the upload request/event loop.
     with VIDEO_REVIEW_LOCK:
         if _active_aicc_job_exists():
-            raise HTTPException(status_code=409, detail="Đang có tác vụ video chạy hoặc chờ trên CPU. Đợi tác vụ hiện tại kết thúc rồi thử lại.")
+            raise HTTPException(status_code=409, detail=BUSY_MESSAGE)
         job_id = uuid.uuid4().hex
         VIDEO_REVIEW_JOBS[job_id] = {"job_id": job_id, "status": "queued", "filename": filename,
             "camera_id": camera_id, "preserve_real_timing": preserve_real_timing, "progress_percent": 0,
@@ -914,14 +982,16 @@ def _enqueue_video_review_job(video_path: Path, filename: str, camera_id: str | 
             "created_at": datetime.now().astimezone().isoformat(timespec="seconds")}
         _prune_video_review_jobs()
         try:
-            AICC_EXECUTOR.submit(_run_video_review_job, job_id, video_path, filename, camera_id, preserve_real_timing, cleanup)
+            future = AICC_EXECUTOR.submit(_run_video_review_job, job_id, video_path, filename, camera_id, preserve_real_timing, cleanup)
+            if hasattr(future, "add_done_callback"):
+                future.add_done_callback(lambda done: _review_future_done(done, job_id, video_path, cleanup))
         except Exception as exc:
             # A rejected submission must not leave a queued job blocking every retry.
             VIDEO_REVIEW_JOBS[job_id].update({"status": "failed", "error": "Không khởi tạo được worker CPU.",
                 "finished_at": datetime.now().astimezone().isoformat(timespec="seconds"),
                 "finished_epoch": __import__("time").time()})
             logger.exception("Video review submission %s failed", job_id)
-            raise HTTPException(status_code=503, detail="Không khởi tạo được worker CPU; khởi động lại backend rồi thử lại.") from exc
+            raise HTTPException(status_code=503, detail="Hệ thống chưa thể bắt đầu phân tích. Vui lòng thử lại sau.") from exc
         return {"job_id": job_id, "status": "queued", "filename": filename,
                 "poll_url": f"/api/scenarios/video-reviews/{job_id}"}
 
@@ -983,7 +1053,7 @@ def map_config() -> dict[str, Any]:
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
-    return {"ok": True, "service": "hanoi-traffic-forecasting", "time": datetime.now().astimezone().isoformat(timespec="seconds")}
+    return {"ok": True, "build_commit": os.getenv("RENDER_GIT_COMMIT"), "service": "hanoi-traffic-forecasting", "time": datetime.now().astimezone().isoformat(timespec="seconds")}
 
 
 # WEATHER_TRAFFIC_TERMINAL_V1
@@ -1533,7 +1603,7 @@ def aicc_data_videos() -> dict[str, Any]:
         if not path.is_file() or path.suffix.lower() not in SUPPORTED_VIDEO_EXTENSIONS:
             continue
         try:
-            if any(path.resolve().is_relative_to(folder.resolve()) for folder in (CAMERA_FEED_DIR, VIDEO_REVIEW_ROOT)):
+            if any(path.resolve().is_relative_to(folder.resolve()) for folder in (CAMERA_FEED_DIR, VIDEO_REVIEW_ROOT, VIDEO_REVIEW_UPLOAD_ROOT)):
                 continue
             size = path.stat().st_size
             if not 0 < size <= MAX_VIDEO_REVIEW_BYTES:
@@ -1612,6 +1682,29 @@ async def aicc_predict_video(file: UploadFile = File(...)) -> dict[str, Any]:
             temp_path.unlink(missing_ok=True)
 
 
+def _validate_review_upload(tmp_path: Path) -> None:
+    cap = cv2.VideoCapture(str(tmp_path))
+    try:
+        ok, _frame = cap.read()
+        fps = float(cap.get(cv2.CAP_PROP_FPS) or 0)
+        frame_count = float(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        if not cap.isOpened() or not ok or not math.isfinite(fps) or fps <= 0 or not math.isfinite(frame_count) or frame_count <= 0:
+            raise HTTPException(status_code=400, detail="Không đọc được video hoặc FPS không hợp lệ")
+        duration = frame_count / fps
+        max_duration = (
+            MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS
+            if PUBLIC_DEMO_MODE
+            else MAX_VIDEO_REVIEW_DURATION_SECONDS
+        )
+        if duration > max_duration:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Video vượt giới hạn {max_duration // 60} phút",
+            )
+    finally:
+        cap.release()
+
+
 @app.post("/api/scenarios/video-review", status_code=202)
 async def create_video_review(
     file: UploadFile = File(...),
@@ -1630,8 +1723,10 @@ async def create_video_review(
     tmp_path: Path | None = None
     total_bytes = 0
     try:
-        with tempfile.NamedTemporaryFile(suffix=suffix, prefix="traffic_review_", delete=False) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=suffix, prefix="traffic_review_", dir=VIDEO_REVIEW_UPLOAD_ROOT, delete=False) as tmp:
             tmp_path = Path(tmp.name)
+            with VIDEO_REVIEW_LOCK:
+                ACTIVE_REVIEW_UPLOADS.add(tmp_path)
             while True:
                 chunk = await file.read(1024 * 1024)
                 if not chunk:
@@ -1642,29 +1737,10 @@ async def create_video_review(
                 )
                 if total_bytes > max_bytes:
                     raise HTTPException(status_code=413, detail=f"Video vượt giới hạn {max_bytes // (1024 * 1024)} MB")
-                tmp.write(chunk)
+                await run_in_threadpool(tmp.write, chunk)
         if total_bytes == 0:
             raise HTTPException(status_code=400, detail="Tệp video rỗng")
-        cap = cv2.VideoCapture(str(tmp_path))
-        try:
-            ok, _frame = cap.read()
-            fps = float(cap.get(cv2.CAP_PROP_FPS) or 0)
-            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
-            if not cap.isOpened() or not ok or not math.isfinite(fps) or fps <= 0 or frame_count <= 0:
-                raise HTTPException(status_code=400, detail="Không đọc được video hoặc FPS không hợp lệ")
-            duration = frame_count / fps
-            max_duration = (
-                MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS
-                if PUBLIC_DEMO_MODE
-                else MAX_VIDEO_REVIEW_DURATION_SECONDS
-            )
-            if duration > max_duration:
-                raise HTTPException(
-                    status_code=413,
-                    detail=f"Video vượt giới hạn {max_duration // 60} phút",
-                )
-        finally:
-            cap.release()
+        await run_in_threadpool(_validate_review_upload, tmp_path)
         job = _enqueue_video_review_job(tmp_path, filename, camera_id, preserve_real_timing, cleanup=True)
         tmp_path = None
         return job
@@ -1676,6 +1752,8 @@ async def create_video_review(
         await file.close()
         if tmp_path:
             tmp_path.unlink(missing_ok=True)
+            with VIDEO_REVIEW_LOCK:
+                ACTIVE_REVIEW_UPLOADS.discard(tmp_path)
 
 
 @app.post("/api/scenarios/video-review-from-data", status_code=202)
@@ -1713,6 +1791,7 @@ def video_review_status(job_id: str) -> dict[str, Any]:
     if not re.fullmatch(r"[a-f0-9]{32}", job_id):
         raise HTTPException(status_code=404, detail="Không tìm thấy tác vụ")
     with VIDEO_REVIEW_LOCK:
+        _prune_video_review_jobs()
         job = VIDEO_REVIEW_JOBS.get(job_id)
         if not job:
             raise HTTPException(status_code=404, detail="Không tìm thấy tác vụ hoặc tác vụ đã hết hạn")
@@ -1722,10 +1801,18 @@ def video_review_status(job_id: str) -> dict[str, Any]:
         return payload
 
 
+def _require_review_artifacts(job_id: str) -> None:
+    with VIDEO_REVIEW_LOCK:
+        _prune_video_review_jobs()
+        if VIDEO_REVIEW_JOBS.get(job_id, {}).get("status") != "succeeded":
+            raise HTTPException(status_code=404, detail="Kết quả không còn khả dụng hoặc đã hết hạn.")
+
+
 @app.get("/api/scenarios/video-reviews/{job_id}/frames/{filename}")
 def video_review_frame(job_id: str, filename: str) -> FileResponse:
     if not re.fullmatch(r"[a-f0-9]{32}", job_id) or not re.fullmatch(r"frame_\d{3}\.jpg", filename):
         raise HTTPException(status_code=404, detail="Không tìm thấy frame")
+    _require_review_artifacts(job_id)
     target = (VIDEO_REVIEW_ROOT / job_id / "frames" / filename).resolve()
     if not target.is_relative_to((VIDEO_REVIEW_ROOT / job_id / "frames").resolve()) or not target.is_file():
         raise HTTPException(status_code=404, detail="Không tìm thấy frame")
@@ -1736,6 +1823,7 @@ def video_review_frame(job_id: str, filename: str) -> FileResponse:
 def video_review_csv(job_id: str) -> FileResponse:
     if not re.fullmatch(r"[a-f0-9]{32}", job_id):
         raise HTTPException(status_code=404, detail="Không tìm thấy tác vụ")
+    _require_review_artifacts(job_id)
     target = (VIDEO_REVIEW_ROOT / job_id / "evidence.csv").resolve()
     if not target.is_relative_to(VIDEO_REVIEW_ROOT.resolve()) or not target.is_file():
         raise HTTPException(status_code=404, detail="Không tìm thấy tệp CSV minh chứng")
