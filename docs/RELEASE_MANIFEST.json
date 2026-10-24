@@ -1,7 +1,7 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 220,
+  "files_count": 221,
   "files": [
     {
       "path": ".env.example",
@@ -820,13 +820,13 @@
     },
     {
       "path": "static/app.js",
-      "bytes": 92602,
-      "sha256": "842bce89011b32b54fbb0b550cc55eda6c3ca36ecbdac91757e5830c3797180f"
+      "bytes": 92002,
+      "sha256": "17cca8f2f37e4c4f1044e15e743a1d042421e386496de6566baeb86c4cc0be6c"
     },
     {
       "path": "static/index.html",
-      "bytes": 44691,
-      "sha256": "1cea345b1a798d45fbadc3d84fe3fd71af3406160bccc645c1b28d639a2b0292"
+      "bytes": 42095,
+      "sha256": "213eeeb9bb5fff58b452ae1188ae5453c3dc971db3a8cba48e802b16b16e0c6f"
     },
     {
       "path": "static/street-traffic-demo.jpg",
@@ -835,8 +835,8 @@
     },
     {
       "path": "static/styles.css",
-      "bytes": 67947,
-      "sha256": "73b49a865c04388c2d4479fe26ce538ad3d37ad121ef6039a7708b72b5d1e97a"
+      "bytes": 72970,
+      "sha256": "31b2314379ca486558a59a2be984fb19e3e41e773a01777ea599890383605955"
     },
     {
       "path": "tests/test_aicc.py",
@@ -876,7 +876,7 @@
     {
       "path": "tests/test_frontend_structure.py",
       "bytes": 3887,
-      "sha256": "ecfbba96073f75770eed1b61c961b477a201f7950d9743ce21d77be1fce84315"
+      "sha256": "db4939c037a40b53ddcdb2bb2ed8799ad6620e8ccc3a74b29d2febee9fd63236"
     },
     {
       "path": "tests/test_hanoi_scope.py",
@@ -1102,6 +1102,11 @@
       "path": "tests/test_review_multipart_limits.py",
       "bytes": 4981,
       "sha256": "3d6ec5ad5be7c49843c03ff39b3f4027b818ba4313791eb796b63d898b712687"
+    },
+    {
+      "path": "static/vietnam-flag.svg",
+      "bytes": 240,
+      "sha256": "dd8a5ab21ea462d7dd40e0915aa3f864a7d5f1eb06e6d9eddd184417f4f17cc4"
     }
   ]
 }

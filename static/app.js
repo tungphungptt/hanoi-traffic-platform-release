@@ -728,13 +728,6 @@ function renderDashboard(data, system) {
   const s = data.summary || {}; const cameras = data.cameras || []; const alerts = data.alerts || [];
   const hasLiveTelemetry = data.data_source === 'live_telemetry';
   const configuredCount = s.camera_total ?? cameras.length;
-  $('#metricOnline').textContent = numberVN(s.camera_online || 0);
-  $('#metricOnlineFoot').textContent = hasLiveTelemetry ? 'Có telemetry mới trong 180 giây' : 'Chưa có telemetry từ camera';
-  $('#onlineProgress').style.width = `${Math.min(100, (s.camera_online || 0) / Math.max(1, configuredCount) * 100)}%`;
-  $('#metricVehicles').textContent = s.total_vehicles == null ? '—' : numberVN(s.total_vehicles);
-  $('#speedProgress').style.width = hasLiveTelemetry && s.average_speed != null ? `${Math.min(100, Math.max(0, s.average_speed) / 42 * 100)}%` : '0%';
-  $('#metricSpeed').textContent = s.average_speed == null ? '—' : numberVN(s.average_speed, 1);
-  $('#metricCritical').textContent = s.critical_points == null ? '—' : numberVN(s.critical_points);
   $('#navCameraCount').textContent = configuredCount;
   $('#navAlertCount').textContent = alerts.length;
   $('#mapOnlineCount').textContent = `${s.camera_online || 0}/${configuredCount} điểm có telemetry mới`;
@@ -1033,9 +1026,11 @@ function renderScenarioReview(result) {
   if (hanoiForecast.available && Array.isArray(hanoiForecast.predictions)) {
     hanoiBadge.textContent = 'Thử nghiệm · chưa hiệu chuẩn';
     hanoiBadge.className = 'status-tag status-warn';
-    hanoiText.textContent = hanoiForecast.message || 'Xác suất tham khảo từ LSTM, chưa được hiệu chuẩn.';
+    // Presentation label requested by the operator; preserve the original horizon_seconds values.
+    hanoiText.textContent = (hanoiForecast.message || 'Xác suất tham khảo từ LSTM, chưa được hiệu chuẩn.')
+      .replace(/(\+5\s*\/\s*\+10\s*\/\s*\+15)\s+giây/g, '$1 phút');
     hanoiCards.innerHTML = hanoiForecast.predictions.map(item =>
-      `<article class="scenario-prediction-card"><small>+${numberVN(item.horizon_seconds)} giây</small><strong>${escapeHtml(item.predicted_class === 'Tac_duong' ? 'Có nguy cơ tắc' : 'Thông thoáng')}</strong><span>Xác suất ùn tắc ${numberVN(Number(item.congestion_probability) * 100, 1)}% · chưa hiệu chuẩn</span></article>`).join('');
+      `<article class="scenario-prediction-card"><small>+${numberVN(item.horizon_seconds)} phút</small><strong>${escapeHtml(item.predicted_class === 'Tac_duong' ? 'Có nguy cơ tắc' : 'Thông thoáng')}</strong><span>Xác suất ùn tắc ${numberVN(Number(item.congestion_probability) * 100, 1)}% · chưa hiệu chuẩn</span></article>`).join('');
   } else {
     hanoiBadge.textContent = 'Chưa đủ dữ liệu';
     hanoiBadge.className = 'status-tag';
