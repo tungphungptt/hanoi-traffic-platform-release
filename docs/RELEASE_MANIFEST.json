@@ -1,12 +1,17 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 193,
+  "files_count": 196,
   "files": [
     {
       "path": ".env.example",
       "bytes": 1625,
       "sha256": "cc4e3b195e7364c7e1971b606f9b61fe15a929331e14b8de12620817a2d12c98"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "bytes": 918,
+      "sha256": "7a7dc94dae13c2885b2cbab731fe04d3ab5486ff4fa1ae3d23e14dddbb25a70e"
     },
     {
       "path": ".gitignore",
@@ -465,8 +470,8 @@
     },
     {
       "path": "docs/RELEASE_QA.md",
-      "bytes": 3619,
-      "sha256": "11b23dfdf9594d3ca2ba4054cd14668d490b2301547435c6afa38250a8c956de"
+      "bytes": 3644,
+      "sha256": "427d2193244037686089c96b8222805baa379b04f9a8fe6f08d2cb24e583b3d9"
     },
     {
       "path": "docs/UPSTREAM_LICENSE_AUDIT.md",
@@ -679,6 +684,11 @@
       "sha256": "78e193a6040dd5a62e7c8dbaa530a6feb872d69f2d0ff1c39209d8d25070f698"
     },
     {
+      "path": "hanoi-traffic-platform-fullstack-ai_FINAL_20261024_002623.zip",
+      "bytes": 18134045,
+      "sha256": "f040a84b2fd2dcb6a694609af2fd9fa2ffd9fd4c1d00473e694af8daf0b5737f"
+    },
+    {
       "path": "models/.gitkeep",
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -704,6 +714,11 @@
       "sha256": "35b19d1f3738762a8cc7bca7deff06289af642f68aced723375a6187063173ea"
     },
     {
+      "path": "models/predictor.pth",
+      "bytes": 208421,
+      "sha256": "b99d2ca993ef2439a80ef6c13fcc120bf1d82e72081fe7f182b536a74604abca"
+    },
+    {
       "path": "models/README.md",
       "bytes": 562,
       "sha256": "f138227306a6d832659cfde1b48379bb4d986ed526f5c255ad142478a46e9317"
@@ -720,8 +735,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 12751,
-      "sha256": "337a531102830c4358977513f4bad4888b68274081508176906150b4f6fd4a6c"
+      "bytes": 12865,
+      "sha256": "e47607bcb65c40e72333d6e89985977f97283c337559a5289b36287174bfef02"
     },
     {
       "path": "render.yaml",

@@ -1,4 +1,4 @@
-# Release QA — Hanoi Traffic Platform Final 8.0.0
+﻿# Release QA â€” Hanoi Traffic Platform Final 8.0.0
 
 ## Verified in build environment
 
@@ -6,10 +6,10 @@
 |---|---|---|
 | Release integrity | PASS | `python tools/release_check.py` including per-file SHA-256 inventory verification |
 | Python syntax | PASS | `python -m compileall -q app aicc traffic_brain tests tools` |
-| Automated tests | PASS | `python -m pytest -q`: 96 passed; direct `pytest -q`: 96 passed on the release tree |
+| Automated tests | Per-commit CI | Use the GitHub Actions result for the exact commit as the authoritative test result. |
 | Front-end syntax | PASS | `node --check static/app.js` |
 | Manifest/config JSON | PASS | Six named JSON contracts parsed; camera IDs unique |
-| PowerShell script bytes | PASS — static only | Exactly one UTF-8 BOM, required header and robust Python-version-check tokens verified |
+| PowerShell script bytes | PASS â€” static only | Exactly one UTF-8 BOM, required header and robust Python-version-check tokens verified |
 | ZIP integrity | PASS | All archive entries CRC-checked and tests rerun from a clean extraction |
 | API smoke | PASS | Uvicorn served health, home, dashboard, camera list, map config, provider status, model manifest, AICC status, telemetry status and fallback street image: all HTTP 200 |
 | Real artifact smoke in builder | NOT RUN | Model weights are intentionally excluded from release package and unavailable in this Linux build environment |
@@ -32,3 +32,4 @@
 ## Release status
 
 **Hardened local release candidate.** Suitable for controlled local testing after bootstrap succeeds on Windows and, when weights are present, the AICC model smoke passes. It is not certified for traffic-control decisions or public production without verified data ingestion, a trained/evaluated Hanoi forecaster, access controls, persistent storage, TLS, quotas, operational monitoring and an authorized traffic provider.
+
