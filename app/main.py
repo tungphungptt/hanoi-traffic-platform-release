@@ -404,7 +404,7 @@ class ArtifactRuntime:
 
 runtime = ArtifactRuntime()
 forecast_providers = ForecastProviderManager(runtime, MANIFEST_PATH)
-app = FastAPI(title="Hanoi Traffic Operations", version="8.0.0", description="Nền tảng giám sát và hỗ trợ dự báo giao thông trên CPU")
+app = FastAPI(title="hanoiFlow Operations", version="8.0.0", description="Nền tảng giám sát và hỗ trợ dự báo giao thông trên CPU")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 

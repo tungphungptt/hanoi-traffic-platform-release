@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#f6f7f4" />
   <meta name="description" content="Bảng điều hành giám sát và dự báo ùn tắc giao thông Hà Nội." />
-  <title>Hanoi Traffic — Điều hành giao thông</title>
+  <title>hanoiFlow — Điều hành giao thông</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#video" aria-label="Mở luồng dự báo và phương án">
         <span class="brand-mark"><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M7 29V12.5c0-2 1.6-3.5 3.6-3.5h18.8c2 0 3.6 1.5 3.6 3.5V29"/><path d="M13 29V16h14v13M20 16v13M7 22h6m14 0h6"/><circle cx="20" cy="8" r="2.3"/></svg></span>
-        <span class="brand-copy"><strong>hanoi<span>traffic</span></strong><small>TRUNG TÂM ĐIỀU HÀNH</small></span>
+        <span class="brand-copy"><strong>hanoi<span>Flow</span></strong><small>TRUNG TÂM ĐIỀU HÀNH</small></span>
       </a>
       <div class="side-label">KHÔNG GIAN LÀM VIỆC</div>
       <nav class="side-nav" aria-label="Điều hướng chính">
@@ -143,7 +143,7 @@
             <div id="segmentForecastList" class="segment-forecast-list"></div>
           </section>
 
-          <footer class="page-footer"><span>© 2026 Hanoi Traffic Forecasting</span><span>Thiết kế phục vụ điều hành · Tối ưu cho CPU</span><span class="footer-version">Bản vận hành 8.0.0</span></footer>
+          <footer class="page-footer"><span>© 2026 hanoiFlow</span><span>Thiết kế phục vụ điều hành · Tối ưu cho CPU</span><span class="footer-version">Bản vận hành 8.0.0</span></footer>
         </section>
 
         <section class="page" id="page-cameras">
@@ -236,7 +236,7 @@
         <section class="page" id="page-settings">
           <div class="page-heading"><div><div class="eyebrow">THIẾT LẬP VẬN HÀNH</div><h1>Cài đặt vận hành</h1><p class="page-subtitle">Thiết lập nguồn dữ liệu, cách xử lý và điều kiện an toàn khi đưa hệ thống vào sử dụng.</p></div></div>
           <div class="settings-grid">
-            <section class="panel"><div class="section-kicker">THÔNG TIN HỆ THỐNG</div><h2>Thông tin triển khai</h2><div class="settings-list"><div><span>Nền tảng</span><strong>Hanoi Traffic Forecasting</strong></div><div><span>Mã đề án</span><strong>HN-TRAFFIC-AI-2026</strong></div><div><span>Kiến trúc</span><strong>FastAPI · CPU · ONNX</strong></div><div><span>Phiên bản giao diện</span><strong>8.0.0</strong></div><div><span>Thư mục cấu hình model</span><code>artifacts/current/</code></div><div><span>Cấu hình cục bộ</span><code>.env</code></div></div></section>
+            <section class="panel"><div class="section-kicker">THÔNG TIN HỆ THỐNG</div><h2>Thông tin triển khai</h2><div class="settings-list"><div><span>Nền tảng</span><strong>hanoiFlow</strong></div><div><span>Mã đề án</span><strong>HN-TRAFFIC-AI-2026</strong></div><div><span>Kiến trúc</span><strong>FastAPI · CPU · ONNX</strong></div><div><span>Phiên bản giao diện</span><strong>8.0.0</strong></div><div><span>Thư mục cấu hình model</span><code>artifacts/current/</code></div><div><span>Cấu hình cục bộ</span><code>.env</code></div></div></section>
             <section class="panel"><div class="section-kicker">NGUỒN DỰ BÁO</div><h2>Chọn bộ xử lý</h2><div class="settings-list"><div><span>Đang dùng</span><strong id="providerDisplayName">Mô hình cục bộ</strong></div><div><span>Endpoint</span><strong id="providerHost">Không dùng API ngoài</strong></div><div><span>Trạng thái cấu hình</span><strong id="providerConfigState">Đang kiểm tra</strong></div><div><span>Timeout</span><strong id="providerTimeout">—</strong></div><div><span>Khóa API</span><strong id="providerSecretState">Không cần cho bộ cục bộ</strong></div></div><p class="integration-note">Sao chép `.env.example` thành `.env` rồi thay giá trị cấu hình. Không nhập API key trên giao diện, không commit `.env` lên Git.</p><button class="btn btn-primary" data-page="models">Mở cấu hình nguồn xử lý →</button></section>
             <section class="panel"><div class="section-kicker">LUỒNG XỬ LÝ</div><h2>Quy trình theo đề án</h2><ol class="guide-steps"><li><span>1</span><div><strong>Thu nhận video / RTSP</strong><p>Dùng nguồn đã được cấp quyền; lưu rõ camera ID và mốc thời gian.</p></div></li><li><span>2</span><div><strong>Nhận diện và theo vết</strong><p>Kiểm tra class mapping, frame stride và chất lượng tracking.</p></div></li><li><span>3</span><div><strong>Chuẩn hóa đặc trưng</strong><p>Hiệu chuẩn homography theo camera trước khi báo tốc độ km/h.</p></div></li><li><span>4</span><div><strong>Đánh giá dự báo</strong><p>Kiểm thử riêng từng chân trời +5/+10/+15 phút bằng dữ liệu giữ lại.</p></div></li></ol></section>
             <section class="panel"><div class="section-kicker">DỮ LIỆU VÀ AN TOÀN</div><h2>Demo và vận hành thực tế</h2><div class="plain-callout"><strong>Không dùng số liệu minh họa để ra quyết định giao thông.</strong><p>Vị trí camera và chỉ số mặc định chỉ phục vụ trình diễn. Trước vận hành thật cần kết nối feed hợp lệ, phân quyền truy cập, HTTPS, quản lý bí mật, log kiểm toán và quy trình xác minh của con người.</p></div></section>

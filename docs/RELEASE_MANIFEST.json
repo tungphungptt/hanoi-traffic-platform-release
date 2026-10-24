@@ -35,8 +35,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 16120,
-      "sha256": "6606a32f244e10ea3a692ed07c63ad56b4bb1ebd8c338b5f2e17f062a15a221a"
+      "bytes": 16124,
+      "sha256": "a64806c37fc88947f49198b01b76170be1e42071ce2d510e0e0ae92ced15afd2"
     },
     {
       "path": "SOURCE_RELEASE_NOTES.md",
@@ -95,8 +95,8 @@
     },
     {
       "path": "app/main.py",
-      "bytes": 101846,
-      "sha256": "9e508830b35ae2880024e92244f83260249f112d471119a3d164d7240a3d4458"
+      "bytes": 101842,
+      "sha256": "f26c67b49725dd9ee3cb25c64928e5ea4a12840696334a6749f6bce9d5311fe2"
     },
     {
       "path": "app/traffic_baseline.py",
@@ -825,8 +825,8 @@
     },
     {
       "path": "static/index.html",
-      "bytes": 50713,
-      "sha256": "ae486827b0e8c4152d6fc848648ebadd05c09d1e3f97f0c7f90028591bcc30cf"
+      "bytes": 50674,
+      "sha256": "b1f005aa7119461712606c058f5fe538f1a5add0e3afb682a0e59c09be1f4a1b"
     },
     {
       "path": "static/street-traffic-demo.jpg",
