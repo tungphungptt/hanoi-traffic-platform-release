@@ -143,8 +143,8 @@ function initLeafletMap() {
     return;
   }
   state.leafletMap = L.map(holder, { center: HANOI_INNER_CITY, zoom: 11, minZoom: 8, maxZoom: 19, zoomControl: false, preferCanvas: true, scrollWheelZoom: true, tap: true });
-  const defaultTiles = 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-  state.baseTileLayer = L.tileLayer(defaultTiles, { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>', updateWhenIdle: true, keepBuffer: 2 }).addTo(state.leafletMap);
+  const defaultTiles = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  state.baseTileLayer = L.tileLayer(defaultTiles, { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>', updateWhenIdle: true, keepBuffer: 2 }).addTo(state.leafletMap);
   state.baseTileLayer.on('tileerror', () => { $('#mapTileError').hidden = false; });
   state.baseTileLayer.on('tileload', () => { $('#mapTileError').hidden = true; });
   loadMapConfig();
@@ -158,8 +158,8 @@ function initScenarioRouteMap() {
   }
   state.routeMap = L.map(holder, { center: HANOI_INNER_CITY, zoom: 11, minZoom: 8, maxZoom: 19,
     zoomControl: true, preferCanvas: true, scrollWheelZoom: true, tap: true });
-  L.tileLayer('https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>',
     updateWhenIdle: true, keepBuffer: 2
   }).addTo(state.routeMap).on('tileerror', () => { const el = $('#scenarioRouteMapError'); if (el) el.hidden = false; })
     .on('tileload', () => { const el = $('#scenarioRouteMapError'); if (el) el.hidden = true; });
@@ -170,10 +170,10 @@ async function loadMapConfig() {
     state.mapConfig = config;
     state.mapPollSeconds = Math.max(10, Math.min(120, Number(config.camera_refresh_seconds || 15)));
 const configuredTiles = String(config.tile_url_template || '').trim();
-if (!configuredTiles || /tile\.openstreetmap\.org/i.test(configuredTiles)) {
-  config.tile_url_template = 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+if (!configuredTiles || /basemaps\.cartocdn\.com/i.test(configuredTiles)) {
+  config.tile_url_template = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   config.base_map_name = 'CARTO Light';
-  config.base_attribution = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
+  config.base_attribution = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>';
 }
 
     if (state.leafletMap && config.tile_url_template) {
