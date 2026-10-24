@@ -213,6 +213,8 @@ def test_evidence_csv_export_format_and_encoding(tmp_path):
 def test_video_review_csv_endpoint_serves_generated_csv(monkeypatch, tmp_path):
     """Verify the API CSV download endpoint correctly returns the generated evidence CSV."""
     job_id = "e" * 32
+    monkeypatch.setattr(main, "VIDEO_REVIEW_ROOT", tmp_path)
+    monkeypatch.setattr(main, "VIDEO_REVIEW_JOBS", {job_id: {"status": "succeeded", "finished_epoch": __import__("time").time()}})
     job_dir = main.VIDEO_REVIEW_ROOT / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
     evidence_csv = job_dir / "evidence.csv"

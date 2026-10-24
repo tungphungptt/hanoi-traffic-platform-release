@@ -1,7 +1,7 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 214,
+  "files_count": 217,
   "files": [
     {
       "path": ".env.example",
@@ -35,8 +35,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 16120,
-      "sha256": "6606a32f244e10ea3a692ed07c63ad56b4bb1ebd8c338b5f2e17f062a15a221a"
+      "bytes": 16297,
+      "sha256": "0f13e5aa792d07a2fdbcf02cefed5d69a1f12da41f022c9077bfb085354e1085"
     },
     {
       "path": "SOURCE_RELEASE_NOTES.md",
@@ -95,8 +95,8 @@
     },
     {
       "path": "app/main.py",
-      "bytes": 101846,
-      "sha256": "9e508830b35ae2880024e92244f83260249f112d471119a3d164d7240a3d4458"
+      "bytes": 105896,
+      "sha256": "7bb183953779ecf19f7cfa61177dc24c5439d7e26b040e959f6f572d68b817b6"
     },
     {
       "path": "app/traffic_baseline.py",
@@ -795,8 +795,8 @@
     },
     {
       "path": "render.yaml",
-      "bytes": 599,
-      "sha256": "15fe053b3cae98ea49bb16cf4c83840e0d2b791e7f04797d8e0d9d9341727145"
+      "bytes": 598,
+      "sha256": "d27abe33d776a1d093202c668fee5c2b8916920338a332aede05066746c847e4"
     },
     {
       "path": "requirements-dev.txt",
@@ -820,13 +820,13 @@
     },
     {
       "path": "static/app.js",
-      "bytes": 107314,
-      "sha256": "342b69b0431f98ac66e9d4bec7a0f304ff228b77d2e240d51d540bd544343688"
+      "bytes": 92222,
+      "sha256": "09f5242c555ce3a22d30dee72f7de5061e990759b971c2ae83137264bfd79ef2"
     },
     {
       "path": "static/index.html",
-      "bytes": 50713,
-      "sha256": "ae486827b0e8c4152d6fc848648ebadd05c09d1e3f97f0c7f90028591bcc30cf"
+      "bytes": 44683,
+      "sha256": "169617a8b0a5f3a910372ab6668660d74831936cabe575c75afde0c377c98cbd"
     },
     {
       "path": "static/street-traffic-demo.jpg",
@@ -835,8 +835,8 @@
     },
     {
       "path": "static/styles.css",
-      "bytes": 70477,
-      "sha256": "485bb1782b2dfab39481aaf816c8fb884f796ccbbe589862d154bad94c183010"
+      "bytes": 67947,
+      "sha256": "73b49a865c04388c2d4479fe26ce538ad3d37ad121ef6039a7708b72b5d1e97a"
     },
     {
       "path": "tests/test_aicc.py",
@@ -890,8 +890,8 @@
     },
     {
       "path": "tests/test_local_runtime.py",
-      "bytes": 6460,
-      "sha256": "fb117fecda5c29af162e26134c4b9779d43cd560eb034388a9e8e86a6c75471e"
+      "bytes": 6469,
+      "sha256": "490c69de78ba4e358088ba5c8f3fc40224a1e2728a23a7bd11b4173856549504"
     },
     {
       "path": "tests/test_manifest_validation.py",
@@ -915,13 +915,13 @@
     },
     {
       "path": "tests/test_scenarios.py",
-      "bytes": 13178,
-      "sha256": "f546fa1c7036562a6a30fc39f1d6f7dd1f1bd7ecd8c239fb16e1cff190f101ec"
+      "bytes": 13245,
+      "sha256": "1d3d0302aea80c29126ab8ca2cc501c84d43280f401e8cb9d150d04456a3fb3d"
     },
     {
       "path": "tests/test_temporal_smoothing.py",
-      "bytes": 16157,
-      "sha256": "5e97e3db66307ad64f088c88713c95faa6d02213fe9506e43f17431a94882aab"
+      "bytes": 16349,
+      "sha256": "a4bbdb8cd13ba031a2302d90830b169ede57beda4fc8e5dcb5015b8dc3e456f7"
     },
     {
       "path": "tests/test_track1_counting.py",
@@ -945,8 +945,8 @@
     },
     {
       "path": "tests/test_video_review_jobs.py",
-      "bytes": 6341,
-      "sha256": "f24a92570446a25fdd846a80ebf9bb5b7419f852a543427cbb0f6b097803ae26"
+      "bytes": 6461,
+      "sha256": "feebc764370dbfc2cf39a637a364f57526c099fb293ba475bd8a9739c36dd8e6"
     },
     {
       "path": "tests/test_weather_service.py",
@@ -955,8 +955,8 @@
     },
     {
       "path": "tests/video_review_frontend.test.cjs",
-      "bytes": 11065,
-      "sha256": "73defd860c93be511ea1296a1b7003da1f0810e939e9895e53881fb7ee3f9a92"
+      "bytes": 8405,
+      "sha256": "a9dfd71d6fae36bac988c8052e65beafee51f5d3829eeeff2de860b26276af00"
     },
     {
       "path": "tools/build_track1_cnn_lstm_final.ps1",
@@ -1072,6 +1072,21 @@
       "path": "traffic_brain/video_review.py",
       "bytes": 26600,
       "sha256": "892d1a15dbfd58ef1a0e13517e5c913abf7703ab2f894f8ad055f4b4bbaa7242"
+    },
+    {
+      "path": "app/public_upload.py",
+      "bytes": 4115,
+      "sha256": "b9d7027f2eba4ce398c2046c0c56790156a37f840f50b7ccd5484fc506d1c4f9"
+    },
+    {
+      "path": "tests/conftest.py",
+      "bytes": 309,
+      "sha256": "70c7d42141c6abffd01c8c979d8fbfb112cba289d5ed703a09d791242fd9d76a"
+    },
+    {
+      "path": "tests/test_public_video_upload.py",
+      "bytes": 10069,
+      "sha256": "95f3419efd7892a1de5adff3116c676bddfe9e46bf9b66c03c5bbaec6c2486e7"
     }
   ]
 }
