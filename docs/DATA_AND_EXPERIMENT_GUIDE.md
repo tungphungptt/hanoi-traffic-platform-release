@@ -130,7 +130,6 @@ Dự báo cấp tuyến đường (Route-level forecasting) kế thừa mô hìn
    * Xe tải = $2.0$
 2. **Chỉ số Tắc nghẽn ($CI \in [0.0, 1.0]$)**:
    * $CI < 0.30$: Thông thoáng (Free flow).
-   * $0.30 \le CI < 0.55$: Bình thường (Moderate).
-   * $0.55 \le CI < 0.78$: Đông đúc (Busy).
-   * $CI \ge 0.78$: Ùn tắc nghiêm trọng (Severe Congestion).
+   * $0.30 \le CI < 0.55$: Đông đúc (Busy).
+   * $0.55 \le CI \le 1.00$: Tắc nghẽn nghiêm trọng (Severe Congestion).
 3. **Ba chân trời dự báo**: $+5$ phút, $+10$ phút, $+15$ phút hỗ trợ điều hướng tuyến đường thay thế tránh điểm nghẽn trước khi người tham gia giao thông tới nút giao.

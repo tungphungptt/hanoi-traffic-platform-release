@@ -20,6 +20,8 @@ from traffic_brain.video_review import (
     export_evidence_csv,
 )
 
+from traffic_brain.traffic_levels import level_for_ci
+
 client = TestClient(main.app)
 
 
@@ -43,9 +45,9 @@ def test_stabilizer_strictly_causal_no_future_lookahead():
 
 
 def test_stabilizer_suppresses_boundary_jitter_between_seconds():
-    """Verify that CI fluctuating rapidly around the 0.30 boundary does not flip labels every second."""
+    """Hysteresis metadata stays stable while official labels follow the EMA CI."""
     stabilizer = TemporalStateStabilizer(
-        thresholds={"busy": 0.30, "heavy": 0.55, "gridlock": 0.78},
+        thresholds={"busy": 0.30, "heavy": 0.55, "gridlock": 0.55},
         hysteresis_margin=0.03,
         min_state_duration_seconds=2.0,
         ema_alpha=0.35,
@@ -56,7 +58,8 @@ def test_stabilizer_suppresses_boundary_jitter_between_seconds():
     states = []
     for idx, raw_ci in enumerate(noisy_stream):
         smoothed_ci, key, label = stabilizer.update(raw_ci, float(idx))
-        states.append(key)
+        states.append(stabilizer.current_state_key)
+        assert (key, label) == level_for_ci(smoothed_ci)
         assert 0.0 <= smoothed_ci <= 1.0
     
     # Must remain stable in "free", zero flipping to "busy"
@@ -66,42 +69,47 @@ def test_stabilizer_suppresses_boundary_jitter_between_seconds():
 def test_stabilizer_hysteresis_upward_and_downward_thresholds():
     """Verify upward transition requires threshold + margin, and downward requires threshold - margin."""
     stabilizer = TemporalStateStabilizer(
-        thresholds={"busy": 0.30, "heavy": 0.55, "gridlock": 0.78},
+        thresholds={"busy": 0.30, "heavy": 0.55, "gridlock": 0.55},
         hysteresis_margin=0.04,
         min_state_duration_seconds=1.0,
         ema_alpha=1.0,  # disable EMA for direct threshold test
     )
+    def stabilized_at(ci, timestamp):
+        smoothed_ci, key, label = stabilizer.update(ci, timestamp)
+        assert (key, label) == level_for_ci(smoothed_ci)
+        return stabilizer.current_state_key
+
     # Start at free
-    _, k, _ = stabilizer.update(0.20, 0.0)
+    k = stabilized_at(0.20, 0.0)
     assert k == "free"
     
     # 0.32 is above 0.30 but below 0.30 + 0.04 (0.34) -> stays free
-    _, k, _ = stabilizer.update(0.32, 1.0)
+    k = stabilized_at(0.32, 1.0)
     assert k == "free"
-    _, k, _ = stabilizer.update(0.32, 2.5)
+    k = stabilized_at(0.32, 2.5)
     assert k == "free"
     
     # 0.36 is above 0.34 -> candidate becomes busy, holds for duration
-    _, k, _ = stabilizer.update(0.36, 3.0)
+    k = stabilized_at(0.36, 3.0)
     assert k == "free"  # first sample of candidate
-    _, k, _ = stabilizer.update(0.36, 4.2)
+    k = stabilized_at(0.36, 4.2)
     assert k == "busy"  # sustained past 1.0s -> commits to busy
     
     # Now in busy: drops to 0.28 (below 0.30, but above 0.30 - 0.04 = 0.26) -> stays busy!
-    _, k, _ = stabilizer.update(0.28, 5.0)
+    k = stabilized_at(0.28, 5.0)
     assert k == "busy"
-    _, k, _ = stabilizer.update(0.28, 6.5)
+    k = stabilized_at(0.28, 6.5)
     assert k == "busy"
     
     # Drops to 0.24 (below 0.26) and sustained -> transitions back to free
-    _, k, _ = stabilizer.update(0.24, 7.0)
+    k = stabilized_at(0.24, 7.0)
     assert k == "busy"  # candidate free, not sustained yet
-    _, k, _ = stabilizer.update(0.24, 8.2)
+    k = stabilized_at(0.24, 8.2)
     assert k == "free"  # sustained -> commits to free
 
 
 def test_stabilizer_minimum_state_duration_rejects_single_second_spikes():
-    """A transient 1-second spike must not trigger a label change."""
+    """A transient spike cannot change hysteresis metadata or override the official CI label."""
     stabilizer = TemporalStateStabilizer(
         min_state_duration_seconds=2.0,
         ema_alpha=0.5,
@@ -112,12 +120,14 @@ def test_stabilizer_minimum_state_duration_rejects_single_second_spikes():
     
     # Spike at t=5.0
     _, key_spike, label_spike = stabilizer.update(0.50, 5.0)
-    assert key_spike == "free"
-    assert label_spike == "Thông thoáng"
+    assert key_spike == "busy"  # EMA CI is 0.325; official classification must follow it.
+    assert label_spike == "Đông đúc"
+    assert stabilizer.current_state_key == "free"  # Separate hysteresis rejects the spike.
     
     # Immediately returns to low congestion at t=6.0
     _, key_next, _ = stabilizer.update(0.15, 6.0)
     assert key_next == "free"
+    assert stabilizer.current_state_key == "free"
 
 
 def test_classify_visual_state_distinguishes_raw_and_smoothed_fields():

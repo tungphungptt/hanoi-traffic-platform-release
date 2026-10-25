@@ -17,6 +17,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from traffic_brain.traffic_levels import DEFAULT_THRESHOLDS, level_for_ci, validate_thresholds
+
 CONTRACT_VERSION = "hanoi-traffic-forecast/2.0"
 SUPPORTED_PROVIDERS = {"local_onnx", "remote_http"}
 
@@ -53,16 +55,9 @@ def _allowed_remote_url(raw_url: str) -> bool:
 
 
 def _label_for_ci(ci: float, thresholds: dict[str, Any]) -> tuple[str, str]:
-    busy = float(thresholds.get("busy", 0.30))
-    heavy = float(thresholds.get("heavy", 0.55))
-    gridlock = float(thresholds.get("gridlock", 0.78))
-    if ci < busy:
-        return "Thông thoáng", "free"
-    if ci < heavy:
-        return "Đông đúc", "busy"
-    if ci < gridlock:
-        return "Ùn ứ cục bộ", "heavy"
-    return "Tắc nghẽn nghiêm trọng", "gridlock"
+    validate_thresholds(thresholds)
+    key, label = level_for_ci(ci)
+    return label, key
 
 
 class ForecastProviderManager:
@@ -224,7 +219,7 @@ class ForecastProviderManager:
         predictions = payload.get("predictions")
         if not isinstance(predictions, list) or len(predictions) != len(horizons):
             raise ProviderConfigurationError("Response API cần predictions gồm đúng ba phần tử (5, 10, 15 phút).")
-        thresholds = manifest.get("forecaster_config", {}).get("thresholds", {"busy": 0.30, "heavy": 0.55, "gridlock": 0.78})
+        thresholds = manifest.get("forecaster_config", {}).get("thresholds", DEFAULT_THRESHOLDS)
         normalized: list[dict[str, Any]] = []
         for expected_horizon, item in zip(horizons, predictions):
             try:
@@ -240,7 +235,7 @@ class ForecastProviderManager:
             if not math.isfinite(ci) or not 0.0 <= ci <= 1.0:
                 raise ProviderConfigurationError("Chỉ số ci phải hữu hạn và nằm trong [0, 1].")
             level, level_key = _label_for_ci(ci, thresholds)
-            normalized.append({"horizon_minutes": int(expected_horizon), "ci": round(ci, 4), "level": level, "level_key": level_key})
+            normalized.append({"horizon_minutes": int(expected_horizon), "ci": ci, "level": level, "level_key": level_key})
         return {
             "mode": "remote_api",
             "provider": "remote_http",

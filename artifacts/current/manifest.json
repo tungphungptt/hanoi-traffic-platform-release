@@ -71,7 +71,7 @@
     "thresholds": {
       "busy": 0.3,
       "heavy": 0.55,
-      "gridlock": 0.78
+      "gridlock": 0.55
     }
   }
 }

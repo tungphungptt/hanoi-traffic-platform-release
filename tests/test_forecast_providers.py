@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from traffic_brain.providers import ForecastProviderManager
 
 
@@ -38,7 +40,7 @@ def _manifest(path: Path):
             "ordered_input_keys": ["speed.mean_kmh", "flow.car_count"],
             "default_fallback_values": {"speed.mean_kmh": 42.0, "flow.car_count": 0.0},
         },
-        "forecaster_config": {"horizons_minutes": [5, 10, 15], "thresholds": {"busy": .30, "heavy": .55, "gridlock": .78}},
+        "forecaster_config": {"horizons_minutes": [5, 10, 15], "thresholds": {"busy": .30, "heavy": .55, "gridlock": .55}},
     }), encoding="utf-8")
 
 
@@ -52,7 +54,8 @@ def test_local_provider_delegates(monkeypatch, tmp_path):
     assert result["mode"] == "demo"
 
 
-def test_remote_provider_sends_contract_and_normalizes_output(monkeypatch, tmp_path):
+@pytest.mark.parametrize("severe_ci", [.55, .77, .78, .81, 1.0])
+def test_remote_provider_sends_contract_and_normalizes_output(monkeypatch, tmp_path, severe_ci):
     import traffic_brain.providers as providers
 
     manifest_path = tmp_path / "manifest.json"
@@ -65,7 +68,7 @@ def test_remote_provider_sends_contract_and_normalizes_output(monkeypatch, tmp_p
         return _FakeResponse({"contract_version": "hanoi-traffic-forecast/2.0", "predictions": [
             {"horizon_minutes": 5, "ci": 0.21},
             {"horizon_minutes": 10, "ci": 0.46},
-            {"horizon_minutes": 15, "ci": 0.81},
+            {"horizon_minutes": 15, "ci": severe_ci},
         ]})
 
     monkeypatch.setattr(providers, "urlopen", fake_urlopen)
@@ -81,7 +84,10 @@ def test_remote_provider_sends_contract_and_normalizes_output(monkeypatch, tmp_p
     assert result["mode"] == "remote_api"
     assert [p["horizon_minutes"] for p in result["predictions"]] == [5, 10, 15]
     assert result["predictions"][0]["level_key"] == "free"
+    assert result["predictions"][1]["level_key"] == "busy"
     assert result["predictions"][-1]["level_key"] == "gridlock"
+    assert result["predictions"][-1]["level"] == "Tắc nghẽn nghiêm trọng"
+    assert result["predictions"][-1]["ci"] == severe_ci
     assert calls["timeout"] == 4.0
     assert calls["request"].get_header("Authorization") == "Bearer top-secret-test-value"
     sent = json.loads(calls["request"].data.decode("utf-8"))

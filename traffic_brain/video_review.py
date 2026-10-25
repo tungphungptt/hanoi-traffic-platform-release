@@ -14,8 +14,9 @@ from traffic_brain.hanoi_video_forecaster import (
     hanoi_video_forecaster,
 )
 
-STATE_LABELS = {"free": "Thông thoáng", "busy": "Đông đúc", "heavy": "Ùn ứ", "gridlock": "Tắc nghẽn"}
-DEFAULT_THRESHOLDS = {"busy": 0.30, "heavy": 0.55, "gridlock": 0.78}
+from traffic_brain.traffic_levels import (
+    DEFAULT_THRESHOLDS, STATE_LABELS, level_for_ci, validate_thresholds,
+)
 MAX_DURATION_SECONDS = 20 * 60
 MAX_SNAPSHOTS = 36
 
@@ -39,18 +40,18 @@ def classify_visual_state(vehicle_count: int, occupancy_ratio: float, normalized
         stopped = 1.0 - min(float(normalized_speed) / 0.045, 1.0)
         ci = 0.50 * occ + 0.32 * count + 0.18 * stopped
     ci = max(0.0, min(1.0, ci))
-    cuts = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
-    key = "free" if ci < cuts["busy"] else "busy" if ci < cuts["heavy"] else "heavy" if ci < cuts["gridlock"] else "gridlock"
+    validate_thresholds(thresholds)
+    key, _ = level_for_ci(ci)
     return {
-        "ci": round(ci, 4),
-        "raw_ci": round(ci, 4),
+        "ci": ci,
+        "raw_ci": ci,
         "state_key": key,
         "state_label": STATE_LABELS[key],
         "raw_state_key": key,
         "raw_state_label": STATE_LABELS[key],
         "smoothed_state_key": key,
         "smoothed_state_label": STATE_LABELS[key],
-        "smoothed_ci": round(ci, 4),
+        "smoothed_ci": ci,
         "vehicle_count": int(vehicle_count),
         "occupancy_ratio": round(float(occupancy_ratio), 5),
         "normalized_speed": None if normalized_speed is None else round(float(normalized_speed), 5),
@@ -59,13 +60,15 @@ def classify_visual_state(vehicle_count: int, occupancy_ratio: float, normalized
 
 
 class TemporalStateStabilizer:
-    """Strictly causal online state smoother for video traffic review.
+    """Causal CI smoother with separate hysteresis metadata for video review.
 
     Combines:
     1. Causal exponential smoothing of CI (never accesses future samples).
     2. Hysteresis thresholds around state boundaries to eliminate chatter.
-    3. Minimum state duration to ensure state transitions are sustained
-       and cannot oscillate back and forth between consecutive seconds.
+    3. Minimum duration for transitions of the separate hysteresis state.
+
+    update() always classifies its numeric EMA output using the official CI
+    thresholds. current_state_key is the independent stabilized metadata state.
     """
     def __init__(
         self,
@@ -74,7 +77,7 @@ class TemporalStateStabilizer:
         min_state_duration_seconds: float = 2.0,
         ema_alpha: float = 0.35,
     ) -> None:
-        self.thresholds = {**DEFAULT_THRESHOLDS, **(thresholds or {})}
+        self.thresholds = validate_thresholds(thresholds)
         self.hysteresis = float(hysteresis_margin)
         self.min_state_duration = float(min_state_duration_seconds)
         self.ema_alpha = float(ema_alpha)
@@ -88,63 +91,40 @@ class TemporalStateStabilizer:
 
     def _determine_candidate_state(self, ci: float) -> str:
         t_busy = self.thresholds["busy"]
-        t_heavy = self.thresholds["heavy"]
-        t_gridlock = self.thresholds["gridlock"]
+        t_severe = self.thresholds["gridlock"]
         h = self.hysteresis
-
         curr = self.current_state_key
         if curr is None or curr == "free":
-            if ci >= t_gridlock + h:
+            if ci >= t_severe + h:
                 return "gridlock"
-            if ci >= t_heavy + h:
-                return "heavy"
-            if ci >= t_busy + h:
-                return "busy"
+            return "busy" if ci >= t_busy + h else "free"
+        if curr == "busy":
+            if ci >= t_severe + h:
+                return "gridlock"
+            return "free" if ci < t_busy - h else "busy"
+        if ci < t_busy - h:
             return "free"
-        elif curr == "busy":
-            if ci >= t_gridlock + h:
-                return "gridlock"
-            if ci >= t_heavy + h:
-                return "heavy"
-            if ci < t_busy - h:
-                return "free"
-            return "busy"
-        elif curr == "heavy":
-            if ci >= t_gridlock + h:
-                return "gridlock"
-            if ci < t_busy - h:
-                return "free"
-            if ci < t_heavy - h:
-                return "busy"
-            return "heavy"
-        else:  # gridlock
-            if ci < t_busy - h:
-                return "free"
-            if ci < t_heavy - h:
-                return "busy"
-            if ci < t_gridlock - h:
-                return "heavy"
-            return "gridlock"
+        return "busy" if ci < t_severe - h else "gridlock"
 
     def update(self, raw_ci: float, timestamp: float) -> tuple[float, str, str]:
-        """Update state using strictly causal past and current observations."""
+        """Return full-precision EMA CI and its official threshold label.
+
+        current_state_key retains the separate hysteresis state for metadata;
+        it must never override the classification of the returned numeric CI.
+        """
         raw_ci = max(0.0, min(1.0, float(raw_ci)))
         timestamp = float(timestamp)
 
         if self.smoothed_ci is None:
             self.smoothed_ci = raw_ci
             # First observation: immediate baseline assignment
-            cand = "free" if raw_ci < self.thresholds["busy"] else (
-                "busy" if raw_ci < self.thresholds["heavy"] else (
-                    "heavy" if raw_ci < self.thresholds["gridlock"] else "gridlock"
-                )
-            )
+            cand, _ = level_for_ci(raw_ci)
             self.current_state_key = cand
             self.candidate_state_key = cand
             self.candidate_since = timestamp
             self.state_since = timestamp
             self.last_timestamp = timestamp
-            return round(self.smoothed_ci, 4), self.current_state_key, STATE_LABELS[self.current_state_key]
+            return self.smoothed_ci, cand, STATE_LABELS[cand]
 
         # Strictly causal EMA smoothing
         self.smoothed_ci = self.ema_alpha * raw_ci + (1.0 - self.ema_alpha) * self.smoothed_ci
@@ -168,7 +148,8 @@ class TemporalStateStabilizer:
 
         self.last_timestamp = timestamp
         assert self.current_state_key is not None
-        return round(self.smoothed_ci, 4), self.current_state_key, STATE_LABELS[self.current_state_key]
+        key, label = level_for_ci(self.smoothed_ci)
+        return self.smoothed_ci, key, label
 
 
 def export_evidence_csv(csv_path: Path, rows: list[dict[str, Any]]) -> None:
@@ -197,8 +178,8 @@ def export_evidence_csv(csv_path: Path, rows: list[dict[str, Any]]) -> None:
             str(row.get("raw_state_label", row.get("state_label", ""))),
             str(row.get("state_key", "")),
             str(row.get("raw_state_key", row.get("state_key", ""))),
-            f"{float(row.get('ci', 0.0)):.4f}",
-            f"{float(row.get('raw_ci', row.get('ci', 0.0))):.4f}",
+            repr(float(row.get('ci', 0.0))),
+            repr(float(row.get('raw_ci', row.get('ci', 0.0)))),
             str(int(row.get("vehicle_count", 0))),
             f"{float(row.get('occupancy_ratio', 0.0)):.5f}",
             "" if row.get("model_confidence") is None else f"{float(row['model_confidence']):.4f}",
@@ -231,8 +212,8 @@ def project_trend_baseline(timeline: list[dict[str, Any]], *, source_duration_se
     predictions = []
     for horizon in (5, 10):
         ci = max(0.0, min(1.0, float(y[-1]) + slope * horizon * 60))
-        key = "free" if ci < .30 else "busy" if ci < .55 else "heavy" if ci < .78 else "gridlock"
-        predictions.append({"horizon_minutes": horizon, "ci": round(ci, 3), "level_key": key, "level": STATE_LABELS[key]})
+        key, _ = level_for_ci(ci)
+        predictions.append({"horizon_minutes": horizon, "ci": ci, "level_key": key, "level": STATE_LABELS[key]})
     return {"available": True, "mode": "explainable_trend_baseline",
             "confidence": "low-to-medium" if source_duration_seconds >= 180 and len(clean) >= 90 else "low",
             "slope_ci_per_minute": round(slope*60, 5), "predictions": predictions,
@@ -317,7 +298,8 @@ def analyze_video(video_path: Path, bundle: dict[str, Any], output_dir: Path, *,
                 diagonal = math.hypot(frame.shape[1], frame.shape[0]) or 1.0
                 normalized_speed = (float(np.median(speeds)) / diagonal) if len(speeds) >= 2 else None
                 raw_state = classify_visual_state(len(detections), occupancy, normalized_speed)
-                smoothed_ci, smoothed_key, smoothed_label = state_smoother.update(raw_state["ci"], timestamp)
+                smoothed_ci, official_key, official_label = state_smoother.update(raw_state["ci"], timestamp)
+                stabilized_key = state_smoother.current_state_key
 
                 det_scores = [getattr(d, "score", None) for d in detections if getattr(d, "score", None) is not None]
                 mean_det_conf = round(float(np.mean(det_scores)), 4) if det_scores else None
@@ -372,14 +354,14 @@ def analyze_video(video_path: Path, bundle: dict[str, Any], output_dir: Path, *,
 
                 state = {
                     "ci": smoothed_ci,
-                    "state_key": smoothed_key,
-                    "state_label": smoothed_label,
+                    "state_key": official_key,
+                    "state_label": official_label,
                     "raw_ci": raw_state["ci"],
                     "raw_state_key": raw_state["state_key"],
                     "raw_state_label": raw_state["state_label"],
                     "smoothed_ci": smoothed_ci,
-                    "smoothed_state_key": smoothed_key,
-                    "smoothed_state_label": smoothed_label,
+                    "smoothed_state_key": stabilized_key,
+                    "smoothed_state_label": STATE_LABELS[stabilized_key],
                     "vehicle_count": len(detections),
                     "occupancy_ratio": round(float(occupancy), 5),
                     "normalized_speed": raw_state.get("normalized_speed"),
@@ -472,8 +454,8 @@ def analyze_video(video_path: Path, bundle: dict[str, Any], output_dir: Path, *,
             "dominant_state_label": STATE_LABELS[dominant],
             "state_counts": dict(states),
             "raw_state_counts": dict(raw_states),
-            "mean_ci": round(float(np.mean([r["ci"] for r in timeline])), 4),
-            "mean_raw_ci": round(float(np.mean([r["raw_ci"] for r in timeline])), 4),
+            "mean_ci": float(np.mean([r["ci"] for r in timeline])),
+            "mean_raw_ci": float(np.mean([r["raw_ci"] for r in timeline])),
             "current_state": timeline[-1]["state_label"],
             "current_ci": timeline[-1]["ci"],
             "current_raw_state": timeline[-1]["raw_state_label"],
@@ -483,7 +465,7 @@ def analyze_video(video_path: Path, bundle: dict[str, Any], output_dir: Path, *,
         "hanoi_forecast": hanoi_forecast,
         "evidence_csv": "evidence.csv", "timeline_csv": "timeline.csv",
         "limitations": [
-            "Khung ảnh được phân loại bằng luật giải thích được từ số xe phát hiện và diện tích hộp trong ảnh; kết hợp temporal smoothing và hysteresis để ổn định nhãn.",
+            "Khung ảnh được phân loại theo CI sau EMA bằng ba ngưỡng chuẩn; smoothed_state là trạng thái hysteresis riêng, không ghi đè nhãn CI chính thức.",
             "Dự báo LSTM +5/+10/+15 giây là kết quả thử nghiệm từ clip, chưa được hiệu chuẩn hoặc xác nhận trên camera trực tiếp.",
             "Mô hình chỉ hỗ trợ horizon tính bằng giây; không thể diễn giải thành dự báo +5/+10/+15 phút.",
             "Tốc độ trong ảnh là pixel/giây, chưa phải km/h; chưa hiệu chuẩn homography/ROI.",

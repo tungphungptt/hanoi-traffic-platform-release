@@ -20,13 +20,15 @@ from typing import Any, Callable
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Request, UploadFile, Response
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 from app.public_upload import PublicUploadMiddleware, UploadGate, BUSY_MESSAGE
 import cv2
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, FiniteFloat, field_validator
 
 from aicc.pipeline import MAX_VIDEO_BYTES, SUPPORTED_VIDEO_EXTENSIONS, aicc_runtime, process_video
 from traffic_brain.providers import ForecastProviderManager, load_dotenv
@@ -38,6 +40,7 @@ from traffic_brain.routing import RouteServiceError, fetch_route_alternatives, s
 from app.weather_service import WeatherServiceError, get_weather_report
 from app.traffic_baseline import forecast_from_history
 from app.hanoi_scope import is_hanoi_coordinate
+from traffic_brain.traffic_levels import DEFAULT_THRESHOLDS, SEVERE_CI, level_for_ci, validate_thresholds
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = ROOT / "static"
@@ -138,7 +141,7 @@ DEFAULT_MANIFEST: dict[str, Any] = {
     "forecaster_config": {
         "onnx_path": "artifacts/current/forecaster.onnx",
         "horizons_minutes": [5, 10, 15],
-        "thresholds": {"busy": 0.30, "heavy": 0.55, "gridlock": 0.78},
+        "thresholds": dict(DEFAULT_THRESHOLDS),
     },
 }
 
@@ -229,13 +232,10 @@ def _normalize_manifest_payload(payload: dict[str, Any]) -> dict[str, Any]:
     horizons = forecaster.setdefault("horizons_minutes", [5, 10, 15])
     if horizons != [5, 10, 15]:
         raise ValueError("forecaster_config.horizons_minutes phải đúng thứ tự [5, 10, 15]")
-    thresholds = forecaster.setdefault("thresholds", {"busy": 0.30, "heavy": 0.55, "gridlock": 0.78})
+    thresholds = forecaster.setdefault("thresholds", dict(DEFAULT_THRESHOLDS))
     if not isinstance(thresholds, dict):
         raise ValueError("forecaster_config.thresholds phải là object")
-    cleaned_thresholds = {name: _finite_number(thresholds.get(name, default), f"thresholds.{name}", minimum=0, maximum=1)
-                          for name, default in (("busy", 0.30), ("heavy", 0.55), ("gridlock", 0.78))}
-    if not cleaned_thresholds["busy"] < cleaned_thresholds["heavy"] < cleaned_thresholds["gridlock"]:
-        raise ValueError("Ngưỡng CI phải tăng theo thứ tự busy < heavy < gridlock")
+    cleaned_thresholds = validate_thresholds(thresholds)
     forecaster["thresholds"] = cleaned_thresholds
 
     calibration = result.setdefault("camera_calibration", {})
@@ -355,7 +355,7 @@ class ArtifactRuntime:
         fallback = schema.get("default_fallback_values", {})
         values = [float(features.get(key, fallback.get(key, 0.0))) for key in ordered]
         horizons = self.manifest.get("forecaster_config", {}).get("horizons_minutes", [5, 10, 15])
-        thresholds = self.manifest.get("forecaster_config", {}).get("thresholds", {"busy": 0.30, "heavy": 0.55, "gridlock": 0.78})
+        validate_thresholds(self.manifest.get("forecaster_config", {}).get("thresholds"))
 
         if self.forecaster_session is not None:
             try:
@@ -394,19 +394,10 @@ class ArtifactRuntime:
             preds = [max(0.0, min(1.0, base + offset)) for offset in (0.0, 0.035, 0.07)]
             mode = "demo"
 
-        def label(ci: float) -> tuple[str, str]:
-            if ci < thresholds.get("busy", 0.30):
-                return "Thông thoáng", "free"
-            if ci < thresholds.get("heavy", 0.55):
-                return "Đông đúc", "busy"
-            if ci < thresholds.get("gridlock", 0.78):
-                return "Ùn ứ cục bộ", "heavy"
-            return "Tắc nghẽn nghiêm trọng", "gridlock"
-
         items = []
         for idx, horizon in enumerate(horizons):
-            ci = round(float(preds[idx]), 3)
-            name, key = label(ci)
+            ci = float(preds[idx])
+            key, name = level_for_ci(ci)
             items.append({"horizon_minutes": int(horizon), "ci": ci, "level": name, "level_key": key})
         return {"mode": mode, "predictions": items, "features_used": dict(zip(ordered, values))}
 
@@ -437,6 +428,18 @@ async def app_lifespan(app):
 PUBLIC_UPLOAD_GATE = UploadGate()
 PUBLIC_UPLOAD_GATE = UploadGate()
 app = FastAPI(lifespan=app_lifespan, title="hanoiFlow Operations", version="8.0.0", description="Nền tảng giám sát và hỗ trợ dự báo giao thông trên CPU")
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_error(request: Request, exc: RequestValidationError):
+    # Pydantic retains the rejected input in each error. Bare NaN/Infinity and
+    # overflowing JSON numbers would otherwise make the 422 itself fail to encode.
+    detail = jsonable_encoder(exc.errors(), custom_encoder={
+        float: lambda value: value if math.isfinite(value) else str(value),
+    })
+    return JSONResponse(status_code=422, content={"detail": detail})
+
+
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.add_middleware(PublicUploadMiddleware, public_mode=lambda: PUBLIC_DEMO_MODE,
                    enabled=video_review_upload_enabled, max_bytes=lambda: MAX_PUBLIC_VIDEO_REVIEW_BYTES,
@@ -702,7 +705,7 @@ class LiveTelemetryRequest(BaseModel):
     camera_id: str = Field(min_length=2, max_length=64)
     source: str = Field(default="rtsp", max_length=16)
     observed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    ci: float = Field(ge=0, le=1)
+    ci: FiniteFloat = Field(ge=0, le=1)
     speed_kmh: float | None = Field(default=None, ge=0, le=250)
     flow_pcu: float | None = Field(default=None, ge=0, le=1000000)
 
@@ -1175,8 +1178,8 @@ def dashboard() -> dict[str, Any]:
             "camera_online": len(telemetry),
             "total_vehicles": None,
             "average_speed": round(sum(speed_values) / len(speed_values), 1) if speed_values else None,
-            "critical_points": sum(1 for value in ci_values if value >= 0.78) if ci_values else None,
-            "average_ci": round(sum(ci_values) / len(ci_values), 3) if ci_values else None,
+            "critical_points": sum(1 for value in ci_values if value >= SEVERE_CI) if ci_values else None,
+            "average_ci": sum(ci_values) / len(ci_values) if ci_values else None,
         },
         "forecast": forecast,
         "cameras": rows,
@@ -1952,8 +1955,8 @@ def route_alternatives(body: RouteAlternativesRequest) -> dict[str, Any]:
                     "source_ci": (result.get("summary") or {}).get("current_ci"),
                     "trend_forecast": forecast, "source_is_origin": True}
                 ten = next((p for p in predictions if p.get("horizon_minutes") == 10), None)
-                if ten and float(ten.get("ci", 0)) >= 0.55:
-                    analysis_context["risk_message"] = "Video ở điểm đi có tín hiệu nguy cơ ùn ứ ở mốc +10 phút theo baseline xu hướng; đây chưa phải dự báo đã huấn luyện."
+                if ten and float(ten.get("ci", 0)) >= SEVERE_CI:
+                    analysis_context["risk_message"] = "Video ở điểm đi có tín hiệu nguy cơ tắc nghẽn nghiêm trọng ở mốc +10 phút theo baseline xu hướng; đây chưa phải dự báo đã huấn luyện."
                 elif not forecast.get("available"):
                     analysis_context["risk_message"] = "Video cho biết trạng thái hiện tại theo luật hình ảnh; chưa đủ điều kiện ngoại suy +5/+10 phút."
             else:
