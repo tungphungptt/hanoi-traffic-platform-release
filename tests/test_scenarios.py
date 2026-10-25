@@ -27,7 +27,7 @@ def test_visual_state_logic_returns_explainable_levels():
     gridlock = classify_visual_state(20, 0.22, 0.0001)
     assert free["state_key"] == "free"
     assert busy["state_key"] == "busy"
-    assert heavy["state_key"] in {"heavy", "gridlock"}
+    assert heavy["state_key"] == "gridlock"
     assert gridlock["state_key"] == "gridlock"
     assert free["method"] == "explainable_visual_rule_baseline"
     assert all(0 <= x["ci"] <= 1 for x in (free, busy, heavy, gridlock))

@@ -7,7 +7,7 @@
 ## Luồng làm việc chính
 
 1. **Nạp clip** từ máy tính để phân tích ngay; chọn đoạn A là tùy chọn và chỉ dùng để gắn clip với tuyến. Video trong `data/` vẫn dành cho vận hành local.
-2. Hệ thống lấy mẫu frame, đánh dấu detection từ AICC Phase 1 và gán mức Thông thoáng/Đông đúc/Ùn ứ/Tắc nghẽn bằng luật giải thích được dựa trên số xe phát hiện, phần diện tích bounding box và chuyển động tương đối trong ảnh.
+2. Hệ thống lấy mẫu frame, đánh dấu detection từ AICC Phase 1 và gán mức Thông thoáng/Đông đúc/Tắc nghẽn nghiêm trọng bằng luật giải thích được dựa trên số xe phát hiện, phần diện tích bounding box và chuyển động tương đối trong ảnh.
 3. **Xem dự báo thử nghiệm**: Hanoi LSTM yêu cầu tối thiểu 30 giây clip lấy mẫu 1 Hz và hiển thị xác suất tắc +5/+10/+15 giây; điểm xác suất chưa hiệu chuẩn, không thay thế dự báo theo phút.
 4. Baseline xu hướng +5/+10 phút vẫn là một luồng riêng, chỉ được bật khi người dùng xác nhận clip giữ thời gian thật và đủ mẫu; đây là ngoại suy tuyến tính, không phải LSTM đã huấn luyện.
 5. **Chọn điểm đến và so sánh tuyến thay thế**. Hệ thống gọi OSRM lấy hình học tuyến đường từ mạng đường OSM. Nếu chưa có telemetry RTSP mới xác minh và phủ đủ mọi phương án, tuyến ưu tiên chọn theo thời gian tham chiếu, không tuyên bố là “ít tắc nhất”. Nếu các tuyến đều được phủ bởi telemetry RTSP mới, dùng heuristic có phạt CI và ghi rõ cơ sở tính điểm.
@@ -77,6 +77,20 @@ Two model contracts are deliberately separate:
 - **Hanoi multi-horizon forecaster:** `artifacts/current/manifest.json` specifies ordered features and horizons 5/10/15. The manifest is a contract/schema only; this release does **not** include a trained `forecaster.onnx` or a validated Hanoi training dataset. `FORECAST_PROVIDER=remote_http` can connect a separately trained compatible service; it must return one calibrated CI per requested horizon and must not be treated as live if the upstream data isn't live.
 
 The AICC-compatible integration is retained from the operator's earlier project. Its source/weights provenance and licenses must be checked independently before public redistribution. `deploy_demo.ps1` copies local model artifacts when available; it does not assert that they are trained for Hanoi or that every model file came from a verified upstream release.
+
+## Thang chỉ số CI
+
+CI liên tục trong [0,1] dùng đúng ba mức: `0 ≤ CI < 0.30` là **Thông thoáng**,
+`0.30 ≤ CI < 0.55` là **Đông đúc**, `0.55 ≤ CI ≤ 1` là **Tắc nghẽn nghiêm trọng**.
+Các khoảng trên giao diện được viết gọn với hai chữ số thập phân; không làm tròn CI trước khi so ngưỡng.
+Khóa API tương ứng là `free`, `busy`, `gridlock`. Manifest giữ trường `heavy` để tương thích,
+nhưng `heavy` và `gridlock` đều phải bằng `0.55`; không có mức thứ tư.
+Quy tắc chuẩn nằm trong `traffic_brain/traffic_levels.py`; frontend có kiểm thử đối chiếu cùng thang.
+API và CSV giữ độ chính xác của CI, chỉ làm tròn khi trình bày trên giao diện.
+Video giữ EMA để làm mượt CI; `state_key`/`state_label` luôn phân loại đúng giá trị `ci` trả về.
+Trạng thái hysteresis riêng được giữ trong `smoothed_state_key`/`smoothed_state_label` để tham khảo,
+không ghi đè nhãn chính thức và không được dùng làm nhãn chính trên giao diện. `raw_state_*` phân loại `raw_ci`.
+Các lớp nhị phân AICC/LSTM và trạng thái kết nối camera là những thang độc lập, giữ nguyên.
 
 ## Main APIs
 

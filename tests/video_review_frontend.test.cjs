@@ -18,11 +18,65 @@ function setup() {
       send(body){this.body=body;requests.push(this);}
     },fetch:async()=>response({status:'succeeded',result:{frames:[]}})});
   vm.runInContext(source,context);
+  const renderReview=vm.runInContext('renderScenarioReview',context);
   vm.runInContext('state.aiccStatus={video_review_enabled:true,upload_limit_bytes:524288000,upload_limit_mb:500,upload_max_duration_seconds:360}; toast=()=>{}; renderScenarioReview=result=>{state.scenarioResult=result;};',context);
   el('#scenarioVideoFile').files=[new Blob(['clip'])];
-  return {context,el,requests,storage,run:code=>vm.runInContext(code,context)};
+  return {context,el,requests,storage,renderReview,run:code=>vm.runInContext(code,context)};
 }
 function accept(xhr) {xhr.upload.onload();xhr.status=202;xhr.responseText=JSON.stringify({job_id:jobId});xhr.onload();}
+
+test('CI labels, colors and manifest agree on three continuous ranges at every boundary',()=>{
+  const {run}=setup();
+  const labels={free:'Thông thoáng',busy:'Đông đúc',gridlock:'Tắc nghẽn nghiêm trọng'};
+  for(const [ci,key] of [[0,'free'],[.29,'free'],[.299999,'free'],[.30,'busy'],[.54,'busy'],[.549999,'busy'],[.55,'gridlock'],[.65,'gridlock'],[.77,'gridlock'],[.78,'gridlock'],[1,'gridlock']]){
+    assert.equal(run(`severityFromCI(${ci})`),key);
+    assert.equal(run(`levelVN(severityFromCI(${ci}))`),labels[key]);
+  }
+  assert.equal(run('CI_LEVELS.length'),3);
+  assert.equal(new Set(run('CI_LEVELS.map(level=>level.color)')).size,3);
+  const thresholds=JSON.parse(fs.readFileSync('artifacts/current/manifest.json','utf8')).forecaster_config.thresholds;
+  assert.equal(run('CI_LEVELS[1].min'),thresholds.busy);
+  assert.equal(run('CI_LEVELS[2].min'),thresholds.gridlock);
+  assert.equal(thresholds.heavy,thresholds.gridlock);
+});
+
+test('analytics renders exactly three groups and merges every CI from 0.55 to 1',()=>{
+  const {run,el}=setup();
+  run(`state.dashboard={trend:[{ci:.55,time:'12:00'}]};
+    state.cameras=[.29,.30,.54,.55,.77,.78,1].map(ci=>({ci,status:'online'})); renderAnalytics();`);
+  const html=el('#distributionList').innerHTML;
+  assert.equal((html.match(/class="distribution-item"/g)||[]).length,3);
+  assert.match(html,/Thông thoáng.*?<strong>1<\/strong>/);
+  assert.match(html,/Đông đúc.*?<strong>2<\/strong>/);
+  assert.match(html,/Tắc nghẽn nghiêm trọng.*?<strong>4<\/strong>/);
+});
+
+test('dashboard explanation shows the three new ranges and readable severe styling',()=>{
+  const html=fs.readFileSync('static/index.html','utf8');
+  const definition=html.match(/<div class="definition-list">(.*?)<\/section>/s)[1];
+  assert.equal((definition.match(/class="level-dot /g)||[]).length,3);
+  for(const range of ['0,00–0,29','0,30–0,54','0,55–1,00'])assert.ok(definition.includes(range));
+  assert.match(definition,/level-dot gridlock.*?Tắc nghẽn nghiêm trọng/);
+  const css=fs.readFileSync('static/styles.css','utf8');
+  assert.match(css,/\.level-chip\.gridlock\{background:#[a-f0-9]+;color:#[a-f0-9]+\}/);
+  assert.match(css,/\.scenario-state-dot\.gridlock\{/);
+});
+
+test('video gallery and summary display the official CI label instead of hysteresis metadata',()=>{
+  for(const [ci,key,stable] of [[.56,'gridlock','busy'],[.54,'busy','gridlock']]){
+    const {run,el,renderReview}=setup();
+    const label=run(`levelVN('${key}')`),stableLabel=run(`levelVN('${stable}')`);
+    renderReview({summary:{current_ci:ci,current_state:label},frames:[{
+      ci,state_key:key,state_label:label,smoothed_state_key:stable,smoothed_state_label:stableLabel,
+      timestamp_seconds:1,vehicle_count:1,url:'/frame.jpg',
+    }]});
+    assert.equal(el('#scenarioCurrentState').textContent,label);
+    const gallery=el('#scenarioFrameGallery').innerHTML;
+    assert.ok(gallery.includes(label));
+    assert.ok(!gallery.includes(stableLabel));
+    assert.ok(gallery.includes('scenario-state-dot '+key));
+  }
+});
 
 test('one upload reports actual byte progress and changes phase before job polling',async()=>{
   const {run,el,requests}=setup();

@@ -4,15 +4,7 @@ import math
 import time
 from datetime import datetime, timezone
 
-
-def _level(ci: float) -> tuple[str, str]:
-    if ci < 0.30:
-        return "free", "Thông thoáng"
-    if ci < 0.55:
-        return "busy", "Đông đúc"
-    if ci < 0.78:
-        return "heavy", "Ùn ứ cục bộ"
-    return "gridlock", "Tắc nghẽn nghiêm trọng"
+from traffic_brain.traffic_levels import level_for_ci as _level
 
 
 def forecast_from_history(history, *, now_epoch=None):
@@ -34,7 +26,7 @@ def forecast_from_history(history, *, now_epoch=None):
         "validated": False,
         "sample_count": len(rows),
         "observed_at": datetime.fromtimestamp(latest["observed_epoch"], timezone.utc).isoformat(timespec="seconds") if latest else None,
-        "current_ci": round(latest["ci"], 3) if latest else None,
+        "current_ci": latest["ci"] if latest else None,
         "current_speed_kmh": latest.get("speed_kmh") if latest else None,
         "predictions": [],
     }
@@ -61,7 +53,7 @@ def forecast_from_history(history, *, now_epoch=None):
     for horizon in (5, 10):
         ci = min(1.0, max(0.0, current + slope_per_second * horizon * 60.0))
         level_key, level_label = _level(ci)
-        predictions.append({"horizon_minutes": horizon, "ci": round(ci, 3), "level_key": level_key, "level": level_label})
+        predictions.append({"horizon_minutes": horizon, "ci": ci, "level_key": level_key, "level": level_label})
     key, label = _level(current)
     return {
         **base,

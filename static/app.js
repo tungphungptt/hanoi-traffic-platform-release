@@ -70,8 +70,14 @@ function setPage(page) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function severityFromCI(ci) { return ci < .30 ? 'free' : ci < .55 ? 'busy' : ci < .78 ? 'heavy' : 'gridlock'; }
-function levelVN(key) { return ({ free:'Thông thoáng', busy:'Đông đúc', heavy:'Ùn ứ cục bộ', gridlock:'Tắc nghẽn nghiêm trọng' })[key] || 'Chưa xác định'; }
+const CI_LEVELS = [
+  {key:'free', min:0, label:'Thông thoáng', color:'#7eaa87'},
+  {key:'busy', min:0.30, label:'Đông đúc', color:'#d3a052'},
+  {key:'gridlock', min:0.55, label:'Tắc nghẽn nghiêm trọng', color:'#b85b4e'},
+];
+function severityFromCI(ci) { return ci < CI_LEVELS[1].min ? 'free' : ci < CI_LEVELS[2].min ? 'busy' : 'gridlock'; }
+function levelVN(key) { return CI_LEVELS.find(level => level.key === key)?.label || 'Chưa xác định'; }
+function ciColor(key) { return CI_LEVELS.find(level => level.key === key)?.color || '#aab2ac'; }
 function cameraStatusVN(status) { return ({ online:'Có telemetry mới', attention:'Có cảnh báo từ nguồn', offline:'Nguồn mất kết nối', unverified:'Chưa có telemetry' })[status] || status; }
 function alertClass(type) { return type === 'critical' ? 'critical' : type === 'warning' ? 'warning' : 'info'; }
 function alertIcon(type) { return type === 'critical' ? '!' : type === 'warning' ? '⌁' : 'i'; }
@@ -608,8 +614,8 @@ function setMapLayer(layer) {
   const legend = $('#mapLegend');
   if (legend) {
     legend.innerHTML = layer === 'forecast'
-      ? '<span><i class="legend-dot free"></i>CI thấp · dưới 0,30*</span><span><i class="legend-dot busy"></i>CI trung bình · 0,30–0,54*</span><span><i class="legend-dot heavy"></i>CI cao · từ 0,55*</span>'
-      : '<span><i class="legend-dot free"></i>Đang hoạt động*</span><span><i class="legend-dot busy"></i>Cần chú ý*</span><span><i class="legend-dot heavy"></i>Mất kết nối*</span>';
+      ? '<span><i class="legend-dot free"></i>Thông thoáng · 0,00–0,29*</span><span><i class="legend-dot busy"></i>Đông đúc · 0,30–0,54*</span><span><i class="legend-dot gridlock"></i>Tắc nghẽn nghiêm trọng · 0,55–1,00*</span>'
+      : '<span><i class="legend-dot free"></i>Đang hoạt động*</span><span><i class="legend-dot busy"></i>Cần chú ý*</span><span><i class="legend-dot offline"></i>Mất kết nối*</span>';
   }
   if (state.leafletMap && state.trafficTileLayer) {
     if (layer === 'traffic') state.trafficTileLayer.addTo(state.leafletMap);
@@ -790,10 +796,10 @@ function renderForecast(forecast, avgCI) {
   $('#forecastPoints').innerHTML = circleValues.map(p=>`<circle cx="${p.x}" cy="${y(p.ci)}" r="4" fill="#fff" stroke="#719d80" stroke-width="2"/>`).join('');
   horizonList.innerHTML = predictions.map(p => {
     const cls = severityFromCI(p.ci);
-    return `<div class="horizon-row"><span class="horizon-time">+${escapeHtml(p.horizon_minutes)} phút</span><span class="horizon-bar"><i class="${cls}" style="width:${Math.round(Number(p.ci)*100)}%;background:${cls==='free'?'#86b28e':cls==='busy'?'#d3a052':cls==='heavy'?'#cb7b68':'#b85a4d'}"></i></span><strong>${numberVN(p.ci,2)}</strong><span class="level-dot ${cls}"></span></div>`;
+    return `<div class="horizon-row"><span class="horizon-time">+${escapeHtml(p.horizon_minutes)} phút</span><span class="horizon-bar"><i class="${cls}" style="width:${Math.round(Number(p.ci)*100)}%;background:${ciColor(cls)}"></i></span><strong>${numberVN(p.ci,2)}</strong><span class="level-dot ${cls}"></span></div>`;
   }).join('');
   const lastKey = severityFromCI(Number(predictions[predictions.length-1].ci));
-  $('#forecastAdvice').textContent = lastKey === 'gridlock' ? 'Có tín hiệu nguy cơ cao trong chân trời dự báo. Xác minh nguồn và hiện trường trước quyết định điều hành.' : lastKey === 'heavy' ? 'Mô hình báo CI cao ở chân trời xa nhất. So sánh telemetry các tuyến thay thế trước khi khuyến nghị.' : lastKey === 'busy' ? 'Mô hình báo xu hướng đông đúc; tiếp tục theo dõi chuỗi đo mới nhất.' : 'Dự báo hiện chưa cho thấy CI cao trong chân trời đã trả về.';
+  $('#forecastAdvice').textContent = lastKey === 'gridlock' ? 'Có tín hiệu nguy cơ cao trong chân trời dự báo. Xác minh nguồn và hiện trường trước quyết định điều hành.' : lastKey === 'busy' ? 'Mô hình báo xu hướng đông đúc; tiếp tục theo dõi chuỗi đo mới nhất.' : 'Dự báo hiện chưa cho thấy CI cao trong chân trời đã trả về.';
   $('#forecastModeFoot').textContent = forecast.mode === 'production' ? 'Kết quả từ bộ dự báo cục bộ · cần kiểm định độc lập' : `Kết quả từ API dự báo${forecast.latency_ms != null ? ` · ${numberVN(forecast.latency_ms,1)} ms` : ''} · cần kiểm định độc lập`;
 }
 
@@ -889,9 +895,9 @@ function renderAnalytics() {
     const grid=[0,.25,.5,.75,1].map(v=>`<g><line x1="${pad.l}" y1="${y(v)}" x2="${width-pad.r}" y2="${y(v)}" stroke="#edf0eb" stroke-dasharray="4 5"/><text x="0" y="${y(v)+3}" font-size="10" fill="#aeb8b0">${v.toFixed(2)}</text></g>`).join('');
     c.innerHTML=`<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="Diễn biến chỉ số ùn tắc">${grid}<path d="${area}" fill="#edf4eb"/><path d="${d}" fill="none" stroke="#6f9b7b" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/>${trend.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.ci)}" r="3" fill="white" stroke="#6f9b7b" stroke-width="2"/>`).join('')}${trend.map((p,i)=>i%2===0||i===trend.length-1?`<text x="${x(i)}" y="${height-7}" text-anchor="middle" font-size="10" fill="#aeb8b0">${escapeHtml(p.time)}</text>`:'').join('')}</svg>`;
   }
-  const cams=state.cameras.filter(c=>c.status!=='offline'); const groups=[{key:'free',count:0},{key:'busy',count:0},{key:'heavy',count:0},{key:'gridlock',count:0}];
+  const cams=state.cameras.filter(c=>c.status!=='offline'); const groups=CI_LEVELS.map(level=>({...level,count:0}));
   cams.forEach(cam=>{const g=groups.find(x=>x.key===severityFromCI(cam.ci));if(g)g.count++});
-  const dist=$('#distributionList'); if(dist) dist.innerHTML=groups.map(g=>`<div class="distribution-item"><span>${levelVN(g.key)}</span><span class="distribution-track"><i style="width:${cams.length?g.count/cams.length*100:0}%;background:${g.key==='free'?'#7eaa87':g.key==='busy'?'#d3a052':g.key==='heavy'?'#ca7a67':'#b85b4e'}"></i></span><strong>${g.count}</strong></div>`).join('');
+  const dist=$('#distributionList'); if(dist) dist.innerHTML=groups.map(g=>`<div class="distribution-item"><span>${levelVN(g.key)}</span><span class="distribution-track"><i style="width:${cams.length?g.count/cams.length*100:0}%;background:${g.color}"></i></span><strong>${g.count}</strong></div>`).join('');
 }
 
 function renderModelStatus() {
@@ -1039,7 +1045,7 @@ function renderScenarioReview(result) {
   const frames = result.frames || [];
   const gallery = $('#scenarioFrameGallery');
   gallery.innerHTML = frames.length ? frames.map(frame => {
-    const tone = frame.state_key === 'free' ? 'free' : frame.state_key === 'busy' ? 'busy' : 'heavy';
+    const tone = CI_LEVELS.some(level => level.key === frame.state_key) ? frame.state_key : severityFromCI(frame.ci);
     const rawNote = (frame.raw_state_label && frame.raw_state_label !== frame.state_label) ? ` <small class="text-muted">(thô: ${escapeHtml(frame.raw_state_label)})</small>` : '';
     const confNote = frame.model_confidence != null ? ` · tin cậy: ${numberVN(frame.model_confidence * 100, 0)}%` : '';
     return `<article class="scenario-frame-card"><a class="scenario-frame-image" href="${escapeHtml(frame.url)}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(frame.url)}" alt="Khung hình ${numberVN(frame.timestamp_seconds, 1)} giây · ${escapeHtml(frame.state_label)}"></a><div class="scenario-frame-copy"><div class="scenario-frame-head"><strong>${escapeHtml(frame.state_label)}</strong>${rawNote}<span class="scenario-state-dot ${tone}"></span></div><small>t = ${numberVN(frame.timestamp_seconds, 1)} giây · CI ${numberVN(frame.ci, 2)}</small><small>${numberVN(frame.vehicle_count)} xe phát hiện · chiếm dụng ảnh ${numberVN((frame.occupancy_ratio || 0) * 100, 1)}%${confNote}</small></div></article>`;

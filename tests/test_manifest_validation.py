@@ -50,7 +50,7 @@ def test_manifest_rejects_wrong_forecast_horizon_order():
 def test_manifest_rejects_unordered_ci_thresholds():
     payload = _valid_manifest()
     payload["forecaster_config"]["thresholds"] = {"busy": 0.6, "heavy": 0.5, "gridlock": 0.9}
-    with pytest.raises(ValueError, match="busy < heavy < gridlock"):
+    with pytest.raises(ValueError, match="busy=0.30, heavy=gridlock=0.55"):
         main._normalize_manifest_payload(payload)
 
 
