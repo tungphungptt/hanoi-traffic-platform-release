@@ -1,0 +1,16 @@
+FROM python:3.12-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 AICC_VIDEO_ENABLED=false PUBLIC_DEMO_MODE=true
+WORKDIR /app
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app ./app
+COPY aicc ./aicc
+COPY traffic_brain ./traffic_brain
+COPY static ./static
+COPY artifacts ./artifacts
+COPY models ./models
+COPY config.yaml ./config.yaml
+COPY data ./data
+RUN python -m compileall -q app aicc traffic_brain
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

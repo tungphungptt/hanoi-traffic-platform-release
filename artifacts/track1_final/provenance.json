@@ -1,0 +1,62 @@
+{
+  "release_identifier": "RUN_TRACK1_FINAL_20261023",
+  "project_version": "8.0.0",
+  "platform": "Hanoi Traffic Platform 8.0",
+  "environment": {
+    "python_version": "3.12.10",
+    "onnxruntime": "1.31.0",
+    "scikit_learn": "1.9.1",
+    "scipy": "1.18.1",
+    "opencv": "4.14.0",
+    "numpy": "2.5.4",
+    "hardware": {
+      "cpu": "AMD Ryzen 7 6800HS Creator Edition (8 cores, 16 threads)",
+      "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU (4096 MiB VRAM, Driver 546.92, CUDA 12.3)",
+      "ram_total_gb": 13.69
+    }
+  },
+  "models_provenance": {
+    "production_detector": {
+      "file_path": "models/detector.onnx",
+      "architecture": "YOLOv8n-COCO (Ultralytics / ONNX export)",
+      "role": "Object detection for Track 1 vehicle candidates",
+      "status": "FROZEN_PRODUCTION_ARTIFACT (No modification)"
+    },
+    "production_predictor": {
+      "file_path": "models/predictor.onnx",
+      "architecture": "GRU Congestion Level Classifier",
+      "role": "AICC Traffic Congestion Forecasting (Normal vs Congested)",
+      "status": "FROZEN_PRODUCTION_ARTIFACT (No modification)"
+    },
+    "experimental_movement_classifier_train_only": {
+      "file_path": "artifacts/track1_final/models/movement_classifier_train_only.pkl",
+      "model_type": "sklearn.neural_network.MLPClassifier",
+      "hidden_layers": [64, 32],
+      "activation": "relu",
+      "solver": "adam",
+      "alpha": 0.01,
+      "random_seed": 42,
+      "max_iter": 600,
+      "training_split": "exit_frame <= 350 (46 samples)",
+      "learned_classes": [2, 3, 4, 5, 11, 12],
+      "status": "EXPERIMENTAL_PILOT_CANDIDATE"
+    },
+    "experimental_movement_classifier_retrained_all": {
+      "file_path": "artifacts/track1_final/models/movement_classifier_retrained_all.pkl",
+      "model_type": "sklearn.neural_network.MLPClassifier",
+      "training_split": "full 600 frames (92 samples)",
+      "status": "EXPERIMENTAL_REFERENCE (Leakage demonstrated)"
+    }
+  },
+  "training_and_evaluation_records": {
+    "evaluation_type": "TEMPORAL_HOLDOUT_SAME_CAMERA",
+    "evaluation_scope_note": "Temporal holdout within cam_5 (train: 0-350, test: 351-600). NOT an independent camera evaluation across the 20 camera scenes.",
+    "pipeline_tuning_disclosure": "Geometric reference endpoints (e.g. Approach 2 exit at 45, 370) and tracking thresholds (90px boundary exit, 35px min travel distance) were calibrated after visual inspection of frames 339, 343, 359, 375, 425 across the clip. Therefore, zero-leakage cannot be claimed for the full pipeline, only for the ML feature classifier weights.",
+    "training_samples_count": 46,
+    "heldout_test_samples_count": 46,
+    "heldout_test_ground_truth_events": 47,
+    "heldout_test_predictions": 53,
+    "production_decision": "HEURISTIC_BASELINE_DEFAULT",
+    "rationale": "On temporal holdout evaluation (frames 351-600), Baseline Heuristic achieved 89.13% movement accuracy (vs 86.96% for train-only ML) and equal F1 score (0.8200) with superior zero-shot generalization on rare and unseen classes (Movements 7 and 10)."
+  }
+}

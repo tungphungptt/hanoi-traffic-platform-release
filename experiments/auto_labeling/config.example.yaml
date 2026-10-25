@@ -1,0 +1,19 @@
+# Cấu hình mẫu cho đợt gán nhãn tự động
+experiment_id: EXP-AUTOLABEL-SAMPLE
+seed: 42
+input_manifest: data/manifests/hanoi_videos_manifest.json
+output_annotation_dir: data/annotations/congestion
+filter_split: [unassigned, train]
+
+thresholds:
+  detector_confidence: 0.40
+  sequence_confidence_min: 0.65
+  uncertainty_margin: 0.10
+
+stabilization:
+  ema_alpha: 0.40
+  hysteresis_margin: 0.08
+  min_consecutive_windows: 2
+
+output_format: jsonl
+save_visual_evidence: false

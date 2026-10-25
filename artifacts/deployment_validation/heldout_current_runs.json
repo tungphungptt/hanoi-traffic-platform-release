@@ -1,0 +1,342 @@
+{
+  "evaluation_protocol": "historical_within_camera_temporal_development_evaluation",
+  "scope": "cam_5.mp4, event frame IDs 351-600; not an independent test",
+  "ground_truth_file": "D:\\hanoi-traffic-platform-final-8.0\\AIC21_Track1_Vehicle_Counting\\counting_gt_sample\\counting_example_cam_5_1min.csv",
+  "inputs": {
+    "heuristic": "D:\\hanoi-traffic-platform-final-8.0\\artifacts\\deployment_validation\\heuristic_cam5_600frames.csv",
+    "mlp": "D:\\hanoi-traffic-platform-final-8.0\\artifacts\\deployment_validation\\mlp_cam5_600frames.csv",
+    "cnn_lstm": "D:\\hanoi-traffic-platform-final-8.0\\artifacts\\deployment_validation\\cnn_lstm_cam5_600frames.csv"
+  },
+  "models": {
+    "heuristic": {
+      "interval": "frames [351, 600]",
+      "total_ground_truth": 47,
+      "total_predicted": 53,
+      "gt_classes": {
+        "car": 44,
+        "truck": 3
+      },
+      "pred_classes": {
+        "car": 50,
+        "truck": 3
+      },
+      "count_difference": 6,
+      "strict_matching": {
+        "tp": 41,
+        "fp": 12,
+        "fn": 6,
+        "precision": 0.7736,
+        "recall": 0.8723,
+        "f1_score": 0.82,
+        "wrong_movement_count": 5
+      },
+      "count_only_matching": {
+        "tp": 46,
+        "fp": 7,
+        "fn": 1,
+        "precision": 0.8679,
+        "recall": 0.9787,
+        "f1_score": 0.92
+      },
+      "movement_metrics": {
+        "mae_active_movements": 2.2857,
+        "rmse_active_movements": 3.3806,
+        "mae_all_12_movements": 1.3333,
+        "rmse_all_12_movements": 2.582,
+        "active_movements_list": [
+          1,
+          3,
+          4,
+          5,
+          7,
+          10,
+          11
+        ]
+      },
+      "movement_breakdown": {
+        "1": {
+          "ground_truth": 0,
+          "predicted": 1,
+          "error": 1
+        },
+        "2": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        },
+        "3": {
+          "ground_truth": 0,
+          "predicted": 2,
+          "error": 2
+        },
+        "4": {
+          "ground_truth": 2,
+          "predicted": 10,
+          "error": 8
+        },
+        "5": {
+          "ground_truth": 23,
+          "predicted": 20,
+          "error": -3
+        },
+        "6": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        },
+        "7": {
+          "ground_truth": 1,
+          "predicted": 1,
+          "error": 0
+        },
+        "8": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        },
+        "9": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        },
+        "10": {
+          "ground_truth": 1,
+          "predicted": 0,
+          "error": -1
+        },
+        "11": {
+          "ground_truth": 20,
+          "predicted": 19,
+          "error": -1
+        },
+        "12": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        }
+      },
+      "unmatched_gt_count": 6,
+      "unmatched_pred_count": 12
+    },
+    "mlp": {
+      "interval": "frames [351, 600]",
+      "total_ground_truth": 47,
+      "total_predicted": 53,
+      "gt_classes": {
+        "car": 44,
+        "truck": 3
+      },
+      "pred_classes": {
+        "car": 50,
+        "truck": 3
+      },
+      "count_difference": 6,
+      "strict_matching": {
+        "tp": 8,
+        "fp": 45,
+        "fn": 39,
+        "precision": 0.1509,
+        "recall": 0.1702,
+        "f1_score": 0.16,
+        "wrong_movement_count": 38
+      },
+      "count_only_matching": {
+        "tp": 46,
+        "fp": 7,
+        "fn": 1,
+        "precision": 0.8679,
+        "recall": 0.9787,
+        "f1_score": 0.92
+      },
+      "movement_metrics": {
+        "mae_active_movements": 12.0,
+        "rmse_active_movements": 14.8997,
+        "mae_all_12_movements": 7.0,
+        "rmse_all_12_movements": 11.3798,
+        "active_movements_list": [
+          2,
+          3,
+          4,
+          5,
+          7,
+          10,
+          11
+        ]
+      },
+      "movement_breakdown": {
+        "1": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        },
+        "2": {
+          "ground_truth": 0,
+          "predicted": 5,
+          "error": 5
+        },
+        "3": {
+          "ground_truth": 0,
+          "predicted": 21,
+          "error": 21
+        },
+        "4": {
+          "ground_truth": 2,
+          "predicted": 21,
+          "error": 19
+        },
+        "5": {
+          "ground_truth": 23,
+          "predicted": 0,
+          "error": -23
+        },
+        "6": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        },
+        "7": {
+          "ground_truth": 1,
+          "predicted": 0,
+          "error": -1
+        },
+        "8": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        },
+        "9": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        },
+        "10": {
+          "ground_truth": 1,
+          "predicted": 0,
+          "error": -1
+        },
+        "11": {
+          "ground_truth": 20,
+          "predicted": 6,
+          "error": -14
+        },
+        "12": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        }
+      },
+      "unmatched_gt_count": 39,
+      "unmatched_pred_count": 45
+    },
+    "cnn_lstm": {
+      "interval": "frames [351, 600]",
+      "total_ground_truth": 47,
+      "total_predicted": 53,
+      "gt_classes": {
+        "car": 44,
+        "truck": 3
+      },
+      "pred_classes": {
+        "car": 50,
+        "truck": 3
+      },
+      "count_difference": 6,
+      "strict_matching": {
+        "tp": 24,
+        "fp": 29,
+        "fn": 23,
+        "precision": 0.4528,
+        "recall": 0.5106,
+        "f1_score": 0.48,
+        "wrong_movement_count": 22
+      },
+      "count_only_matching": {
+        "tp": 46,
+        "fp": 7,
+        "fn": 1,
+        "precision": 0.8679,
+        "recall": 0.9787,
+        "f1_score": 0.92
+      },
+      "movement_metrics": {
+        "mae_active_movements": 7.4286,
+        "rmse_active_movements": 11.1995,
+        "mae_all_12_movements": 4.3333,
+        "rmse_all_12_movements": 8.5538,
+        "active_movements_list": [
+          2,
+          3,
+          4,
+          5,
+          7,
+          10,
+          11
+        ]
+      },
+      "movement_breakdown": {
+        "1": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        },
+        "2": {
+          "ground_truth": 0,
+          "predicted": 3,
+          "error": 3
+        },
+        "3": {
+          "ground_truth": 0,
+          "predicted": 21,
+          "error": 21
+        },
+        "4": {
+          "ground_truth": 2,
+          "predicted": 7,
+          "error": 5
+        },
+        "5": {
+          "ground_truth": 23,
+          "predicted": 3,
+          "error": -20
+        },
+        "6": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        },
+        "7": {
+          "ground_truth": 1,
+          "predicted": 0,
+          "error": -1
+        },
+        "8": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        },
+        "9": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        },
+        "10": {
+          "ground_truth": 1,
+          "predicted": 0,
+          "error": -1
+        },
+        "11": {
+          "ground_truth": 20,
+          "predicted": 19,
+          "error": -1
+        },
+        "12": {
+          "ground_truth": 0,
+          "predicted": 0,
+          "error": 0
+        }
+      },
+      "unmatched_gt_count": 23,
+      "unmatched_pred_count": 29
+    }
+  }
+}

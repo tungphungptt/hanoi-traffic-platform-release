@@ -1,0 +1,184 @@
+{
+  "status": "success",
+  "total_ground_truth": 96,
+  "total_predicted": 13,
+  "ground_truth_classes": {
+    "car": 93,
+    "truck": 3
+  },
+  "predicted_classes": {
+    "car": 13,
+    "truck": 0
+  },
+  "overall_count_difference": -83,
+  "mae_per_movement": 9.222,
+  "rmse_per_movement": 15.301,
+  "mae_all_12_movements": 6.917,
+  "rmse_all_12_movements": 13.251,
+  "mae_24_movement_class_cells": 3.458,
+  "rmse_24_movement_class_cells": 8.998,
+  "temporal_matching_tolerance_frames": 15,
+  "matched_events_tp": 4,
+  "unmatched_predictions_fp": 9,
+  "missed_gt_events_fn": 92,
+  "precision": 0.3077,
+  "recall": 0.0417,
+  "f1_score": 0.0734,
+  "count_only_evaluation": {
+    "matched_tp": 4,
+    "unmatched_fp": 9,
+    "missed_fn": 92,
+    "precision": 0.3077,
+    "recall": 0.0417,
+    "f1_score": 0.0734
+  },
+  "movement_breakdown": {
+    "1": {
+      "ground_truth": 1,
+      "predicted": 0,
+      "error": -1
+    },
+    "2": {
+      "ground_truth": 5,
+      "predicted": 1,
+      "error": -4
+    },
+    "3": {
+      "ground_truth": 13,
+      "predicted": 10,
+      "error": -3
+    },
+    "4": {
+      "ground_truth": 10,
+      "predicted": 1,
+      "error": -9
+    },
+    "5": {
+      "ground_truth": 25,
+      "predicted": 0,
+      "error": -25
+    },
+    "6": {
+      "ground_truth": 0,
+      "predicted": 0,
+      "error": 0
+    },
+    "7": {
+      "ground_truth": 1,
+      "predicted": 0,
+      "error": -1
+    },
+    "8": {
+      "ground_truth": 0,
+      "predicted": 0,
+      "error": 0
+    },
+    "9": {
+      "ground_truth": 0,
+      "predicted": 0,
+      "error": 0
+    },
+    "10": {
+      "ground_truth": 2,
+      "predicted": 0,
+      "error": -2
+    },
+    "11": {
+      "ground_truth": 38,
+      "predicted": 1,
+      "error": -37
+    },
+    "12": {
+      "ground_truth": 1,
+      "predicted": 0,
+      "error": -1
+    }
+  },
+  "movement_class_breakdown": {
+    "1_car": {
+      "movement_id": 1,
+      "class": "car",
+      "ground_truth": 1,
+      "predicted": 0,
+      "error": -1
+    },
+    "2_car": {
+      "movement_id": 2,
+      "class": "car",
+      "ground_truth": 5,
+      "predicted": 1,
+      "error": -4
+    },
+    "3_car": {
+      "movement_id": 3,
+      "class": "car",
+      "ground_truth": 13,
+      "predicted": 10,
+      "error": -3
+    },
+    "4_car": {
+      "movement_id": 4,
+      "class": "car",
+      "ground_truth": 10,
+      "predicted": 1,
+      "error": -9
+    },
+    "5_car": {
+      "movement_id": 5,
+      "class": "car",
+      "ground_truth": 23,
+      "predicted": 0,
+      "error": -23
+    },
+    "5_truck": {
+      "movement_id": 5,
+      "class": "truck",
+      "ground_truth": 2,
+      "predicted": 0,
+      "error": -2
+    },
+    "7_car": {
+      "movement_id": 7,
+      "class": "car",
+      "ground_truth": 1,
+      "predicted": 0,
+      "error": -1
+    },
+    "10_car": {
+      "movement_id": 10,
+      "class": "car",
+      "ground_truth": 2,
+      "predicted": 0,
+      "error": -2
+    },
+    "11_car": {
+      "movement_id": 11,
+      "class": "car",
+      "ground_truth": 37,
+      "predicted": 1,
+      "error": -36
+    },
+    "11_truck": {
+      "movement_id": 11,
+      "class": "truck",
+      "ground_truth": 1,
+      "predicted": 0,
+      "error": -1
+    },
+    "12_car": {
+      "movement_id": 12,
+      "class": "car",
+      "ground_truth": 1,
+      "predicted": 0,
+      "error": -1
+    }
+  },
+  "video": {
+    "name": "cam_5.mp4",
+    "frames_processed": 30,
+    "duration_seconds": 3.0,
+    "fps": 10.0
+  },
+  "runtime_seconds": 1.25,
+  "detector_model": "models\\detector.onnx"
+}

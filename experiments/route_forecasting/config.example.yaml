@@ -1,0 +1,26 @@
+# Cấu hình mẫu cho thí nghiệm dự báo tắc nghẽn cấp tuyến đường
+experiment_id: EXP-ROUTE-SAMPLE
+seed: 42
+horizons_minutes: [5, 10, 15]
+
+pcu_conversion:
+  motorcycle: 0.3
+  car: 1.0
+  bus: 2.5
+  truck: 2.0
+
+road_network:
+  corridors:
+    - id: corridor_nguyen_trai
+      name: Tuyến Nguyễn Trãi - Tây Sơn
+      segments: [seg_01, seg_02, seg_03]
+    - id: corridor_kim_ma
+      name: Tuyến Kim Mã - Cầu Giấy
+      segments: [seg_11, seg_12]
+
+routing_penalty:
+  ci_threshold_heavy: 0.65
+  max_detour_ratio: 1.35
+
+output:
+  evaluation_dir: artifacts/evaluation

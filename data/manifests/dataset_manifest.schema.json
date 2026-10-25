@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HanoiTrafficVideoDatasetManifest",
+  "description": "Schema chuẩn quản lý metadata, nguồn gốc và trạng thái nhãn của video giao thông Hà Nội.",
+  "type": "object",
+  "required": [
+    "manifest_version",
+    "updated_at_utc",
+    "dataset_name",
+    "videos"
+  ],
+  "properties": {
+    "manifest_version": {
+      "type": "string",
+      "enum": ["hanoi-video-manifest/1.0"]
+    },
+    "updated_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "dataset_name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "storage_root": {
+      "type": "string",
+      "default": "data/raw/hanoi_traffic"
+    },
+    "videos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "video_id",
+          "relative_path",
+          "source",
+          "label_status",
+          "split"
+        ],
+        "properties": {
+          "video_id": {
+            "type": "string",
+            "pattern": "^HN-[A-Za-z0-9_-]+$",
+            "description": "Mã định danh duy nhất của video (ví dụ: HN-BASE-001, HN-CAM01-20261023)."
+          },
+          "relative_path": {
+            "type": "string",
+            "description": "Đường dẫn tương đối từ project root tới file video (ví dụ: data/raw/hanoi_traffic/clip1.mp4)."
+          },
+          "road_name": {
+            "type": ["string", "null"],
+            "description": "Tên tuyến đường ghi nhận nếu biết (ví dụ: Nguyễn Trãi, Kim Mã), null nếu chưa xác định."
+          },
+          "camera_id": {
+            "type": ["string", "null"],
+            "description": "Mã camera tương ứng trong data/cameras.json nếu đã ánh xạ, null nếu chưa gán."
+          },
+          "source": {
+            "type": "string",
+            "description": "Nguồn thu thập video (ví dụ: aicc-demo-baseline, aicc-data.zip, CCTV, field_recording)."
+          },
+          "recorded_timestamp": {
+            "type": ["string", "null"],
+            "description": "Thời điểm ghi hình (ISO 8601) nếu biết, null nếu không có metadata gốc."
+          },
+          "fps": {
+            "type": ["number", "null"],
+            "minimum": 1.0,
+            "maximum": 120.0,
+            "description": "Tốc độ khung hình thực tế của video sau khi probe."
+          },
+          "resolution": {
+            "type": ["object", "null"],
+            "properties": {
+              "width": { "type": "integer", "minimum": 1 },
+              "height": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["width", "height"]
+          },
+          "duration_seconds": {
+            "type": ["number", "null"],
+            "minimum": 0.0
+          },
+          "frame_count": {
+            "type": ["integer", "null"],
+            "minimum": 1
+          },
+          "label_status": {
+            "type": "string",
+            "enum": [
+              "unlabeled",
+              "auto_labeled",
+              "verified_ground_truth"
+            ],
+            "description": "Trạng thái nhãn: chưa gán nhãn, đã gán nhãn tự động, hoặc đã được chuyên viên thẩm định."
+          },
+          "split": {
+            "type": "string",
+            "enum": ["train", "val", "test", "unassigned"],
+            "description": "Phân chia tập dữ liệu để tránh rò rỉ (leakage). Phân chia theo toàn bộ video clip."
+          },
+          "notes": {
+            "type": ["string", "null"]
+          }
+        }
+      }
+    }
+  }
+}

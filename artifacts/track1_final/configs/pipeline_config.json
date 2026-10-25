@@ -1,0 +1,47 @@
+{
+  "pipeline_name": "AIC21_Track1_Vehicle_Counting_Pipeline",
+  "version": "8.0.0-final",
+  "default_mode": "baseline_heuristic",
+  "detector": {
+    "model_path": "models/detector.onnx",
+    "architecture": "YOLOv8n",
+    "input_tensor": "images [1, 3, 640, 640]",
+    "output_tensor": "output0 [1, 84, 8400]",
+    "confidence_threshold": 0.35,
+    "iou_threshold": 0.45,
+    "class_mapping": {
+      "coco_2_car": 1,
+      "coco_7_truck": 2,
+      "coco_5_bus": 2
+    },
+    "ignored_classes": ["motorcycle (3)", "bicycle (1)"]
+  },
+  "tracker": {
+    "max_track_age_frames": 10,
+    "min_travel_distance_pixels": 35.0,
+    "min_roi_frames": 3,
+    "boundary_exit_distance_threshold": 90.0,
+    "min_significant_journey_pixels": 120.0
+  },
+  "movement_assignment": {
+    "production_default": "geometric_heuristic_vector_alignment",
+    "experimental_ml_model": "artifacts/track1_final/models/movement_classifier_train_only.pkl",
+    "experimental_ml_retrained_all": "artifacts/track1_final/models/movement_classifier_retrained_all.pkl",
+    "features_dimension": 15,
+    "feature_names": [
+      "x_start_norm", "y_start_norm", "x_end_norm", "y_end_norm",
+      "dx_norm", "dy_norm", "travel_dist_norm", "cos_angle", "sin_angle",
+      "duration_frames", "avg_speed_norm", "x_mid_norm", "y_mid_norm",
+      "mean_box_w_norm", "mean_box_h_norm"
+    ]
+  },
+  "counting_calibration": {
+    "calibration_file": "artifacts/track1_final/models/counting_calibration_train_only.json",
+    "calibration_scope": "train_only (frames <= 350)"
+  },
+  "evaluation_parameters": {
+    "temporal_tolerance_frames": 15,
+    "temporal_tolerance_seconds": 1.5,
+    "bipartite_matching": "Hungarian_linear_sum_assignment"
+  }
+}

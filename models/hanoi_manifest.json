@@ -1,0 +1,26 @@
+{
+  "version": "v2.0-hanoi-forecast",
+  "type": "multi-horizon",
+  "model_format": "onnx",
+  "sequence_length": 30,
+  "features": [
+    "car_count",
+    "moto_count",
+    "total_vehicles",
+    "avg_speed",
+    "occupancy",
+    "speed_cv",
+    "brightness",
+    "contrast",
+    "saturation"
+  ],
+  "horizons_seconds": [
+    5,
+    10,
+    15
+  ],
+  "classes": [
+    "Thong_thoang",
+    "Tac_duong"
+  ]
+}

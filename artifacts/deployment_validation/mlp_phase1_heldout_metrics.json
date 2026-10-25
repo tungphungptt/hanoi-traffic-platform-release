@@ -1,0 +1,110 @@
+{
+  "interval": "frames [351, 600]",
+  "total_ground_truth": 47,
+  "total_predicted": 53,
+  "gt_classes": {
+    "car": 44,
+    "truck": 3
+  },
+  "pred_classes": {
+    "car": 50,
+    "truck": 3
+  },
+  "count_difference": 6,
+  "strict_matching": {
+    "tp": 41,
+    "fp": 12,
+    "fn": 6,
+    "precision": 0.7736,
+    "recall": 0.8723,
+    "f1_score": 0.82,
+    "wrong_movement_count": 5
+  },
+  "count_only_matching": {
+    "tp": 46,
+    "fp": 7,
+    "fn": 1,
+    "precision": 0.8679,
+    "recall": 0.9787,
+    "f1_score": 0.92
+  },
+  "movement_metrics": {
+    "mae_active_movements": 2.5714,
+    "rmse_active_movements": 3.2071,
+    "mae_all_12_movements": 1.5,
+    "rmse_all_12_movements": 2.4495,
+    "active_movements_list": [
+      2,
+      3,
+      4,
+      5,
+      7,
+      10,
+      11
+    ]
+  },
+  "movement_breakdown": {
+    "1": {
+      "ground_truth": 0,
+      "predicted": 0,
+      "error": 0
+    },
+    "2": {
+      "ground_truth": 0,
+      "predicted": 4,
+      "error": 4
+    },
+    "3": {
+      "ground_truth": 0,
+      "predicted": 1,
+      "error": 1
+    },
+    "4": {
+      "ground_truth": 2,
+      "predicted": 8,
+      "error": 6
+    },
+    "5": {
+      "ground_truth": 23,
+      "predicted": 19,
+      "error": -4
+    },
+    "6": {
+      "ground_truth": 0,
+      "predicted": 0,
+      "error": 0
+    },
+    "7": {
+      "ground_truth": 1,
+      "predicted": 0,
+      "error": -1
+    },
+    "8": {
+      "ground_truth": 0,
+      "predicted": 0,
+      "error": 0
+    },
+    "9": {
+      "ground_truth": 0,
+      "predicted": 0,
+      "error": 0
+    },
+    "10": {
+      "ground_truth": 1,
+      "predicted": 0,
+      "error": -1
+    },
+    "11": {
+      "ground_truth": 20,
+      "predicted": 21,
+      "error": 1
+    },
+    "12": {
+      "ground_truth": 0,
+      "predicted": 0,
+      "error": 0
+    }
+  },
+  "unmatched_gt_count": 6,
+  "unmatched_pred_count": 12
+}

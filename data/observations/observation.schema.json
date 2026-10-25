@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/hanoi-traffic/observation.schema.json",
+  "title": "Hanoi Traffic Observation Window",
+  "description": "Schema for one time window of measured, per-camera traffic features. Do not use demo fixtures as training records.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "camera_id", "window_start", "window_end", "counts", "flow", "speed", "density", "quality"],
+  "properties": {
+    "schema_version": {"const": "hanoi-traffic-observation/1.0"},
+    "camera_id": {"type": "string", "minLength": 1, "maxLength": 64},
+    "window_start": {"type": "string", "format": "date-time"},
+    "window_end": {"type": "string", "format": "date-time"},
+    "calibration_id": {"type": ["string", "null"], "maxLength": 128},
+    "detector_version": {"type": ["string", "null"], "maxLength": 128},
+    "tracker_version": {"type": ["string", "null"], "maxLength": 128},
+    "counts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["car", "motorcycle", "bus", "truck"],
+      "properties": {
+        "car": {"type": "integer", "minimum": 0},
+        "motorcycle": {"type": "integer", "minimum": 0},
+        "bus": {"type": "integer", "minimum": 0},
+        "truck": {"type": "integer", "minimum": 0}
+      }
+    },
+    "flow": {
+      "type": "object", "additionalProperties": false,
+      "required": ["pcu_equivalent_per_minute"],
+      "properties": {"pcu_equivalent_per_minute": {"type": "number", "minimum": 0}}
+    },
+    "speed": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mean_kmh", "std_kmh", "cv_ratio", "calibrated_sample_count"],
+      "properties": {
+        "mean_kmh": {"type": ["number", "null"], "minimum": 0, "maximum": 180},
+        "std_kmh": {"type": ["number", "null"], "minimum": 0, "maximum": 180},
+        "cv_ratio": {"type": ["number", "null"], "minimum": 0},
+        "calibrated_sample_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "density": {
+      "type": "object", "additionalProperties": false,
+      "required": ["linear_vehicle_per_km", "areal_occupancy"],
+      "properties": {
+        "linear_vehicle_per_km": {"type": ["number", "null"], "minimum": 0},
+        "areal_occupancy": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      }
+    },
+    "quality": {
+      "type": "object", "additionalProperties": false,
+      "required": ["is_synthetic", "used_fallback", "frame_count", "notes"],
+      "properties": {
+        "is_synthetic": {"type": "boolean"},
+        "used_fallback": {"type": "boolean"},
+        "frame_count": {"type": "integer", "minimum": 0},
+        "notes": {"type": "array", "items": {"type": "string", "maxLength": 500}, "maxItems": 50}
+      }
+    }
+  }
+}

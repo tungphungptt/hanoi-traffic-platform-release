@@ -1,0 +1,29 @@
+{
+  "camera_id": "cam_5",
+  "resolution": [1280, 960],
+  "fps": 10.0,
+  "roi_polygon_file": "AIC21_Track1_Vehicle_Counting/ROIs/cam_5.txt",
+  "roi_vertices": [
+    [1, 277],
+    [548, 126],
+    [709, 137],
+    [1278, 609],
+    [711, 959],
+    [0, 956]
+  ],
+  "movements_count": 12,
+  "movements": [
+    {"movement_id": 1, "name": "Appr1_RightTurn", "start": [115.0, 260.0], "end": [45.0, 370.0]},
+    {"movement_id": 2, "name": "Appr1_Through", "start": [180.0, 225.0], "end": [850.0, 670.0]},
+    {"movement_id": 3, "name": "Appr1_LeftTurn", "start": [240.0, 220.0], "end": [900.0, 170.0]},
+    {"movement_id": 4, "name": "Appr2_RightTurn", "start": [560.0, 140.0], "end": [260.0, 160.0]},
+    {"movement_id": 5, "name": "Appr2_Through", "start": [650.0, 140.0], "end": [45.0, 370.0]},
+    {"movement_id": 6, "name": "Appr2_LeftTurn", "start": [675.0, 160.0], "end": [650.0, 700.0]},
+    {"movement_id": 7, "name": "Appr3_RightTurn", "start": [900.0, 315.0], "end": [920.0, 180.0]},
+    {"movement_id": 8, "name": "Appr3_Through", "start": [990.0, 460.0], "end": [250.0, 180.0]},
+    {"movement_id": 9, "name": "Appr3_LeftTurn", "start": [965.0, 535.0], "end": [100.0, 750.0]},
+    {"movement_id": 10, "name": "Appr4_RightTurn", "start": [100.0, 835.0], "end": [700.0, 830.0]},
+    {"movement_id": 11, "name": "Appr4_Through", "start": [60.0, 670.0], "end": [900.0, 170.0]},
+    {"movement_id": 12, "name": "Appr4_LeftTurn", "start": [50.0, 580.0], "end": [250.0, 200.0]}
+  ]
+}

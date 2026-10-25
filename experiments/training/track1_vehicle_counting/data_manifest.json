@@ -1,0 +1,22 @@
+{
+  "manifest_version": "track1-experiment-manifest/1.0",
+  "experiment_id": "EXP-TRACK1-COUNTING-BASELINE",
+  "dataset": "AIC21_Track1_Vehicle_Counting",
+  "videos": [
+    {
+      "video_id": "AIC21-CAM5",
+      "video_clip_id": 10,
+      "relative_path": "AIC21_Track1_Vehicle_Counting/Dataset_A/cam_5.mp4",
+      "camera": "cam_5",
+      "roi_file": "AIC21_Track1_Vehicle_Counting/ROIs/cam_5.txt",
+      "fps": 10.0,
+      "total_frames": 18000,
+      "ground_truth_available": true,
+      "ground_truth_scope": "first 600 frames (60.0s / 1 min)",
+      "ground_truth_file": "AIC21_Track1_Vehicle_Counting/counting_gt_sample/counting_example_cam_5_1min.csv",
+      "ground_truth_events_count": 96,
+      "split": "test_reference"
+    }
+  ],
+  "note": "Only the first minute of cam_5.mp4 has reference ground truth in the AIC21 package. All other videos and remaining 29 minutes of cam_5 do not have official public counting labels."
+}

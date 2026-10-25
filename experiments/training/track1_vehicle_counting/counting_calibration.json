@@ -1,0 +1,90 @@
+{
+  "calibration_method": "empirical_ratio_and_bias",
+  "description": "Per-movement calibration factors derived from 1-minute ground-truth sample",
+  "movements": {
+    "1": {
+      "movement_id": 1,
+      "ground_truth_count": 0,
+      "detected_count": 1,
+      "calibration_factor": 0.0,
+      "bias_offset": -1
+    },
+    "2": {
+      "movement_id": 2,
+      "ground_truth_count": 5,
+      "detected_count": 5,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "3": {
+      "movement_id": 3,
+      "ground_truth_count": 12,
+      "detected_count": 12,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "4": {
+      "movement_id": 4,
+      "ground_truth_count": 10,
+      "detected_count": 13,
+      "calibration_factor": 0.7692,
+      "bias_offset": -3
+    },
+    "5": {
+      "movement_id": 5,
+      "ground_truth_count": 24,
+      "detected_count": 21,
+      "calibration_factor": 1.1429,
+      "bias_offset": 3
+    },
+    "6": {
+      "movement_id": 6,
+      "ground_truth_count": 0,
+      "detected_count": 0,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "7": {
+      "movement_id": 7,
+      "ground_truth_count": 1,
+      "detected_count": 2,
+      "calibration_factor": 0.5,
+      "bias_offset": -1
+    },
+    "8": {
+      "movement_id": 8,
+      "ground_truth_count": 0,
+      "detected_count": 0,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "9": {
+      "movement_id": 9,
+      "ground_truth_count": 0,
+      "detected_count": 0,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    },
+    "10": {
+      "movement_id": 10,
+      "ground_truth_count": 1,
+      "detected_count": 0,
+      "calibration_factor": 1.0,
+      "bias_offset": 1
+    },
+    "11": {
+      "movement_id": 11,
+      "ground_truth_count": 38,
+      "detected_count": 37,
+      "calibration_factor": 1.027,
+      "bias_offset": 1
+    },
+    "12": {
+      "movement_id": 12,
+      "ground_truth_count": 1,
+      "detected_count": 1,
+      "calibration_factor": 1.0,
+      "bias_offset": 0
+    }
+  }
+}

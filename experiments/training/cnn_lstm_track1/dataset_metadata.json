@@ -1,0 +1,940 @@
+{
+  "total_samples": 92,
+  "crops_shape": [
+    92,
+    20,
+    3,
+    64,
+    64
+  ],
+  "kinematics_shape": [
+    92,
+    20,
+    9
+  ],
+  "max_seq_len": 20,
+  "crop_size": 64,
+  "kinematics_dim": 9,
+  "records": [
+    {
+      "track_id": 3,
+      "exit_frame": 11,
+      "gt_frame": 15,
+      "true_gt_mov": 3,
+      "heuristic_mov": 3,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 6,
+      "exit_frame": 14,
+      "gt_frame": 19,
+      "true_gt_mov": 4,
+      "heuristic_mov": 4,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 2,
+      "exit_frame": 31,
+      "gt_frame": 33,
+      "true_gt_mov": 2,
+      "heuristic_mov": 2,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 13,
+      "exit_frame": 35,
+      "gt_frame": 37,
+      "true_gt_mov": 3,
+      "heuristic_mov": 3,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 1,
+      "exit_frame": 43,
+      "gt_frame": 45,
+      "true_gt_mov": 3,
+      "heuristic_mov": 3,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 7,
+      "exit_frame": 39,
+      "gt_frame": 47,
+      "true_gt_mov": 2,
+      "heuristic_mov": 2,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 5,
+      "exit_frame": 38,
+      "gt_frame": 47,
+      "true_gt_mov": 3,
+      "heuristic_mov": 3,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 9,
+      "exit_frame": 45,
+      "gt_frame": 49,
+      "true_gt_mov": 4,
+      "heuristic_mov": 4,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 8,
+      "exit_frame": 60,
+      "gt_frame": 65,
+      "true_gt_mov": 3,
+      "heuristic_mov": 3,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 10,
+      "exit_frame": 69,
+      "gt_frame": 69,
+      "true_gt_mov": 3,
+      "heuristic_mov": 3,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 22,
+      "exit_frame": 70,
+      "gt_frame": 71,
+      "true_gt_mov": 4,
+      "heuristic_mov": 4,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 26,
+      "exit_frame": 69,
+      "gt_frame": 75,
+      "true_gt_mov": 2,
+      "heuristic_mov": 2,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 16
+    },
+    {
+      "track_id": 12,
+      "exit_frame": 66,
+      "gt_frame": 75,
+      "true_gt_mov": 3,
+      "heuristic_mov": 3,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 15,
+      "exit_frame": 76,
+      "gt_frame": 81,
+      "true_gt_mov": 3,
+      "heuristic_mov": 3,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 17,
+      "exit_frame": 86,
+      "gt_frame": 93,
+      "true_gt_mov": 2,
+      "heuristic_mov": 2,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 21,
+      "exit_frame": 100,
+      "gt_frame": 105,
+      "true_gt_mov": 3,
+      "heuristic_mov": 3,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 31,
+      "exit_frame": 119,
+      "gt_frame": 109,
+      "true_gt_mov": 3,
+      "heuristic_mov": 3,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 27,
+      "exit_frame": 109,
+      "gt_frame": 113,
+      "true_gt_mov": 4,
+      "heuristic_mov": 4,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 19,
+      "exit_frame": 108,
+      "gt_frame": 117,
+      "true_gt_mov": 2,
+      "heuristic_mov": 2,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 24,
+      "exit_frame": 122,
+      "gt_frame": 123,
+      "true_gt_mov": 3,
+      "heuristic_mov": 3,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 36,
+      "exit_frame": 181,
+      "gt_frame": 185,
+      "true_gt_mov": 4,
+      "heuristic_mov": 4,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 34,
+      "exit_frame": 203,
+      "gt_frame": 207,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 42,
+      "exit_frame": 216,
+      "gt_frame": 219,
+      "true_gt_mov": 12,
+      "heuristic_mov": 12,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 48,
+      "exit_frame": 226,
+      "gt_frame": 229,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 49,
+      "exit_frame": 230,
+      "gt_frame": 233,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 43,
+      "exit_frame": 232,
+      "gt_frame": 241,
+      "true_gt_mov": 4,
+      "heuristic_mov": 4,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 52,
+      "exit_frame": 245,
+      "gt_frame": 245,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 50,
+      "exit_frame": 242,
+      "gt_frame": 249,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 53,
+      "exit_frame": 251,
+      "gt_frame": 261,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 54,
+      "exit_frame": 263,
+      "gt_frame": 267,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 59,
+      "exit_frame": 274,
+      "gt_frame": 277,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 55,
+      "exit_frame": 276,
+      "gt_frame": 277,
+      "true_gt_mov": 4,
+      "heuristic_mov": 4,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 57,
+      "exit_frame": 278,
+      "gt_frame": 281,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 60,
+      "exit_frame": 285,
+      "gt_frame": 289,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 62,
+      "exit_frame": 292,
+      "gt_frame": 295,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 64,
+      "exit_frame": 301,
+      "gt_frame": 305,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 66,
+      "exit_frame": 308,
+      "gt_frame": 311,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 45,
+      "exit_frame": 308,
+      "gt_frame": 311,
+      "true_gt_mov": 4,
+      "heuristic_mov": 4,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 67,
+      "exit_frame": 314,
+      "gt_frame": 317,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 70,
+      "exit_frame": 322,
+      "gt_frame": 325,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 74,
+      "exit_frame": 327,
+      "gt_frame": 331,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 68,
+      "exit_frame": 338,
+      "gt_frame": 339,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 61,
+      "exit_frame": 335,
+      "gt_frame": 343,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 78,
+      "exit_frame": 346,
+      "gt_frame": 347,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 77,
+      "exit_frame": 344,
+      "gt_frame": 349,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 76,
+      "exit_frame": 353,
+      "gt_frame": 359,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 81,
+      "exit_frame": 365,
+      "gt_frame": 369,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 82,
+      "exit_frame": 370,
+      "gt_frame": 375,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 85,
+      "exit_frame": 382,
+      "gt_frame": 385,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 89,
+      "exit_frame": 393,
+      "gt_frame": 399,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 96,
+      "exit_frame": 408,
+      "gt_frame": 411,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 94,
+      "exit_frame": 406,
+      "gt_frame": 417,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 102,
+      "exit_frame": 422,
+      "gt_frame": 425,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 104,
+      "exit_frame": 425,
+      "gt_frame": 429,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 101,
+      "exit_frame": 429,
+      "gt_frame": 433,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 107,
+      "exit_frame": 437,
+      "gt_frame": 441,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 109,
+      "exit_frame": 439,
+      "gt_frame": 445,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 111,
+      "exit_frame": 447,
+      "gt_frame": 451,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 117,
+      "exit_frame": 453,
+      "gt_frame": 457,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 120,
+      "exit_frame": 463,
+      "gt_frame": 467,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 124,
+      "exit_frame": 476,
+      "gt_frame": 471,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 118,
+      "exit_frame": 470,
+      "gt_frame": 475,
+      "true_gt_mov": 4,
+      "heuristic_mov": 4,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 121,
+      "exit_frame": 474,
+      "gt_frame": 477,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 122,
+      "exit_frame": 473,
+      "gt_frame": 479,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 126,
+      "exit_frame": 485,
+      "gt_frame": 487,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 123,
+      "exit_frame": 483,
+      "gt_frame": 489,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 127,
+      "exit_frame": 497,
+      "gt_frame": 491,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 128,
+      "exit_frame": 492,
+      "gt_frame": 495,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 131,
+      "exit_frame": 508,
+      "gt_frame": 503,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 129,
+      "exit_frame": 504,
+      "gt_frame": 507,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 130,
+      "exit_frame": 508,
+      "gt_frame": 513,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 132,
+      "exit_frame": 521,
+      "gt_frame": 513,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 134,
+      "exit_frame": 533,
+      "gt_frame": 527,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 135,
+      "exit_frame": 533,
+      "gt_frame": 537,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 136,
+      "exit_frame": 538,
+      "gt_frame": 543,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 139,
+      "exit_frame": 551,
+      "gt_frame": 545,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 140,
+      "exit_frame": 548,
+      "gt_frame": 551,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 138,
+      "exit_frame": 558,
+      "gt_frame": 555,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 143,
+      "exit_frame": 559,
+      "gt_frame": 565,
+      "true_gt_mov": 4,
+      "heuristic_mov": 4,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 141,
+      "exit_frame": 565,
+      "gt_frame": 567,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 142,
+      "exit_frame": 577,
+      "gt_frame": 569,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 145,
+      "exit_frame": 575,
+      "gt_frame": 577,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 146,
+      "exit_frame": 584,
+      "gt_frame": 587,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 103,
+      "exit_frame": 599,
+      "gt_frame": 589,
+      "true_gt_mov": 5,
+      "heuristic_mov": 5,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 137,
+      "exit_frame": 585,
+      "gt_frame": 591,
+      "true_gt_mov": 7,
+      "heuristic_mov": 7,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 148,
+      "exit_frame": 591,
+      "gt_frame": 593,
+      "true_gt_mov": 11,
+      "heuristic_mov": 11,
+      "cls": 1,
+      "match_type": "EXACT_MATCH",
+      "seq_len": 20
+    },
+    {
+      "track_id": 38,
+      "exit_frame": 145,
+      "gt_frame": 143,
+      "true_gt_mov": 3,
+      "heuristic_mov": 7,
+      "cls": 1,
+      "match_type": "WRONG_MOVEMENT",
+      "seq_len": 18
+    },
+    {
+      "track_id": 92,
+      "exit_frame": 372,
+      "gt_frame": 361,
+      "true_gt_mov": 5,
+      "heuristic_mov": 4,
+      "cls": 1,
+      "match_type": "WRONG_MOVEMENT",
+      "seq_len": 4
+    },
+    {
+      "track_id": 98,
+      "exit_frame": 402,
+      "gt_frame": 413,
+      "true_gt_mov": 11,
+      "heuristic_mov": 3,
+      "cls": 2,
+      "match_type": "WRONG_MOVEMENT",
+      "seq_len": 20
+    },
+    {
+      "track_id": 113,
+      "exit_frame": 424,
+      "gt_frame": 425,
+      "true_gt_mov": 5,
+      "heuristic_mov": 4,
+      "cls": 2,
+      "match_type": "WRONG_MOVEMENT",
+      "seq_len": 5
+    },
+    {
+      "track_id": 110,
+      "exit_frame": 448,
+      "gt_frame": 451,
+      "true_gt_mov": 10,
+      "heuristic_mov": 4,
+      "cls": 1,
+      "match_type": "WRONG_MOVEMENT",
+      "seq_len": 20
+    },
+    {
+      "track_id": 112,
+      "exit_frame": 465,
+      "gt_frame": 465,
+      "true_gt_mov": 5,
+      "heuristic_mov": 1,
+      "cls": 1,
+      "match_type": "WRONG_MOVEMENT",
+      "seq_len": 20
+    }
+  ]
+}
