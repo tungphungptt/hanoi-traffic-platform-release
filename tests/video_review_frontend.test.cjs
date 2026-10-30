@@ -18,7 +18,7 @@ function setup() {
       send(body){this.body=body;requests.push(this);}
     },fetch:async()=>response({status:'succeeded',result:{frames:[]}})});
   vm.runInContext(source,context);
-  vm.runInContext('state.aiccStatus={video_review_enabled:true,upload_limit_bytes:524288000,upload_limit_mb:500,upload_max_duration_seconds:360}; toast=()=>{}; renderScenarioReview=result=>{state.scenarioResult=result;};',context);
+  vm.runInContext('state.aiccStatus={video_review_enabled:true,upload_limit_bytes:524288000,upload_limit_mb:500,upload_max_duration_seconds:360}; toast=()=>{};',context);
   el('#scenarioVideoFile').files=[new Blob(['clip'])];
   return {context,el,requests,storage,run:code=>vm.runInContext(code,context)};
 }
@@ -177,4 +177,33 @@ test('API polling errors preserve HTTP status and requests have a deadline',asyn
   }
   context.fetch=(_, {signal})=>new Promise((resolve,reject)=>signal.addEventListener('abort',()=>reject(new Error('aborted'))));
   await assert.rejects(run("api('/test',{timeoutMs:1})"),/quá thời gian/);
+});
+
+test('cached review shows its badge and draws valid vehicle boxes only',()=>{
+  const {run,el}=setup();
+  run(`renderScenarioReview({is_cached:true,frames:[{url:'/frame.jpg',timestamp_seconds:1,state_label:'Thông thoáng',bboxes:[[10,20,30,40,2]],image_width:960,image_height:540}]})`);
+  assert.equal(el('#precomputedBadge').hidden,false);
+  assert.match(el('#scenarioFrameGallery').innerHTML,/scenario-bbox-overlay/);
+  assert.match(el('#scenarioFrameGallery').innerHTML,/bbox-class-2/);
+  run(`renderScenarioReview({is_cached:false,frames:[{url:'/frame.jpg',bboxes:[]}]})`);
+  assert.equal(el('#precomputedBadge').hidden,true);
+  assert.doesNotMatch(el('#scenarioFrameGallery').innerHTML,/scenario-bbox-overlay/);
+});
+
+test('malformed cache JSON produces a friendly message in the page',async()=>{
+  const {context,run,el,requests}=setup();
+  context.fetch=async()=>({ok:true,status:200,text:async()=>'{broken cache json'});
+  const pending=run('startScenarioReview()');
+  accept(requests[0]);
+  await pending;
+  assert.match(el('#scenarioJobStatus').textContent,/Dữ liệu phân tích bị lỗi định dạng hoặc hỏng cache/);
+  assert.equal(run('state.scenarioPendingJobId'),null);
+});
+
+test('live prediction requests use a two-minute client timeout by default',async()=>{
+  const {context,run}=setup();
+  const delays=[];
+  context.setTimeout=(callback,delay)=>{delays.push(delay);return setTimeout(callback,0);};
+  await run("api('/api/v1/predict',{method:'POST'})");
+  assert.ok(delays.includes(120000));
 });

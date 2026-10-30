@@ -10,7 +10,8 @@ function canAnalyzeUploadedScenarioVideo() {
 const PAGE_NAMES = { overview: 'Tổng quan', cameras: 'Điểm giám sát', alerts: 'Cảnh báo', analytics: 'Báo cáo & xu hướng', video: 'Dự báo & phương án', models: 'Nguồn xử lý', settings: 'Cài đặt vận hành' };
 
 async function api(path, options = {}) {
-  const { timeoutMs = 30000, ...requestOptions } = options;
+  const defaultTimeoutMs = path === '/api/v1/predict' ? 120000 : 30000;
+  const { timeoutMs = defaultTimeoutMs, ...requestOptions } = options;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -19,8 +20,9 @@ async function api(path, options = {}) {
     let payload;
     try { payload = raw ? JSON.parse(raw) : {}; }
     catch {
-      const error = new Error(`Máy chủ trả phản hồi không phải JSON (HTTP ${response.status}).`);
+      const error = new Error('Dữ liệu phân tích bị lỗi định dạng hoặc hỏng cache. Hãy tải lại trang và thử lại; nếu vẫn lỗi, vui lòng báo quản trị viên.');
       error.status = response.status;
+      error.code = 'invalid_json';
       throw error;
     }
     if (!response.ok) {
@@ -1003,8 +1005,13 @@ function routePointFromCamera(cameraId) {
 }
 
 function renderScenarioReview(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) {
+    throw new Error('Dữ liệu phân tích không hợp lệ. Hãy tải lại trang và thử lại.');
+  }
   state.scenarioResult = result;
   state.scenarioJobId = result.job_id || state.scenarioJobId;
+  const cachedBadge = $('#precomputedBadge');
+  if (cachedBadge) cachedBadge.hidden = result.is_cached !== true;
   const summary = result.summary || {};
   $('#scenarioCurrentState').textContent = summary.current_state || '—';
   $('#scenarioCurrentCI').textContent = summary.current_ci == null ? '—' : numberVN(summary.current_ci, 2);
@@ -1041,13 +1048,15 @@ function renderScenarioReview(result) {
     hanoiBadge.className = 'status-tag';
     hanoiText.textContent = hanoiForecast.message || 'LSTM cần ít nhất 30 giây clip được lấy mẫu ở 1 frame/giây.';
   }
-  const frames = result.frames || [];
+  const frames = Array.isArray(result.frames) ? result.frames.filter(frame => frame && typeof frame === 'object') : [];
   const gallery = $('#scenarioFrameGallery');
   gallery.innerHTML = frames.length ? frames.map(frame => {
     const tone = frame.state_key === 'free' ? 'free' : frame.state_key === 'busy' ? 'busy' : 'heavy';
     const rawNote = (frame.raw_state_label && frame.raw_state_label !== frame.state_label) ? ` <small class="text-muted">(thô: ${escapeHtml(frame.raw_state_label)})</small>` : '';
     const confNote = frame.model_confidence != null ? ` · tin cậy: ${numberVN(frame.model_confidence * 100, 0)}%` : '';
-    return `<article class="scenario-frame-card"><a class="scenario-frame-image" href="${escapeHtml(frame.url)}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(frame.url)}" alt="Khung hình ${numberVN(frame.timestamp_seconds, 1)} giây · ${escapeHtml(frame.state_label)}"></a><div class="scenario-frame-copy"><div class="scenario-frame-head"><strong>${escapeHtml(frame.state_label)}</strong>${rawNote}<span class="scenario-state-dot ${tone}"></span></div><small>t = ${numberVN(frame.timestamp_seconds, 1)} giây · CI ${numberVN(frame.ci, 2)}</small><small>${numberVN(frame.vehicle_count)} xe phát hiện · chiếm dụng ảnh ${numberVN((frame.occupancy_ratio || 0) * 100, 1)}%${confNote}</small></div></article>`;
+    const bboxes = renderBoundingBoxes(frame.bboxes, frame.image_width || frame.width, frame.image_height || frame.height);
+    const overlayClass = bboxes ? ' has-bboxes' : '';
+    return `<article class="scenario-frame-card"><a class="scenario-frame-image${overlayClass}" href="${escapeHtml(frame.url)}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(frame.url)}" alt="Khung hình ${numberVN(frame.timestamp_seconds, 1)} giây · ${escapeHtml(frame.state_label)}">${bboxes}</a><div class="scenario-frame-copy"><div class="scenario-frame-head"><strong>${escapeHtml(frame.state_label)}</strong>${rawNote}<span class="scenario-state-dot ${tone}"></span></div><small>t = ${numberVN(frame.timestamp_seconds, 1)} giây · CI ${numberVN(frame.ci, 2)}</small><small>${numberVN(frame.vehicle_count)} xe phát hiện · chiếm dụng ảnh ${numberVN((frame.occupancy_ratio || 0) * 100, 1)}%${confNote}</small></div></article>`;
   }).join('') : '<div class="empty-state">Không có ảnh minh chứng trong kết quả.</div>';
   $('#scenarioExportBtn').disabled = !frames.length;
   $('#scenarioJobStatus').textContent = `${result.filename || 'Video'} đã xử lý xong. Nhãn ảnh là baseline thị giác; không phải xác nhận từ camera trực tiếp.`;
@@ -1055,6 +1064,21 @@ function renderScenarioReview(result) {
   if (result.source_camera_id && $('#scenarioOriginSelect').value !== result.source_camera_id) {
     $('#scenarioNotice').innerHTML = '<span class="notice-icon">i</span><span>Clip được gán cho một camera khác với điểm đi hiện chọn. Chọn đúng điểm A nếu muốn đính kèm bối cảnh video vào so sánh tuyến.</span>';
   }
+}
+
+function renderBoundingBoxes(bboxes, imageWidth = 960, imageHeight = 540) {
+  if (!Array.isArray(bboxes) || bboxes.length === 0) return '';
+  const width = Number(imageWidth);
+  const height = Number(imageHeight);
+  const viewWidth = Number.isFinite(width) && width > 0 ? width : 960;
+  const viewHeight = Number.isFinite(height) && height > 0 ? height : 540;
+  const rectangles = bboxes.filter(box => Array.isArray(box) && box.length >= 5).flatMap(box => {
+    const [x, y, boxWidth, boxHeight, classId] = box.map(Number);
+    if (![x, y, boxWidth, boxHeight, classId].every(Number.isFinite) || boxWidth <= 0 || boxHeight <= 0) return [];
+    return [`<rect x="${x}" y="${y}" width="${boxWidth}" height="${boxHeight}" class="bbox-vehicle bbox-class-${classId}"><title>Loại xe ${classId}</title></rect>`];
+  });
+  if (!rectangles.length) return '';
+  return `<svg class="scenario-bbox-overlay" viewBox="0 0 ${viewWidth} ${viewHeight}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${rectangles.join('')}</svg>`;
 }
 
 function videoRequestError(status, raw) {
@@ -1113,6 +1137,10 @@ async function pollScenarioReviewJob(jobId, filename) {
       job = await api(`/api/scenarios/video-reviews/${encodeURIComponent(jobId)}`, {timeoutMs: 15000});
       failures = 0;
     } catch (error) {
+      if (error.code === 'invalid_json') {
+        rememberScenarioJob(null);
+        throw error;
+      }
       if (error.status && error.status < 500) { rememberScenarioJob(null); throw error; }
       failures++;
       $('#scenarioProgressText').textContent = 'Kết nối bị gián đoạn. Đang thử kết nối lại để theo dõi kết quả…';
@@ -1131,7 +1159,10 @@ async function pollScenarioReviewJob(jobId, filename) {
     if (job.status === 'succeeded') {
       rememberScenarioJob(null);
       state.scenarioJobId = jobId;
-      const result = { ...job.result, job_id: jobId };
+      if (!job.result || typeof job.result !== 'object' || Array.isArray(job.result)) {
+        throw new Error('Dữ liệu phân tích trả về không đầy đủ hoặc bị lỗi. Hãy thử tải lại kết quả.');
+      }
+      const result = { ...job.result, job_id: jobId, is_cached: job.is_cached === true || job.result.is_cached === true };
       renderScenarioReview(result);
       $('#scenarioVideoFile').value = '';
       $('#scenarioProgressText').textContent = 'Hoàn tất';

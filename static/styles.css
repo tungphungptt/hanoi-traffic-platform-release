@@ -236,6 +236,16 @@
 @media(max-width:540px){.scenario-inline{grid-template-columns:1fr}.scenario-inline .btn{justify-content:center}.scenario-frame-gallery{grid-template-columns:1fr}.scenario-frame-image{aspect-ratio:16/9}.scenario-forecast-cards{grid-template-columns:1fr 1fr}.scenario-route-top{align-items:flex-start}.scenario-route-top span{font-size:11px}.route-map-title{align-items:flex-start}.route-map-title small{max-width:52%;line-height:1.3}}
 @media(prefers-reduced-motion:reduce){.scenario-progress-bar span,.scenario-frame-image img,.scenario-route-option{transition:none!important}}
 
+.scenario-frame-image{position:relative}
+.scenario-bbox-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.bbox-vehicle{fill:#20c87918;stroke:#27c879;stroke-width:3;vector-effect:non-scaling-stroke}
+.bbox-class-2{stroke:#27c879}
+.bbox-class-3{stroke:#43b7f4}
+.scenario-frame-image.has-bboxes:hover img{transform:none}
+.precomputed-badge{position:fixed;z-index:1200;top:76px;right:22px;padding:9px 13px;border:1px solid #b9ddc0;border-radius:999px;background:#e8f6eb;color:#28723d;font-size:12px;font-weight:700;box-shadow:0 4px 16px #17371d20}
+.precomputed-badge[hidden]{display:none}
+@media(max-width:620px){.precomputed-badge{top:68px;right:12px;max-width:calc(100vw - 24px);font-size:10px}}
+
 /* Final 5: neutral state for reference camera points without validated live telemetry. */
 .hanoi-map-marker.reference{background:#89988e;box-shadow:0 2px 8px #2039272a}
 .legend-dot.reference{background:#89988e}
