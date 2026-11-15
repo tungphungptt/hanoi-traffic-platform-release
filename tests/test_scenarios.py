@@ -281,7 +281,7 @@ def test_camera_telemetry_requires_verified_camera_location(monkeypatch):
 
 
 def test_v5_ui_explains_video_frames_route_candidates_and_hides_legacy_flow_by_default():
-    html = client.get("/").text
+    html = client.get("/dashboard").text
     assert 'id="scenarioFrameGallery"' in html
     assert 'id="scenarioFindRoutesBtn"' in html
     assert 'id="scenarioRouteMap"' in html

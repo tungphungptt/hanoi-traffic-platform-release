@@ -37,6 +37,7 @@ def files_to_hash():
             ("data", "video_reviews"),
             ("data", "diagnostics"),
             ("data", "uploads"),
+            ("data", "forecast_library"),
             ("data", "raw"),
             ("data", "staging"),
             ("data", "processed"),

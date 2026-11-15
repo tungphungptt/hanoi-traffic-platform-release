@@ -108,7 +108,7 @@ def test_public_opt_in_does_not_open_other_writes(monkeypatch):
 
 
 def test_public_ui_has_one_analysis_flow():
-    html = client.get('/').text
+    html = client.get('/dashboard').text
     assert 'id="scenarioVideoFile"' in html
     for removed in ('scenarioDataVideo', 'scenarioAnalyzeDataBtn', 'aiccVideoFile', 'aiccAnalyzeBtn', 'cameraFeedDataSelect'):
         assert f'id="{removed}"' not in html
