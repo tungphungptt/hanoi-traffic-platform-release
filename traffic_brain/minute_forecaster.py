@@ -40,9 +40,11 @@ WARNING_PROBABILITY = 0.40
 METHOD_RIDGE = "online_ridge"
 METHOD_ENSEMBLE = "online_ensemble"
 METHOD_DAMPED = "damped_trend"
+# Only relative features: absolute CI levels differ between cameras, so learning from
+# other videos must rely on how the current state deviates from this road's own level.
 FEATURE_NAMES = (
-    "ci_now",
-    "ci_mean_5m",
+    "ci_dev_running",
+    "ci_dev_5m",
     "ci_slope_3m",
     "ci_slope_10m",
     "ci_dev_10m",
@@ -140,6 +142,15 @@ def _window_mean(values: np.ndarray, end: int, steps: int) -> float:
     return float(chunk.mean()) if chunk.size else float("nan")
 
 
+def _running_mean(values: np.ndarray) -> np.ndarray:
+    """Mean of all finite values up to and including each index (causal)."""
+    finite = np.isfinite(values)
+    sums = np.cumsum(np.where(finite, values, 0.0))
+    counts = np.cumsum(finite)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(counts > 0, sums / np.maximum(counts, 1), np.nan)
+
+
 def compute_features(series: Mapping[str, np.ndarray], *,
                      step_seconds: float = GRID_STEP_SECONDS) -> np.ndarray:
     """Return one causal feature row per grid point (uses indices <= i only)."""
@@ -151,13 +162,15 @@ def compute_features(series: Mapping[str, np.ndarray], *,
     # slopes are on the same order as CI slopes.
     count = series["count"] / 20.0
     motion = series["motion"] / 0.045
+    running = _running_mean(ci)
     for i in range(n):
         if not math.isfinite(ci[i]):
             continue
         mean_10m = _window_mean(ci, i, 10 * per_min)
+        mean_5m = _window_mean(ci, i, 5 * per_min)
         features[i] = (
-            ci[i],
-            _window_mean(ci, i, 5 * per_min),
+            ci[i] - running[i],
+            ci[i] - mean_5m if math.isfinite(mean_5m) else 0.0,
             _slope_per_minute(ci, i, 3 * per_min, step_seconds),
             _slope_per_minute(ci, i, 10 * per_min, step_seconds),
             ci[i] - mean_10m if math.isfinite(mean_10m) else 0.0,
@@ -191,8 +204,11 @@ def _level(ci: float) -> str:
     return level_for_ci(ci)[0]
 
 
-COMPONENTS = ("persistence", "trend", "ridge", "analog")
-DEFAULT_WEIGHTS = {"persistence": 0.6, "trend": 0.4}
+COMPONENTS = ("persistence", "reversion", "trend", "ridge", "analog")
+DEFAULT_WEIGHTS = {"persistence": 0.5, "reversion": 0.5}
+# Traffic at a fixed camera fluctuates around the road's typical level (signal cycles,
+# platoons). The reversion component pulls the forecast back toward that level.
+REVERSION_TAU_MINUTES = 5.0
 MIN_SCORED_ERRORS = 8
 ERROR_MEMORY = 40
 ANALOG_NEIGHBOURS = 5
@@ -227,8 +243,9 @@ def forecast_series(series: Mapping[str, np.ndarray], *,
                     library: Iterable[Mapping[str, np.ndarray]] = ()) -> list[dict[str, Any]]:
     """Make causal forecasts at every anchor and attach the later-observed outcome.
 
-    Each horizon combines four simple forecasters - persistence, damped trend, ridge
-    regression and nearest-neighbour analogs - weighted by the inverse of their own
+    Each horizon combines five simple forecasters - persistence, reversion to the road's
+    running mean, damped trend, ridge regression and nearest-neighbour analogs - weighted
+    by the inverse of their own
     recent errors. An error only counts once its target time has been observed, so
     the weights at time t depend on nothing after t.
 
@@ -245,6 +262,7 @@ def forecast_series(series: Mapping[str, np.ndarray], *,
     horizons = [int(h) for h in horizons_minutes]
     steps_per_min = int(round(60.0 / step_seconds))
     slope_col = FEATURE_NAMES.index("ci_slope_3m")
+    dev_col = FEATURE_NAMES.index("ci_dev_running")
     # Per horizon: grid index -> {component: delta} and final delta, kept to score later.
     library_pairs: dict[int, tuple[np.ndarray, np.ndarray]] = {}
     library_series = [item for item in library if item.get("t") is not None and np.asarray(item["t"]).size]
@@ -284,6 +302,7 @@ def forecast_series(series: Mapping[str, np.ndarray], *,
             components = {
                 "persistence": 0.0,
                 "trend": slope_3m * _damped_minutes(h),
+                "reversion": -float(features[i, dev_col]) * (1.0 - math.exp(-h / REVERSION_TAU_MINUTES)),
             }
             lib_x, lib_d = library_pairs[h]
             train_x = np.vstack([lib_x, features[pairs]]) if pairs else lib_x
@@ -446,6 +465,24 @@ def select_highlights(anchors: list[dict[str, Any]], *, limit: int = 8) -> dict[
     }
 
 
+def video_key(path: Any) -> str | None:
+    """Content fingerprint (size + first/last 4 MiB) so a video never trains on itself."""
+    import hashlib
+    from pathlib import Path
+    try:
+        source = Path(path)
+        size = source.stat().st_size
+        digest = hashlib.sha256(str(size).encode())
+        with source.open("rb") as stream:
+            digest.update(stream.read(4 * 1024 * 1024))
+            if size > 8 * 1024 * 1024:
+                stream.seek(size - 4 * 1024 * 1024)
+                digest.update(stream.read(4 * 1024 * 1024))
+        return digest.hexdigest()[:32]
+    except OSError:
+        return None
+
+
 def series_record(series: Mapping[str, np.ndarray], *, video_key: str, filename: str | None = None) -> dict[str, Any]:
     """JSON-safe copy of an observed series for the cross-video training library."""
     def clean(values: np.ndarray) -> list[float | None]:
@@ -480,9 +517,14 @@ def record_to_series(record: Mapping[str, Any]) -> dict[str, np.ndarray] | None:
 def build_minute_forecast(timeline: Iterable[Mapping[str, Any]], *, duration_seconds: float,
                           timing_confirmed: bool,
                           library: Iterable[Mapping[str, np.ndarray]] = (),
-                          library_videos: int = 0) -> dict[str, Any]:
-    """Full result for the UI: observed series, causal forecasts, backtest, highlights."""
-    series = build_observed_series(timeline)
+                          library_videos: int = 0,
+                          series: Mapping[str, np.ndarray] | None = None) -> dict[str, Any]:
+    """Full result for the UI: observed series, causal forecasts, backtest, highlights.
+
+    ``series`` may be passed instead of ``timeline`` when the observed series is already
+    known (for example a stored library record).
+    """
+    series = build_observed_series(timeline) if series is None else series
     library = list(library)
     needed = WARMUP_SECONDS + HORIZONS_MINUTES[0] * 60.0 + 4 * GRID_STEP_SECONDS
     base: dict[str, Any] = {
@@ -510,8 +552,8 @@ def build_minute_forecast(timeline: Iterable[Mapping[str, Any]], *, duration_sec
             "ridge_lambda": RIDGE_LAMBDA,
             "causal": True,
             "description": (
-                "Tại mỗi thời điểm t, hệ thống chỉ dùng dữ liệu đến t. Bốn bộ dự báo (giữ nguyên, "
-                "xu hướng giảm chấn, hồi quy ridge, tình huống tương tự) được kết hợp theo nghịch đảo "
+                "Tại mỗi thời điểm t, hệ thống chỉ dùng dữ liệu đến t. Năm bộ dự báo (giữ nguyên, "
+                "hồi về mức thường gặp của đoạn đường, xu hướng giảm chấn, hồi quy ridge, tình huống tương tự) được kết hợp theo nghịch đảo "
                 "sai số gần đây của chính chúng; ridge và tình huống tương tự học từ các cặp "
                 "(đặc trưng lúc τ, CI lúc τ+h) có τ+h ≤ t trong video này và từ các video đã phân tích trước."
             ),

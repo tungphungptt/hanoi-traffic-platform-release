@@ -1,0 +1,333 @@
+{
+  "contract": "hanoiflow-forecast-library-report/1.0",
+  "created_at": "2026-11-15T18:50:24+00:00",
+  "protocol": "leave-one-video-out: each video forecast with only the other videos as library; in-video learning is still causal (only data before each anchor).",
+  "warning_probability": 0.4,
+  "videos": [
+    {
+      "filename": "cam_2.mp4",
+      "video_key": "ec265317b963df87a414dc281a2d50eb",
+      "duration_seconds": 1800.0,
+      "source_note": "AI City Challenge 2021 Track 1 Dataset A (academic, non-commercial licence)"
+    },
+    {
+      "filename": "cam_3.mp4",
+      "video_key": "14dceead19e719efebfe120a50fd442d",
+      "duration_seconds": 1800.0,
+      "source_note": "AI City Challenge 2021 Track 1 Dataset A (academic, non-commercial licence)"
+    },
+    {
+      "filename": "cam_6.mp4",
+      "video_key": "87034197f709848ba0c0264a2a96f326",
+      "duration_seconds": 1800.0,
+      "source_note": "AI City Challenge 2021 Track 1 Dataset A (academic, non-commercial licence)"
+    }
+  ],
+  "per_video": [
+    {
+      "video": "cam_2.mp4",
+      "library_videos": 2,
+      "anchors": 108,
+      "metrics": [
+        {
+          "horizon_minutes": 5,
+          "evaluated": 88,
+          "trained_anchors": 61,
+          "mae_model": 0.08713990562331482,
+          "mae_persistence": 0.1036320340909091,
+          "mae_trend": 0.14256300341325343,
+          "rmse_model": 0.10536243475331455,
+          "skill_vs_persistence": 0.15914122126684205,
+          "level_accuracy_model": 0.9318181818181818,
+          "level_accuracy_persistence": 0.8863636363636364,
+          "onset_model": {
+            "true_positive": 0,
+            "false_positive": 0,
+            "false_negative": 0,
+            "recall": null,
+            "precision": null
+          },
+          "onset_trend": {
+            "true_positive": 0,
+            "false_positive": 1,
+            "false_negative": 0,
+            "recall": null,
+            "precision": 0.0
+          },
+          "actual_onsets": 0
+        },
+        {
+          "horizon_minutes": 10,
+          "evaluated": 68,
+          "trained_anchors": 21,
+          "mae_model": 0.08578989720296419,
+          "mae_persistence": 0.10758708823529413,
+          "mae_trend": 0.23065482800043097,
+          "rmse_model": 0.10021363077246351,
+          "skill_vs_persistence": 0.20260043644511727,
+          "level_accuracy_model": 1.0,
+          "level_accuracy_persistence": 0.9264705882352942,
+          "onset_model": {
+            "true_positive": 0,
+            "false_positive": 0,
+            "false_negative": 0,
+            "recall": null,
+            "precision": null
+          },
+          "onset_trend": {
+            "true_positive": 0,
+            "false_positive": 10,
+            "false_negative": 0,
+            "recall": null,
+            "precision": 0.0
+          },
+          "actual_onsets": 0
+        },
+        {
+          "horizon_minutes": 15,
+          "evaluated": 48,
+          "trained_anchors": 0,
+          "mae_model": 0.05164016413859557,
+          "mae_persistence": 0.0664383125,
+          "mae_trend": 0.3447750592948718,
+          "rmse_model": 0.060062385294041204,
+          "skill_vs_persistence": 0.22273516295893925,
+          "level_accuracy_model": 1.0,
+          "level_accuracy_persistence": 0.8958333333333334,
+          "onset_model": {
+            "true_positive": 0,
+            "false_positive": 0,
+            "false_negative": 0,
+            "recall": null,
+            "precision": null
+          },
+          "onset_trend": {
+            "true_positive": 0,
+            "false_positive": 18,
+            "false_negative": 0,
+            "recall": null,
+            "precision": 0.0
+          },
+          "actual_onsets": 0
+        }
+      ],
+      "highlights": {
+        "hits": 0,
+        "misses": 0,
+        "false_alarms": 0
+      }
+    },
+    {
+      "video": "cam_3.mp4",
+      "library_videos": 2,
+      "anchors": 108,
+      "metrics": [
+        {
+          "horizon_minutes": 5,
+          "evaluated": 88,
+          "trained_anchors": 61,
+          "mae_model": 0.08392814393485791,
+          "mae_persistence": 0.09517155681818182,
+          "mae_trend": 0.2334002990645718,
+          "rmse_model": 0.10473424236995409,
+          "skill_vs_persistence": 0.11813837305197827,
+          "level_accuracy_model": 0.3522727272727273,
+          "level_accuracy_persistence": 0.4318181818181818,
+          "onset_model": {
+            "true_positive": 0,
+            "false_positive": 0,
+            "false_negative": 0,
+            "recall": null,
+            "precision": null
+          },
+          "onset_trend": {
+            "true_positive": 0,
+            "false_positive": 15,
+            "false_negative": 0,
+            "recall": null,
+            "precision": 0.0
+          },
+          "actual_onsets": 0
+        },
+        {
+          "horizon_minutes": 10,
+          "evaluated": 68,
+          "trained_anchors": 21,
+          "mae_model": 0.07870748791414968,
+          "mae_persistence": 0.07693380882352942,
+          "mae_trend": 0.2578554167744021,
+          "rmse_model": 0.09386610871439022,
+          "skill_vs_persistence": -0.02305461172069001,
+          "level_accuracy_model": 0.5735294117647058,
+          "level_accuracy_persistence": 0.5294117647058824,
+          "onset_model": {
+            "true_positive": 0,
+            "false_positive": 0,
+            "false_negative": 0,
+            "recall": null,
+            "precision": null
+          },
+          "onset_trend": {
+            "true_positive": 0,
+            "false_positive": 23,
+            "false_negative": 0,
+            "recall": null,
+            "precision": 0.0
+          },
+          "actual_onsets": 0
+        },
+        {
+          "horizon_minutes": 15,
+          "evaluated": 48,
+          "trained_anchors": 0,
+          "mae_model": 0.0947030768510811,
+          "mae_persistence": 0.09986306249999999,
+          "mae_trend": 0.4151322399267399,
+          "rmse_model": 0.1048165334914625,
+          "skill_vs_persistence": 0.05167061293477637,
+          "level_accuracy_model": 0.6041666666666666,
+          "level_accuracy_persistence": 0.5,
+          "onset_model": {
+            "true_positive": 0,
+            "false_positive": 0,
+            "false_negative": 0,
+            "recall": null,
+            "precision": null
+          },
+          "onset_trend": {
+            "true_positive": 0,
+            "false_positive": 22,
+            "false_negative": 0,
+            "recall": null,
+            "precision": 0.0
+          },
+          "actual_onsets": 0
+        }
+      ],
+      "highlights": {
+        "hits": 0,
+        "misses": 0,
+        "false_alarms": 0
+      }
+    },
+    {
+      "video": "cam_6.mp4",
+      "library_videos": 2,
+      "anchors": 108,
+      "metrics": [
+        {
+          "horizon_minutes": 5,
+          "evaluated": 88,
+          "trained_anchors": 61,
+          "mae_model": 0.05252446057193854,
+          "mae_persistence": 0.0595622159090909,
+          "mae_trend": 0.20536109065934066,
+          "rmse_model": 0.06618394891016685,
+          "skill_vs_persistence": 0.11815805086724784,
+          "level_accuracy_model": 0.8068181818181818,
+          "level_accuracy_persistence": 0.7954545454545454,
+          "onset_model": {
+            "true_positive": 0,
+            "false_positive": 2,
+            "false_negative": 12,
+            "recall": 0.0,
+            "precision": 0.0
+          },
+          "onset_trend": {
+            "true_positive": 3,
+            "false_positive": 18,
+            "false_negative": 9,
+            "recall": 0.25,
+            "precision": 0.14285714285714285
+          },
+          "actual_onsets": 12
+        },
+        {
+          "horizon_minutes": 10,
+          "evaluated": 68,
+          "trained_anchors": 21,
+          "mae_model": 0.059190045228091334,
+          "mae_persistence": 0.06416151470588236,
+          "mae_trend": 0.274157390021743,
+          "rmse_model": 0.07171996022024116,
+          "skill_vs_persistence": 0.07748366759388914,
+          "level_accuracy_model": 0.7352941176470589,
+          "level_accuracy_persistence": 0.6911764705882353,
+          "onset_model": {
+            "true_positive": 1,
+            "false_positive": 1,
+            "false_negative": 15,
+            "recall": 0.0625,
+            "precision": 0.5
+          },
+          "onset_trend": {
+            "true_positive": 11,
+            "false_positive": 11,
+            "false_negative": 5,
+            "recall": 0.6875,
+            "precision": 0.5
+          },
+          "actual_onsets": 16
+        },
+        {
+          "horizon_minutes": 15,
+          "evaluated": 48,
+          "trained_anchors": 0,
+          "mae_model": 0.0885936225763553,
+          "mae_persistence": 0.10051929166666666,
+          "mae_trend": 0.3459375425407926,
+          "rmse_model": 0.09789744336805785,
+          "skill_vs_persistence": 0.11864060015323463,
+          "level_accuracy_model": 0.6875,
+          "level_accuracy_persistence": 0.7083333333333334,
+          "onset_model": {
+            "true_positive": 0,
+            "false_positive": 0,
+            "false_negative": 13,
+            "recall": 0.0,
+            "precision": null
+          },
+          "onset_trend": {
+            "true_positive": 7,
+            "false_positive": 8,
+            "false_negative": 6,
+            "recall": 0.5384615384615384,
+            "precision": 0.4666666666666667
+          },
+          "actual_onsets": 13
+        }
+      ],
+      "highlights": {
+        "hits": 1,
+        "misses": 3,
+        "false_alarms": 2
+      }
+    }
+  ],
+  "summary": [
+    {
+      "horizon_minutes": 5,
+      "evaluated": 264,
+      "mae_model": 0.07453083671003709,
+      "mae_persistence": 0.0861219356060606,
+      "mae_trend": 0.19377479771238862,
+      "skill_vs_persistence": 0.1345893913606816
+    },
+    {
+      "horizon_minutes": 10,
+      "evaluated": 204,
+      "mae_model": 0.07456247678173507,
+      "mae_persistence": 0.08289413725490195,
+      "mae_trend": 0.254222544932192,
+      "skill_vs_persistence": 0.10050964699164167
+    },
+    {
+      "horizon_minutes": 15,
+      "evaluated": 144,
+      "mae_model": 0.078312287855344,
+      "mae_persistence": 0.08894022222222223,
+      "mae_trend": 0.3686149472541348,
+      "skill_vs_persistence": 0.11949525311870401
+    }
+  ]
+}
