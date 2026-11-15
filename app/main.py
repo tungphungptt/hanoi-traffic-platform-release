@@ -972,7 +972,12 @@ def _load_forecast_library(exclude_key: str | None) -> list[dict[str, Any]]:
             record = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        parsed = record_to_series(record) if isinstance(record, dict) else None
+        if not isinstance(record, dict):
+            continue
+        # A record cut from a longer recording lists the fingerprints of its source files.
+        if exclude_key and exclude_key in (record.get("source_video_keys") or []):
+            continue
+        parsed = record_to_series(record)
         if parsed is not None:
             seen.add(path.stem)
             series.append(parsed)

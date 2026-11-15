@@ -1,7 +1,7 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 236,
+  "files_count": 248,
   "files": [
     {
       "path": ".env.example",
@@ -35,8 +35,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 23156,
-      "sha256": "82944722e526960a236069e41bd4549f0b5ae28cb8927f659d7df98bef9baaeb"
+      "bytes": 23462,
+      "sha256": "0542bcdf73fbf69d5b83881df08053877959be882a43eecc722eaa6d386128d5"
     },
     {
       "path": "SOURCE_RELEASE_NOTES.md",
@@ -95,8 +95,8 @@
     },
     {
       "path": "app/main.py",
-      "bytes": 114434,
-      "sha256": "1f27ab86cb1df6a377afc29c5b153099d974f1f6d1dfc84b45742c99575358c4"
+      "bytes": 114653,
+      "sha256": "c618c3b10f3ef59956cae432520c5845be5d0cb90cc55f6d489ba7d40589304b"
     },
     {
       "path": "app/public_upload.py",
@@ -775,13 +775,73 @@
     },
     {
       "path": "models/forecast_library/README.md",
-      "bytes": 2720,
-      "sha256": "6889448a5b2528aaf37fcc0150ee48902d5fcb543bbf6a727bd7114a365e51dc"
+      "bytes": 5785,
+      "sha256": "0cb9aa4e5cf6a1d469fa32905b3360ac8de0d7073d1f868c87d24a5698de99bf"
     },
     {
       "path": "models/forecast_library/ec265317b963df87a414dc281a2d50eb.json",
       "bytes": 5613,
       "sha256": "3ee02de033e026d74b881dc9bc3afd4884a4ea98287a1f8db9ba863c8e73f63a"
+    },
+    {
+      "path": "models/forecast_library/hn-cam1-000-scene0.json",
+      "bytes": 2473,
+      "sha256": "160fc793eba01b31b37cb75f8daf5a4b9b05ca09df944efc25aee26cc1fb6687"
+    },
+    {
+      "path": "models/forecast_library/hn-cam1-000-scene2.json",
+      "bytes": 4372,
+      "sha256": "074fc627ca4bd979a1b6352f4882d778874737bb69d9a5ac5475411c6de241e4"
+    },
+    {
+      "path": "models/forecast_library/hn-cam1-000-scene7.json",
+      "bytes": 3433,
+      "sha256": "332036aa221121ab6f4b729066399174b57977efe01329fb38576292529d3565"
+    },
+    {
+      "path": "models/forecast_library/hn-cam1-010-scene2.json",
+      "bytes": 1213,
+      "sha256": "0a4f2c6937ee22a065aa83c96eb26bc643b6406f51ac9c13cfac74c5326ec1a7"
+    },
+    {
+      "path": "models/forecast_library/hn-cam1-020-scene0.json",
+      "bytes": 1297,
+      "sha256": "8726b8be861e1d6dad48c774ba3dd3937b3536e04d8b1c9e973a6357e1e6ea70"
+    },
+    {
+      "path": "models/forecast_library/hn-cam2-000-scene16.json",
+      "bytes": 4723,
+      "sha256": "02ba8d6a5ee8028e0e15170f618edc081ed07420234aaa28ddb58a3b98250bc7"
+    },
+    {
+      "path": "models/forecast_library/hn-cam2-000-scene2.json",
+      "bytes": 1910,
+      "sha256": "d6281875b35be86a77c17d78b9f4b0da44a89380dcc75b00a66f9066066f4ee7"
+    },
+    {
+      "path": "models/forecast_library/hn-cam3-000-scene21.json",
+      "bytes": 2426,
+      "sha256": "f029c21238f7a235652ed03ca16f7df72588bad6533104a0d86dc527abdef599"
+    },
+    {
+      "path": "models/forecast_library/hn-cam3-000-scene41.json",
+      "bytes": 4717,
+      "sha256": "d0884b8bed24fc8b76a9363b1bc04887c0b13f535a88d9d34617d25185480db6"
+    },
+    {
+      "path": "models/forecast_library/hn-cam3-000-scene7.json",
+      "bytes": 2306,
+      "sha256": "8a0a79e0af9711228795227db5cf8f3a457ced163a61a0006558d48cc5b16bb9"
+    },
+    {
+      "path": "models/forecast_library/hn-cam4-000-scene12.json",
+      "bytes": 4717,
+      "sha256": "e7a693604ebc414d20a01b21a19e8a2f92f37fc1953b54a47f1951e808e1307b"
+    },
+    {
+      "path": "models/forecast_library/hn-cam4-000-scene41.json",
+      "bytes": 1911,
+      "sha256": "95f58c72577b691caac23eec3bae93d5514eba1734a6493edb879bc0f35d9a03"
     },
     {
       "path": "models/hanoi_manifest.json",
@@ -930,8 +990,8 @@
     },
     {
       "path": "tests/test_forecast_page.py",
-      "bytes": 3887,
-      "sha256": "915ef6effe56eed9a34c35e28125578be910c442143cbfd024dce82ad88621f8"
+      "bytes": 4469,
+      "sha256": "abdc80414b3645e7e97fd327162cbc167d490261f1ab93e96a21eaf66dc8a137"
     },
     {
       "path": "tests/test_forecast_providers.py",
