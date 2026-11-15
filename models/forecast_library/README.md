@@ -48,3 +48,50 @@ same visual CI, not expert labels. These scenes rarely reach CI ≥ 0.55, so the
 
 A ready-to-open demo session is in `artifacts/evaluation/demo_cam_6.hanoiflow.json`:
 on the home page choose "Mở kết quả đã lưu", then select `cam_6.mp4` as the video.
+
+## Hanoi cameras (added from the "Hanoi Flow" Google Drive folder)
+
+The folder holds 5-minute recordings of the Hanoi traffic-camera broadcast (FM90 / "Hà Nội LIVE").
+Each recording cycles between street cameras and studio/banner shots, so one file is **not** one
+camera. `hn-*` records were built like this:
+
+1. Contiguous 5-minute parts of one folder were analysed in order (same detector, 1 fps).
+2. Every second was assigned to a camera by an image signature of the frame (red banner / studio
+   frames excluded, cuts shorter than 5 s dropped).
+3. One series per camera per recording, with **gaps (NaN) while that camera is off air**. The
+   forecaster only scores a forecast when the camera is visible at the target time.
+
+Each record lists `source_video_keys` (fingerprints of the original files); the web app skips a
+record when the uploaded video is one of its sources, so a video never trains its own forecasts.
+
+| File | Camera | Recording | Time the camera is on air |
+| --- | --- | --- | --- |
+| `hn-cam1-000-scene0` | 216 Trần Duy Hưng | Tran Duy Hung 000-005.mp4 | 7.2 min |
+| `hn-cam1-000-scene2` | 300 Nguyễn Xiển | Tran Duy Hung 000-005.mp4 | 4.0 min |
+| `hn-cam1-000-scene7` | Xuân Diệu | Tran Duy Hung 000-005.mp4 | 6.0 min |
+| `hn-cam1-010-scene2` | 300 Nguyễn Xiển | Tran Duy Hung 010-010.mp4 | 3.5 min |
+| `hn-cam1-020-scene0` | 216 Trần Duy Hưng | Tran Duy Hung 020-020.mp4 | 4.0 min |
+| `hn-cam2-000-scene16` | Nút giao (camera #16, Hà Nội LIVE) | Nguyen Xien 000-005.mp4 | 9.0 min |
+| `hn-cam2-000-scene2` | 300 Nguyễn Xiển | Nguyen Xien 000-005.mp4 | 6.0 min |
+| `hn-cam3-000-scene21` | Hồ Tùng Mậu | Ho Tung Mau 000-005.mp4 | 2.8 min |
+| `hn-cam3-000-scene41` | Nút giao phố cổ (camera #41) | Ho Tung Mau 000-005.mp4 | 9.2 min |
+| `hn-cam3-000-scene7` | Xuân Diệu | Ho Tung Mau 000-005.mp4 | 2.0 min |
+| `hn-cam4-000-scene12` | Quang Trung – Lê Trọng Tấn | Le Hong Phong 000-005.mp4 | 9.5 min |
+| `hn-cam4-000-scene41` | Nút giao phố cổ (camera #41) | Le Hong Phong 000-005.mp4 | 6.0 min |
+
+**Limits.** No camera stays on air for more than ~9.5 minutes in a row, so +15 min forecasts
+cannot be checked on this footage, and the +5/+10 checks are few:
+
+| Horizon | Forecasts checked (Hanoi, other recordings + AIC21 as library) | MAE model | MAE "keep current level" | Improvement |
+| --- | --- | --- | --- | --- |
+| +5 min | 23 | 0.174 | 0.183 | +4.7% |
+| +10 min | 39 | 0.093 | 0.102 | +9.2% |
+| +15 min | 0 | – | – | not checkable |
+
+Hanoi CI is much higher than the AIC21 scenes (mean 0.29, 14% of points ≥ 0.55 "congested"), which
+is why these records matter for the library. To verify +15 min on Hanoi, record a single camera
+for 20–30 minutes without switching (e.g. the camera page on the city portal) and upload it.
+
+**Source / licence:** recordings of a public broadcast shared in a Google Drive folder; only the
+derived numeric series are stored here, no video or frames. Use for research/demo only and
+credit the broadcaster (VOV Giao thông FM90 / Hà Nội LIVE).
