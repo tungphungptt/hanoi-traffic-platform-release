@@ -1,12 +1,12 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 224,
+  "files_count": 231,
   "files": [
     {
       "path": ".env.example",
-      "bytes": 1659,
-      "sha256": "e9cf0175b5cde6538b50e37d6cacff60c75252eab87d18817a84adb61d3396f8"
+      "bytes": 2004,
+      "sha256": "03bfc47027aa3d9a62e0ca0a25074146430cf5e2464d7c26a1f2f4768381664e"
     },
     {
       "path": ".gitattributes",
@@ -15,8 +15,8 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "bytes": 1027,
-      "sha256": "3fd9feee5bd27aea39ac9637f3fd8997180d99c265a5ac30cda93af3fcad86a4"
+      "bytes": 1110,
+      "sha256": "3de9431810e059214f249e99627ce66863127f40209e6cdb5e681179ea5a1ad6"
     },
     {
       "path": ".gitignore",
@@ -35,8 +35,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 19880,
-      "sha256": "7b6d77001bd89483b5d15a2c4dd445b84077bd0f96b2424a25df72a51f123404"
+      "bytes": 22515,
+      "sha256": "67f95348aed571c197374a52e5035d283ee9e5960cd8d38a06271527b3f8dfc0"
     },
     {
       "path": "SOURCE_RELEASE_NOTES.md",
@@ -95,8 +95,8 @@
     },
     {
       "path": "app/main.py",
-      "bytes": 110332,
-      "sha256": "3f00fb335161a38708c80930db83e4c1ab819e306931d1584ea558e5f24cf0c3"
+      "bytes": 114320,
+      "sha256": "ddc9d2b4a5cb19cee86292ece828ca3e12fcd11ec1cce11990daffa8665084ab"
     },
     {
       "path": "app/public_upload.py",
@@ -825,13 +825,28 @@
     },
     {
       "path": "static/app.js",
-      "bytes": 91974,
-      "sha256": "7d686f0d587db4d3e325637553db7e64c90f5f6d3afa6e249abee52e990b6a0b"
+      "bytes": 91892,
+      "sha256": "b2fb3ca3242661f3e868075c7718e552fde24e578d38734277aad5538fd36941"
+    },
+    {
+      "path": "static/forecast.css",
+      "bytes": 9943,
+      "sha256": "d3be38c426bef799231e5f115d69bfa00bba725907bf359b2816b32942c38d03"
+    },
+    {
+      "path": "static/forecast.html",
+      "bytes": 8585,
+      "sha256": "23334df98eecfccc179a287e4b8f439ade1523e6e1e98d3140813da15ee2a0e0"
+    },
+    {
+      "path": "static/forecast.js",
+      "bytes": 30965,
+      "sha256": "106c4632ad5cce63a3bbc54045df9c11d57ae2ebdc5ff3ec3a4f724deb51d144"
     },
     {
       "path": "static/index.html",
       "bytes": 41940,
-      "sha256": "4010707f37cd6c0030c3c1990e28d50f7c6aa799a14aa7a032af7c5b099ed91c"
+      "sha256": "33580be55fff3082885f1b423c2972461a93afd6703a6912a17be3ca0a51145d"
     },
     {
       "path": "static/street-traffic-demo.jpg",
@@ -850,8 +865,13 @@
     },
     {
       "path": "tests/conftest.py",
-      "bytes": 367,
-      "sha256": "0dcc963eab68dbef3ddabea78330095f26020db914e545e528c6ad4371caab95"
+      "bytes": 550,
+      "sha256": "953f4f06bc26b9ee7d2982b6c9ec2eb73231b14891a68cdcd833192eba764713"
+    },
+    {
+      "path": "tests/forecast_page.test.cjs",
+      "bytes": 2351,
+      "sha256": "a78540e03bf4a03f66a0ec583ea42312b7aebdeaca18158a6e58163a8e48a364"
     },
     {
       "path": "tests/test_aicc.py",
@@ -889,14 +909,19 @@
       "sha256": "7a728eba9458624c0dd6691f5a7ca1ac4b6b2ccedb6983620ea50c53ddeb6b73"
     },
     {
+      "path": "tests/test_forecast_page.py",
+      "bytes": 3034,
+      "sha256": "0393f035cf45c5410fe86a2c00c50e21957bf20944419c8cf0cac25f7fab0a10"
+    },
+    {
       "path": "tests/test_forecast_providers.py",
       "bytes": 6275,
       "sha256": "296d395db5c8709c93c4d2d93ded46465daf663750df04666e30ae26dd154d8b"
     },
     {
       "path": "tests/test_frontend_structure.py",
-      "bytes": 3887,
-      "sha256": "db4939c037a40b53ddcdb2bb2ed8799ad6620e8ccc3a74b29d2febee9fd63236"
+      "bytes": 3952,
+      "sha256": "a492b1cc9475b01565c4fa091832e8ca13bc61b81a24e57bfa96b184e85b97dd"
     },
     {
       "path": "tests/test_hanoi_scope.py",
@@ -919,6 +944,11 @@
       "sha256": "932e403bee28525eec0a63ba33296bf3c6a6fb0bf78a076fdbfc10efb05aac9d"
     },
     {
+      "path": "tests/test_minute_forecaster.py",
+      "bytes": 5540,
+      "sha256": "d20735aedca63d99b69bed818b74f00b73d1521650b23e9f74dc119131f0aa37"
+    },
+    {
       "path": "tests/test_mlp_inference_parity.py",
       "bytes": 7074,
       "sha256": "42da40f30f2a764ff2972916e54676c2aa56cf6a32b2828ef138f14fe91f72fc"
@@ -930,8 +960,8 @@
     },
     {
       "path": "tests/test_public_video_upload.py",
-      "bytes": 10069,
-      "sha256": "3ed932ec61e92f44f1f1ee0be3104bd44aa8a7d4fc8a2906adb9404ea5d97ae3"
+      "bytes": 10078,
+      "sha256": "e20fe6aaa8a3eb9facfd044c9a741fc6e785cac1bf3082f85d20203b3de58274"
     },
     {
       "path": "tests/test_release_integrity.py",
@@ -950,8 +980,8 @@
     },
     {
       "path": "tests/test_scenarios.py",
-      "bytes": 13329,
-      "sha256": "ac2c8740505e29b1e660157e2c07c529e1072d45428670819a90bf7eabe0c0e5"
+      "bytes": 13338,
+      "sha256": "6aef398506749bb3068c11f781063f9c445492849b023fdc354d7a6da0449a9f"
     },
     {
       "path": "tests/test_temporal_smoothing.py",
@@ -1055,8 +1085,8 @@
     },
     {
       "path": "tools/release_manifest.py",
-      "bytes": 3438,
-      "sha256": "d85f7e821ed2ad18f8a864e9f2887fc216e0aed8fa31f36cf7eeaecf9e74a8be"
+      "bytes": 3480,
+      "sha256": "0fec84c6e4ce2b1a09389081b508d870e39ee4b79cfc574ce0d86eec2ef72412"
     },
     {
       "path": "tools/review_annotations.py",
@@ -1104,6 +1134,11 @@
       "sha256": "8761980b75e1de07c0465a010c5bbe2ab3ee6b266f1210f4fb12f4c43b421267"
     },
     {
+      "path": "traffic_brain/minute_forecaster.py",
+      "bytes": 25644,
+      "sha256": "3988c9404128f0727b30b39fbde35038c3e114a5d60d90218b6d159d1650dd26"
+    },
+    {
       "path": "traffic_brain/providers.py",
       "bytes": 13340,
       "sha256": "1fa0f62c525f3973c10a20decdf954544f4b64719b1d13075ad64e5aa3556fc4"
@@ -1120,8 +1155,8 @@
     },
     {
       "path": "traffic_brain/video_review.py",
-      "bytes": 25685,
-      "sha256": "f8ce36126f8968a3473f76e56cc6ee3c882f18b8d0f9578af13479859e278ccc"
+      "bytes": 26997,
+      "sha256": "c0e29d29d97e9f74d83db0cffac02a494f8b04cbc328d86cbf532971d2bde90f"
     }
   ]
 }

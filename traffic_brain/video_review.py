@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from collections import deque, Counter
 from pathlib import Path
+import os
 from typing import Any, Callable
 import cv2
 import numpy as np
@@ -14,10 +15,22 @@ from traffic_brain.hanoi_video_forecaster import (
     hanoi_video_forecaster,
 )
 
+from traffic_brain.minute_forecaster import build_minute_forecast
 from traffic_brain.traffic_levels import (
     DEFAULT_THRESHOLDS, STATE_LABELS, level_for_ci, validate_thresholds,
 )
-MAX_DURATION_SECONDS = 20 * 60
+
+
+def _env_minutes(name: str, default: int, *, lo: int = 1, hi: int = 240) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        value = default
+    return max(lo, min(hi, value))
+
+
+# Minute-ahead forecasts need long clips: about 10 minutes for +5 and 25-30 for +15.
+MAX_DURATION_SECONDS = _env_minutes("VIDEO_REVIEW_MAX_MINUTES", 90) * 60
 MAX_SNAPSHOTS = 36
 
 class VideoReviewError(ValueError):
@@ -250,7 +263,9 @@ def _draw_snapshot(frame: np.ndarray, detections: list[Any], state: dict[str, An
 def analyze_video(video_path: Path, bundle: dict[str, Any], output_dir: Path, *,
                   preserve_real_timing: bool = False, sample_fps: float = 1.0,
                   progress_callback: Callable[[int, int, int], None] | None = None,
-                  stabilizer: TemporalStateStabilizer | None = None) -> dict[str, Any]:
+                  stabilizer: TemporalStateStabilizer | None = None,
+                  forecast_library: list[Any] | None = None,
+                  forecast_library_videos: int = 0) -> dict[str, Any]:
     """Analyze an uploaded/local clip and save key annotated frames under output_dir/frames."""
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
@@ -279,6 +294,15 @@ def analyze_video(video_path: Path, bundle: dict[str, Any], output_dir: Path, *,
     state_smoother = stabilizer if stabilizer is not None else TemporalStateStabilizer()
     try:
         while True:
+            if source_index % stride != 0:
+                # Skipped frames only need to be demuxed, not decoded to pixels.
+                if not cap.grab():
+                    break
+                source_index += 1
+                pct = min(99, int(source_index*100/max(1,total)))
+                if progress_callback and pct != last_progress:
+                    last_progress = pct; progress_callback(pct, source_index, total)
+                continue
             ok, frame = cap.read()
             if not ok: break
             if source_index % stride == 0:
@@ -440,10 +464,14 @@ def analyze_video(video_path: Path, bundle: dict[str, Any], output_dir: Path, *,
                     "để tạo dự báo LSTM."
                 ),
             }
+    minute_forecast = build_minute_forecast(
+        timeline, duration_seconds=duration, timing_confirmed=preserve_real_timing,
+        library=forecast_library or [], library_videos=forecast_library_videos,
+    )
     export_evidence_csv(output_dir / "evidence.csv", snapshots)
     export_evidence_csv(output_dir / "timeline.csv", timeline)
     result = {
-        "status": "succeeded", "pipeline": "ONNX detector + Hanoi multi-horizon LSTM + visual rules", "video": {
+        "status": "succeeded", "pipeline": "ONNX detector + visual CI + causal minute forecaster (+ experimental second-level LSTM)", "video": {
             "duration_seconds": round(duration,3), "fps": round(fps,3), "width": width, "height": height,
             "frames_total": total, "frames_sampled": sample_index, "sample_fps": round(effective_sample_fps,3),
         },
@@ -463,11 +491,12 @@ def analyze_video(video_path: Path, bundle: dict[str, Any], output_dir: Path, *,
         },
         "frames": snapshots, "timeline": timeline, "trend_forecast": forecast,
         "hanoi_forecast": hanoi_forecast,
+        "minute_forecast": minute_forecast,
         "evidence_csv": "evidence.csv", "timeline_csv": "timeline.csv",
         "limitations": [
             "Khung ảnh được phân loại theo CI sau EMA bằng ba ngưỡng chuẩn; smoothed_state là trạng thái hysteresis riêng, không ghi đè nhãn CI chính thức.",
             "Dự báo LSTM +5/+10/+15 giây là kết quả thử nghiệm từ clip, chưa được hiệu chuẩn hoặc xác nhận trên camera trực tiếp.",
-            "Mô hình chỉ hỗ trợ horizon tính bằng giây; không thể diễn giải thành dự báo +5/+10/+15 phút.",
+            "Hanoi LSTM chỉ hỗ trợ horizon tính bằng giây; dự báo theo phút nằm ở minute_forecast, là một bộ dự báo riêng.",
             "Tốc độ trong ảnh là pixel/giây, chưa phải km/h; chưa hiệu chuẩn homography/ROI.",
             "CI và nhãn thị giác là baseline giải thích được, không phải CI dự báo đã hiệu chuẩn.",
             "Một clip đơn lẻ không cho biết mức ùn tắc của tuyến thay thế B; cần telemetry mới ở các tuyến đó.",

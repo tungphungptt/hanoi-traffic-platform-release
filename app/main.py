@@ -34,7 +34,8 @@ from aicc.pipeline import MAX_VIDEO_BYTES, SUPPORTED_VIDEO_EXTENSIONS, aicc_runt
 from traffic_brain.providers import ForecastProviderManager, load_dotenv
 from traffic_brain.feature_engine import FeatureContractError, aggregate_traffic_features
 from traffic_brain.analytics import AnalyticsInputError, TrafficAnalyticsEngine
-from traffic_brain.video_review import analyze_video, VideoReviewError
+from traffic_brain.video_review import MAX_DURATION_SECONDS as VIDEO_ANALYSIS_MAX_SECONDS, analyze_video, VideoReviewError
+from traffic_brain.minute_forecaster import build_observed_series, record_to_series, series_record
 from traffic_brain.hanoi_video_forecaster import hanoi_video_forecaster
 from traffic_brain.routing import RouteServiceError, fetch_route_alternatives, score_routes
 from app.weather_service import WeatherServiceError, get_weather_report
@@ -65,11 +66,28 @@ VIDEO_REVIEW_ROOT.mkdir(parents=True, exist_ok=True)
 VIDEO_REVIEW_UPLOAD_ROOT = DATA_DIR / "uploads" / "video_reviews"
 VIDEO_REVIEW_UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 ACTIVE_REVIEW_UPLOADS: set[Path] = set()
-MAX_VIDEO_REVIEW_BYTES = 500 * 1024 * 1024
+
+
+def _env_int(name: str, default: int, lo: int, hi: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        value = default
+    return max(lo, min(hi, value))
+
+
+# Local/protected mode accepts long clips so +5/+10/+15 minute forecasts can be checked
+# against the rest of the same video. The public demo keeps its smaller limits.
+MAX_VIDEO_REVIEW_BYTES = _env_int("VIDEO_REVIEW_MAX_MIB", 2048, 1, 16384) * 1024 * 1024
 MAX_PUBLIC_VIDEO_REVIEW_BYTES = 500 * 1024 * 1024
 VIDEO_REVIEW_DISK_RESERVE_BYTES = 64 * 1024 * 1024
-MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS = 6 * 60
-MAX_VIDEO_REVIEW_DURATION_SECONDS = 20 * 60
+MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS = _env_int("PUBLIC_VIDEO_REVIEW_MAX_MINUTES", 6, 1, 240) * 60
+MAX_VIDEO_REVIEW_DURATION_SECONDS = VIDEO_ANALYSIS_MAX_SECONDS
+FORECAST_LIBRARY_DIR = DATA_DIR / "forecast_library"
+FORECAST_LIBRARY_MAX_VIDEOS = 50
+FORECAST_LIBRARY_ENABLED = os.getenv(
+    "FORECAST_LIBRARY_ENABLED", "false" if PUBLIC_DEMO_MODE else "true"
+).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def video_review_upload_enabled() -> bool:
@@ -425,7 +443,6 @@ async def app_lifespan(app):
         except asyncio.CancelledError:
             pass
 
-PUBLIC_UPLOAD_GATE = UploadGate()
 PUBLIC_UPLOAD_GATE = UploadGate()
 app = FastAPI(lifespan=app_lifespan, title="hanoiFlow Operations", version="8.0.0", description="Nền tảng giám sát và hỗ trợ dự báo giao thông trên CPU")
 
@@ -928,6 +945,57 @@ def _cleanup_video_reviews() -> None:
                 shutil.rmtree(folder, ignore_errors=True)
 
 
+def _video_key(path: Path) -> str | None:
+    """Content fingerprint (size + first/last 4 MiB) so a video never trains on itself."""
+    import hashlib
+    try:
+        size = path.stat().st_size
+        digest = hashlib.sha256(str(size).encode())
+        with path.open("rb") as stream:
+            digest.update(stream.read(4 * 1024 * 1024))
+            if size > 8 * 1024 * 1024:
+                stream.seek(size - 4 * 1024 * 1024)
+                digest.update(stream.read(4 * 1024 * 1024))
+        return digest.hexdigest()[:32]
+    except OSError:
+        return None
+
+
+def _load_forecast_library(exclude_key: str | None) -> list[dict[str, Any]]:
+    """Observed CI series of previously analysed videos (aggregates only, no images)."""
+    if not FORECAST_LIBRARY_ENABLED or not FORECAST_LIBRARY_DIR.is_dir():
+        return []
+    series = []
+    files = sorted(FORECAST_LIBRARY_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    for path in files[:FORECAST_LIBRARY_MAX_VIDEOS]:
+        if exclude_key and path.stem == exclude_key:
+            continue
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        parsed = record_to_series(record) if isinstance(record, dict) else None
+        if parsed is not None:
+            series.append(parsed)
+    return series
+
+
+def _save_forecast_library(key: str | None, filename: str, timeline: Any) -> None:
+    if not FORECAST_LIBRARY_ENABLED or not key or not isinstance(timeline, list):
+        return
+    series = build_observed_series(timeline)
+    if series["t"].size < 20:
+        return
+    FORECAST_LIBRARY_DIR.mkdir(parents=True, exist_ok=True)
+    target = FORECAST_LIBRARY_DIR / f"{key}.json"
+    tmp = target.with_suffix(".tmp")
+    tmp.write_text(json.dumps(series_record(series, video_key=key, filename=filename)), encoding="utf-8")
+    tmp.replace(target)
+    files = sorted(FORECAST_LIBRARY_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    for old in files[FORECAST_LIBRARY_MAX_VIDEOS:]:
+        old.unlink(missing_ok=True)
+
+
 def _run_video_review_job(job_id: str, video_path: Path, filename: str, camera_id: str | None,
                           preserve_real_timing: bool, cleanup: bool) -> None:
     try:
@@ -949,9 +1017,16 @@ def _run_video_review_job(job_id: str, video_path: Path, filename: str, camera_i
                     active["frames_decoded"] = int(processed)
                     active["frames_total"] = int(total)
                     active["progress_epoch"] = __import__("time").time()
+        video_key = _video_key(video_path)
+        library = _load_forecast_library(video_key)
         result = analyze_video(video_path, bundle, output_dir, preserve_real_timing=preserve_real_timing,
                                sample_fps=float(os.getenv("VIDEO_REVIEW_SAMPLE_FPS", "1.0")),
-                               progress_callback=on_progress)
+                               progress_callback=on_progress,
+                               forecast_library=library, forecast_library_videos=len(library))
+        try:
+            _save_forecast_library(video_key, filename, result.get("timeline"))
+        except (OSError, ValueError, TypeError):
+            logger.warning("Không lưu được chuỗi CI của video vào thư viện dự báo", exc_info=True)
         result["filename"] = filename
         result["source_camera_id"] = camera_id
         result["frames"] = [{**frame, "url": f"/api/scenarios/video-reviews/{job_id}/frames/{frame['filename']}"}
@@ -1036,7 +1111,14 @@ def _enqueue_video_review_job(video_path: Path, filename: str, camera_id: str | 
 
 
 @app.get("/")
+def forecast_home() -> FileResponse:
+    """Video-first forecast verification page: upload, watch, predict +5/+10/+15 min, seek to check."""
+    return FileResponse(STATIC_DIR / "forecast.html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/dashboard")
 def index() -> FileResponse:
+    """Previous operations dashboard (map, cameras, routes)."""
     return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
 
 
@@ -1585,6 +1667,10 @@ def aicc_status() -> dict[str, Any]:
         MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS
         if PUBLIC_DEMO_MODE
         else MAX_VIDEO_REVIEW_DURATION_SECONDS
+    )
+    status["forecast_library_enabled"] = FORECAST_LIBRARY_ENABLED
+    status["forecast_library_videos"] = (
+        len(list(FORECAST_LIBRARY_DIR.glob("*.json"))) if FORECAST_LIBRARY_ENABLED and FORECAST_LIBRARY_DIR.is_dir() else 0
     )
     if PUBLIC_DEMO_MODE:
         if status["video_review_enabled"]:

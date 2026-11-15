@@ -1032,11 +1032,10 @@ function renderScenarioReview(result) {
   if (hanoiForecast.available && Array.isArray(hanoiForecast.predictions)) {
     hanoiBadge.textContent = 'Thử nghiệm · chưa hiệu chuẩn';
     hanoiBadge.className = 'status-tag status-warn';
-    // Presentation label requested by the operator; preserve the original horizon_seconds values.
-    hanoiText.textContent = (hanoiForecast.message || 'Xác suất tham khảo từ LSTM, chưa được hiệu chuẩn.')
-      .replace(/(\+5\s*\/\s*\+10\s*\/\s*\+15)\s+giây/g, '$1 phút');
+    // The Hanoi LSTM horizons are seconds; minute forecasts live on the home page (/).
+    hanoiText.textContent = hanoiForecast.message || 'Xác suất tham khảo từ LSTM, chưa được hiệu chuẩn.';
     hanoiCards.innerHTML = hanoiForecast.predictions.map(item =>
-      `<article class="scenario-prediction-card"><small>+${numberVN(item.horizon_seconds)} phút</small><strong>${escapeHtml(item.predicted_class === 'Tac_duong' ? 'Có nguy cơ tắc' : 'Thông thoáng')}</strong><span>Xác suất ùn tắc ${numberVN(Number(item.congestion_probability) * 100, 1)}% · chưa hiệu chuẩn</span></article>`).join('');
+      `<article class="scenario-prediction-card"><small>+${numberVN(item.horizon_seconds)} giây</small><strong>${escapeHtml(item.predicted_class === 'Tac_duong' ? 'Có nguy cơ tắc' : 'Thông thoáng')}</strong><span>Xác suất ùn tắc ${numberVN(Number(item.congestion_probability) * 100, 1)}% · chưa hiệu chuẩn</span></article>`).join('');
   } else {
     hanoiBadge.textContent = 'Chưa đủ dữ liệu';
     hanoiBadge.className = 'status-tag';

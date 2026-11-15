@@ -4,7 +4,19 @@
 
 > **Ranh giới dữ liệu:** bản đồ nền OpenStreetMap là dữ liệu địa lý thật. Các camera/tọa độ trong `data/cameras.json` là điểm minh họa gần khu vực được nêu tên, chưa xác minh thiết bị CCTV tại vị trí đó. Nếu chưa có camera/traffic telemetry thật được cấp quyền, thời gian tuyến từ OSRM chỉ là thời gian tham chiếu của mạng đường, không phải ETA kẹt xe thời gian thực. Video upload không trở thành luồng CCTV trực tiếp.
 
-## Luồng làm việc chính
+## Trang chủ: kiểm chứng dự báo +5/+10/+15 phút
+
+Mở `http://127.0.0.1:8000/` (bảng điều hành cũ chuyển sang `/dashboard`).
+
+1. Chọn một video giao thông quay liên tục, camera cố định, dài 20–60 phút, bấm **Phân tích và dự báo**. Video phát ngay trong trình duyệt từ file của bạn; máy chủ chỉ trả kết quả phân tích.
+2. Hệ thống tính CI quan sát (trung bình 60 giây, mỗi 15 giây) và tại **mỗi** thời điểm t lập dự báo CI sau 5, 10, 15 phút **chỉ dùng phần video trước t** (`traffic_brain/minute_forecaster.py`).
+3. Phát video: khung bên phải hiện dự báo lập tại thời điểm đang xem, kèm xác suất tắc (CI ≥ 0,55) và cảnh báo khi xác suất ≥ 40%. Bấm **Tua tới** để nhảy đến thời điểm được dự báo và xem kết quả thật. Chế độ **Ẩn tương lai** giấu phần CI phía sau để dự báo không lộ đáp án.
+4. Mục 3 liệt kê các lần cảnh báo tắc trúng (và các lần sai). Mục 4 so mô hình với “giữ nguyên mức hiện tại” và “kéo dài xu hướng” trên toàn bộ video.
+5. **Tải kết quả (.json)** để lần sau mở lại ngay (kèm file video gốc), không phải phân tích lại.
+
+Mô hình: kết hợp 4 bộ dự báo (giữ nguyên, xu hướng giảm chấn, ridge, tình huống tương tự) theo nghịch đảo sai số gần đây của chính chúng. Ridge và tình huống tương tự học từ phần đầu video và từ **các video đã phân tích trước** (thư viện `data/forecast_library/`, chỉ lưu chuỗi số CI, không lưu hình ảnh; video không bao giờ học từ chính nó). Muốn chứng minh rõ hơn: phân tích trước 2–3 video khác của cùng camera rồi mới trình diễn video kiểm chứng. Giá trị “thực tế” là CI thị giác do hệ thống đo, không phải nhãn chuyên gia. Cần chạy bản local (giới hạn 90 phút, 2 GiB) vì public demo chỉ nhận 6 phút.
+
+## Luồng làm việc chính (bảng điều hành `/dashboard`)
 
 1. **Nạp clip** từ máy tính để phân tích ngay; chọn đoạn A là tùy chọn và chỉ dùng để gắn clip với tuyến. Video trong `data/` vẫn dành cho vận hành local.
 2. Hệ thống lấy mẫu frame, đánh dấu detection từ AICC Phase 1 và gán mức Thông thoáng/Đông đúc/Tắc nghẽn nghiêm trọng bằng luật giải thích được dựa trên số xe phát hiện, phần diện tích bounding box và chuyển động tương đối trong ảnh.
@@ -34,7 +46,7 @@ Tắt server bằng `Ctrl+C` trong cửa sổ Uvicorn. Có thể đổi cổng b
 
 Trên trang “Tải video để bắt đầu phân tích”, chọn video từ máy tính rồi bấm **Phân tích video**. Camera là tùy chọn. Kết quả gồm nhãn trạng thái, CI, ảnh minh chứng, LSTM thử nghiệm theo giây, baseline xu hướng nếu đủ dữ liệu và xuất CSV. Các chỉ số từ clip chưa phải dữ liệu camera trực tiếp đã kiểm định.
 
-Public video review được bật riêng bằng `PUBLIC_VIDEO_REVIEW_ENABLED=true`. `PUBLIC_DEMO_MODE=true` và `AICC_VIDEO_ENABLED=false` vẫn giữ các thao tác model, manifest, clip camera và AICC nội bộ bị khóa. Giới hạn ứng dụng là **500 MiB (524.288.000 byte) và 5 phút**. Trình duyệt kiểm tra theo `upload_limit_bytes` từ `/api/aicc/status`; `upload_limit_mb` được giữ để tương thích với client cũ. Model AICC và Hanoi phải có đủ artifact tương thích trong checkout; không tự tải model hoặc đổi thuật toán khi nhận upload.
+Public video review được bật riêng bằng `PUBLIC_VIDEO_REVIEW_ENABLED=true`. `PUBLIC_DEMO_MODE=true` và `AICC_VIDEO_ENABLED=false` vẫn giữ các thao tác model, manifest, clip camera và AICC nội bộ bị khóa. Giới hạn ứng dụng ở public demo là **500 MiB (524.288.000 byte) và 6 phút** (đổi được bằng `PUBLIC_VIDEO_REVIEW_MAX_MINUTES`). Trình duyệt kiểm tra theo `upload_limit_bytes` từ `/api/aicc/status`; `upload_limit_mb` được giữ để tương thích với client cũ. Model AICC và Hanoi phải có đủ artifact tương thích trong checkout; không tự tải model hoặc đổi thuật toán khi nhận upload.
 
 Trình duyệt báo tiến độ từ số byte XHR đã truyền. Sau HTTP 202, giao diện theo dõi `job_id`; phần trăm phân tích lấy từ worker. Nếu mất kết nối, polling tự thử lại và nút **Theo dõi lại kết quả** tiếp tục cùng tác vụ, không upload lại. Chỉ job ID được giữ trong sessionStorage, không lưu video hoặc tên file vào trình duyệt. Lỗi 404 sau khi restart/hết hạn cho phép gửi lại clip.
 
@@ -53,6 +65,8 @@ Video tạm được xóa sau khi xử lý/lỗi. Kết quả tối đa 8 tác v
 ```text
 app/main.py                         FastAPI endpoints, job queue, artifact/provider runtime
 traffic_brain/video_review.py       Frame sampling, visual heuristic, experimental clip forecasts
+traffic_brain/minute_forecaster.py  Causal +5/+10/+15 minute CI forecasts with in-video backtest
+static/forecast.*                    Home page: upload, play, forecast, seek to verify
 traffic_brain/hanoi_video_forecaster.py  Hanoi LSTM ONNX runtime for +5/+10/+15 seconds
 traffic_brain/routing.py            OSRM road routing + conservative live-telemetry scoring
 traffic_brain/providers.py          Local ONNX / external HTTP forecast adapter
@@ -96,9 +110,11 @@ Các lớp nhị phân AICC/LSTM và trạng thái kết nối camera là nhữn
 
 | Endpoint | Purpose | Boundary/limitations |
 |---|---|---|
+| `GET /` | Forecast verification page (video → +5/+10/+15 min forecasts → seek to verify) | Local mode needed for long clips |
+| `GET /dashboard` | Previous operations dashboard | — |
 | `GET /api/health` | Service health | Does not assert model/camera health |
 | `GET /api/cameras` | Camera metadata and assigned local clips | Bundled camera status/metrics are fixtures unless replaced with verified ingestion |
-| `POST /api/scenarios/video-review` | Upload and queue video review | Public mode requires `PUBLIC_VIDEO_REVIEW_ENABLED=true`; application cap 500 MiB / 5 minutes |
+| `POST /api/scenarios/video-review` | Upload and queue video review | Public mode requires `PUBLIC_VIDEO_REVIEW_ENABLED=true`; public cap 500 MiB / 6 minutes; local cap `VIDEO_REVIEW_MAX_MIB` (2048) / `VIDEO_REVIEW_MAX_MINUTES` (90) |
 | `POST /api/scenarios/video-review-from-data` | Queue a file under `data/` | Rejects path escape, unsupported file type, oversize input and public demo writes |
 | `GET /api/scenarios/video-reviews/{job_id}` | Job progress/result | In-memory job state; lost on restart |
 | `GET /api/scenarios/video-reviews/{job_id}/frames/{filename}` | View a generated JPEG | Constrained job ID and filename pattern |
@@ -135,7 +151,7 @@ Useful reference concepts were independently implemented where appropriate: samp
 
 ## Deployment boundaries
 
-The local bootstrap binds only to loopback. `render.yaml` keeps `PUBLIC_DEMO_MODE=true` and enables only the dedicated public video-review upload with `PUBLIC_VIDEO_REVIEW_ENABLED=true`; stored-file and other public writes remain disabled. The application limits public uploads to 500 MiB and 5 minutes; actual Render capacity remains subject to deployment verification described above. Uploads consume shared CPU, so deployment should add authentication, rate limits, storage-retention rules, and abuse monitoring before wider use. Video LSTM outputs are experimental, second-based, and uncalibrated. This release is a research/operational prototype, not a certified traffic-control system.
+The local bootstrap binds only to loopback. `render.yaml` keeps `PUBLIC_DEMO_MODE=true` and enables only the dedicated public video-review upload with `PUBLIC_VIDEO_REVIEW_ENABLED=true`; stored-file and other public writes remain disabled. The application limits public uploads to 500 MiB and 6 minutes; actual Render capacity remains subject to deployment verification described above. Uploads consume shared CPU, so deployment should add authentication, rate limits, storage-retention rules, and abuse monitoring before wider use. Video LSTM outputs are experimental, second-based, and uncalibrated. This release is a research/operational prototype, not a certified traffic-control system.
 
 ## Final 8.0 release hardening
 
