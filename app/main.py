@@ -35,7 +35,7 @@ from traffic_brain.providers import ForecastProviderManager, load_dotenv
 from traffic_brain.feature_engine import FeatureContractError, aggregate_traffic_features
 from traffic_brain.analytics import AnalyticsInputError, TrafficAnalyticsEngine
 from traffic_brain.video_review import MAX_DURATION_SECONDS as VIDEO_ANALYSIS_MAX_SECONDS, analyze_video, VideoReviewError
-from traffic_brain.minute_forecaster import build_observed_series, record_to_series, series_record
+from traffic_brain.minute_forecaster import build_observed_series, record_to_series, series_record, video_key
 from traffic_brain.hanoi_video_forecaster import hanoi_video_forecaster
 from traffic_brain.routing import RouteServiceError, fetch_route_alternatives, score_routes
 from app.weather_service import WeatherServiceError, get_weather_report
@@ -84,6 +84,9 @@ VIDEO_REVIEW_DISK_RESERVE_BYTES = 64 * 1024 * 1024
 MAX_PUBLIC_VIDEO_REVIEW_DURATION_SECONDS = _env_int("PUBLIC_VIDEO_REVIEW_MAX_MINUTES", 6, 1, 240) * 60
 MAX_VIDEO_REVIEW_DURATION_SECONDS = VIDEO_ANALYSIS_MAX_SECONDS
 FORECAST_LIBRARY_DIR = DATA_DIR / "forecast_library"
+# Shipped training library built by tools/build_forecast_library.py (aggregated CI series only).
+BUNDLED_FORECAST_LIBRARY_DIR = ROOT / "models" / "forecast_library"
+BUNDLED_FORECAST_LIBRARY_ENABLED = os.getenv("FORECAST_BUNDLED_LIBRARY", "true").strip().lower() in {"1", "true", "yes", "on"}
 FORECAST_LIBRARY_MAX_VIDEOS = 50
 FORECAST_LIBRARY_ENABLED = os.getenv(
     "FORECAST_LIBRARY_ENABLED", "false" if PUBLIC_DEMO_MODE else "true"
@@ -946,29 +949,24 @@ def _cleanup_video_reviews() -> None:
 
 
 def _video_key(path: Path) -> str | None:
-    """Content fingerprint (size + first/last 4 MiB) so a video never trains on itself."""
-    import hashlib
-    try:
-        size = path.stat().st_size
-        digest = hashlib.sha256(str(size).encode())
-        with path.open("rb") as stream:
-            digest.update(stream.read(4 * 1024 * 1024))
-            if size > 8 * 1024 * 1024:
-                stream.seek(size - 4 * 1024 * 1024)
-                digest.update(stream.read(4 * 1024 * 1024))
-        return digest.hexdigest()[:32]
-    except OSError:
-        return None
+    return video_key(path)
+
+
+def _forecast_library_files() -> list[Path]:
+    files: list[Path] = []
+    if BUNDLED_FORECAST_LIBRARY_ENABLED and BUNDLED_FORECAST_LIBRARY_DIR.is_dir():
+        files.extend(sorted(BUNDLED_FORECAST_LIBRARY_DIR.glob("*.json")))
+    if FORECAST_LIBRARY_ENABLED and FORECAST_LIBRARY_DIR.is_dir():
+        recent = sorted(FORECAST_LIBRARY_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+        files.extend(recent[:FORECAST_LIBRARY_MAX_VIDEOS])
+    return files
 
 
 def _load_forecast_library(exclude_key: str | None) -> list[dict[str, Any]]:
-    """Observed CI series of previously analysed videos (aggregates only, no images)."""
-    if not FORECAST_LIBRARY_ENABLED or not FORECAST_LIBRARY_DIR.is_dir():
-        return []
-    series = []
-    files = sorted(FORECAST_LIBRARY_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
-    for path in files[:FORECAST_LIBRARY_MAX_VIDEOS]:
-        if exclude_key and path.stem == exclude_key:
+    """Observed CI series of other videos: the shipped training set plus videos analysed here."""
+    series, seen = [], set()
+    for path in _forecast_library_files():
+        if path.stem in seen or (exclude_key and path.stem == exclude_key):
             continue
         try:
             record = json.loads(path.read_text(encoding="utf-8"))
@@ -976,6 +974,7 @@ def _load_forecast_library(exclude_key: str | None) -> list[dict[str, Any]]:
             continue
         parsed = record_to_series(record) if isinstance(record, dict) else None
         if parsed is not None:
+            seen.add(path.stem)
             series.append(parsed)
     return series
 
@@ -1017,14 +1016,14 @@ def _run_video_review_job(job_id: str, video_path: Path, filename: str, camera_i
                     active["frames_decoded"] = int(processed)
                     active["frames_total"] = int(total)
                     active["progress_epoch"] = __import__("time").time()
-        video_key = _video_key(video_path)
-        library = _load_forecast_library(video_key)
+        source_key = _video_key(video_path)
+        library = _load_forecast_library(source_key)
         result = analyze_video(video_path, bundle, output_dir, preserve_real_timing=preserve_real_timing,
                                sample_fps=float(os.getenv("VIDEO_REVIEW_SAMPLE_FPS", "1.0")),
                                progress_callback=on_progress,
                                forecast_library=library, forecast_library_videos=len(library))
         try:
-            _save_forecast_library(video_key, filename, result.get("timeline"))
+            _save_forecast_library(source_key, filename, result.get("timeline"))
         except (OSError, ValueError, TypeError):
             logger.warning("Không lưu được chuỗi CI của video vào thư viện dự báo", exc_info=True)
         result["filename"] = filename
@@ -1668,10 +1667,8 @@ def aicc_status() -> dict[str, Any]:
         if PUBLIC_DEMO_MODE
         else MAX_VIDEO_REVIEW_DURATION_SECONDS
     )
-    status["forecast_library_enabled"] = FORECAST_LIBRARY_ENABLED
-    status["forecast_library_videos"] = (
-        len(list(FORECAST_LIBRARY_DIR.glob("*.json"))) if FORECAST_LIBRARY_ENABLED and FORECAST_LIBRARY_DIR.is_dir() else 0
-    )
+    status["forecast_library_enabled"] = FORECAST_LIBRARY_ENABLED or BUNDLED_FORECAST_LIBRARY_ENABLED
+    status["forecast_library_videos"] = len({path.stem for path in _forecast_library_files()})
     if PUBLIC_DEMO_MODE:
         if status["video_review_enabled"]:
             status["message"] = "Có thể tải video lên để phân tích clip."

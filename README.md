@@ -14,7 +14,9 @@ Mở `http://127.0.0.1:8000/` (bảng điều hành cũ chuyển sang `/dashboar
 4. Mục 3 liệt kê các lần cảnh báo tắc trúng (và các lần sai). Mục 4 so mô hình với “giữ nguyên mức hiện tại” và “kéo dài xu hướng” trên toàn bộ video.
 5. **Tải kết quả (.json)** để lần sau mở lại ngay (kèm file video gốc), không phải phân tích lại.
 
-Mô hình: kết hợp 4 bộ dự báo (giữ nguyên, xu hướng giảm chấn, ridge, tình huống tương tự) theo nghịch đảo sai số gần đây của chính chúng. Ridge và tình huống tương tự học từ phần đầu video và từ **các video đã phân tích trước** (thư viện `data/forecast_library/`, chỉ lưu chuỗi số CI, không lưu hình ảnh; video không bao giờ học từ chính nó). Muốn chứng minh rõ hơn: phân tích trước 2–3 video khác của cùng camera rồi mới trình diễn video kiểm chứng. Giá trị “thực tế” là CI thị giác do hệ thống đo, không phải nhãn chuyên gia. Cần chạy bản local (giới hạn 90 phút, 2 GiB) vì public demo chỉ nhận 6 phút.
+**Mô hình đã được học sẵn** từ 3 video giao thông dài 30 phút (`models/forecast_library/`, xem README trong thư mục đó). Kiểm tra chéo bỏ-một-video: sai số thấp hơn cách đoán "giữ nguyên mức hiện tại" 13,5% (+5 phút), 10,1% (+10 phút), 11,9% (+15 phút). Mở thử ngay: trang chủ → **Mở kết quả đã lưu** → `artifacts/evaluation/demo_cam_6.hanoiflow.json`, rồi chọn video `cam_6.mp4` (AIC21 Dataset A). Học thêm từ video mới: `python tools/build_forecast_library.py VIDEO... --out models/forecast_library`.
+
+Mô hình: kết hợp 5 bộ dự báo (giữ nguyên, hồi về mức thường gặp của đoạn đường, xu hướng giảm chấn, ridge, tình huống tương tự) theo nghịch đảo sai số gần đây của chính chúng. Ridge và tình huống tương tự học từ phần đầu video và từ **các video đã phân tích trước** (thư viện `data/forecast_library/`, chỉ lưu chuỗi số CI, không lưu hình ảnh; video không bao giờ học từ chính nó). Muốn chứng minh rõ hơn: phân tích trước 2–3 video khác của cùng camera rồi mới trình diễn video kiểm chứng. Giá trị “thực tế” là CI thị giác do hệ thống đo, không phải nhãn chuyên gia. Cần chạy bản local (giới hạn 90 phút, 2 GiB) vì public demo chỉ nhận 6 phút.
 
 ## Luồng làm việc chính (bảng điều hành `/dashboard`)
 

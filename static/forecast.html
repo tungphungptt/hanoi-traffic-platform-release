@@ -149,7 +149,7 @@
         <div class="how-body">
           <ol>
             <li><strong>Đo hiện trạng.</strong> Mỗi giây lấy 1 khung hình, nhận diện phương tiện, tính chỉ số ùn tắc CI từ số xe, phần diện tích xe chiếm và mức độ di chuyển. CI quan sát là trung bình 60 giây, cập nhật mỗi 15 giây.</li>
-            <li><strong>Dự báo không nhìn trước.</strong> Tại mỗi thời điểm t, bốn bộ dự báo (giữ nguyên, kéo dài xu hướng có giảm chấn, hồi quy ridge, tìm tình huống tương tự) được kết hợp theo sai số gần đây của chính chúng. Hồi quy và tình huống tương tự học từ phần video trước t và từ các video đã phân tích trước đó.</li>
+            <li><strong>Dự báo không nhìn trước.</strong> Tại mỗi thời điểm t, năm bộ dự báo (giữ nguyên, hồi về mức thường gặp của đoạn đường, kéo dài xu hướng có giảm chấn, hồi quy ridge, tìm tình huống tương tự) được kết hợp theo sai số gần đây của chính chúng. Hồi quy và tình huống tương tự học từ phần video trước t, từ thư viện huấn luyện đi kèm (3 video giao thông 30 phút) và từ các video đã phân tích trước đó.</li>
             <li><strong>Kiểm chứng.</strong> Phần video sau t được dùng để chấm điểm. Cảnh báo tắc được phát khi xác suất CI ≥ 0,55 từ 40% trở lên; ngưỡng này cố định trước khi chấm.</li>
           </ol>
           <ul id="limitList"></ul>
