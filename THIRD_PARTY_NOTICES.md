@@ -21,3 +21,11 @@ The default route adapter requests road-network routes from `https://router.proj
 ## Python and other runtime dependencies
 
 Each dependency maintains its own license. This file is not a complete SBOM and does not substitute package-level review for commercial/public deployment. Pin the release environment and generate a CycloneDX or equivalent inventory before distributing to a production customer.
+
+
+## Forecast training library
+
+`models/forecast_library/*.json` contain aggregated congestion-index series derived from
+AI City Challenge 2021 Track 1 Dataset A videos (`cam_2`, `cam_3`, `cam_6`). The dataset is
+licensed for non-commercial academic research; the derived records inherit that restriction.
+No video frames or images are redistributed.

@@ -115,3 +115,21 @@ def test_highlights_are_real_outcomes():
         assert hit["p_gridlock"] >= mf.WARNING_PROBABILITY
     for miss in result["highlights"]["misses"]:
         assert miss["actual_ci"] >= mf.SEVERE_CI > 0 and miss["p_gridlock"] < mf.WARNING_PROBABILITY
+
+
+def test_bundled_library_beats_persistence_leave_one_video_out():
+    """Regression guard on the shipped training data (real street videos)."""
+    import json
+    from pathlib import Path
+    files = sorted((Path(__file__).resolve().parents[1] / "models" / "forecast_library").glob("*.json"))
+    series = [mf.record_to_series(json.loads(p.read_text(encoding="utf-8"))) for p in files]
+    assert len(series) >= 3
+    totals = {h: [0.0, 0.0] for h in mf.HORIZONS_MINUTES}
+    for i, target in enumerate(series):
+        anchors = mf.forecast_series(target, library=[s for j, s in enumerate(series) if j != i])
+        for metric in mf.evaluate_anchors(anchors):
+            if metric.get("evaluated"):
+                totals[metric["horizon_minutes"]][0] += metric["mae_model"] * metric["evaluated"]
+                totals[metric["horizon_minutes"]][1] += metric["mae_persistence"] * metric["evaluated"]
+    for h, (model, persistence) in totals.items():
+        assert model < persistence, f"+{h} min forecast is not better than keeping the current level"
