@@ -76,9 +76,18 @@ def test_bundled_training_library_is_valid_and_loaded(monkeypatch):
         record = json.loads(path.read_text(encoding='utf-8'))
         assert record['video_key'] == path.stem
         series = mf.record_to_series(record)
-        assert series is not None and series['t'].size > 100
+        assert series is not None and series['t'].size >= 20
+        assert int((series['ci'] == series['ci']).sum()) >= 8  # at least 2 observed minutes
     monkeypatch.setattr(main, 'BUNDLED_FORECAST_LIBRARY_ENABLED', True)
     assert len(main._load_forecast_library(None)) == len(files)
     assert len(main._load_forecast_library(files[0].stem)) == len(files) - 1
+    # Records cut from a recording are skipped when that recording itself is uploaded.
+    for path in files:
+        record = json.loads(path.read_text(encoding='utf-8'))
+        sources = record.get('source_video_keys') or []
+        if sources:
+            sharing = sum(1 for p in files if sources[0] in (json.loads(p.read_text(encoding='utf-8')).get('source_video_keys') or []))
+            assert len(main._load_forecast_library(sources[0])) == len(files) - sharing
+            break
     status = client.get('/api/aicc/status').json()
     assert status['forecast_library_videos'] >= len(files)

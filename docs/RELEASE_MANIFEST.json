@@ -990,8 +990,8 @@
     },
     {
       "path": "tests/test_forecast_page.py",
-      "bytes": 3887,
-      "sha256": "915ef6effe56eed9a34c35e28125578be910c442143cbfd024dce82ad88621f8"
+      "bytes": 4470,
+      "sha256": "21ee4e7aeecc313f04a1af4bf1839df9be9a3d1b031fadeb718aae5a5ca22ad6"
     },
     {
       "path": "tests/test_forecast_providers.py",
