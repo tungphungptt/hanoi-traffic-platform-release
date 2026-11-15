@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>hanoiFlow · Kiểm chứng dự báo ùn tắc +5/+10/+15 phút</title>
+  <link rel="icon" href="/static/vietnam-flag.svg" />
+  <link rel="stylesheet" href="/static/forecast.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="hanoiFlow">
+      <span class="brand-mark" aria-hidden="true">hF</span>
+      <span class="brand-copy"><strong>hanoi<span>Flow</span></strong><small>Kiểm chứng dự báo ùn tắc</small></span>
+    </a>
+    <nav class="top-links">
+      <a href="#how" class="link">Cách đọc kết quả</a>
+      <a href="/dashboard" class="link">Bảng điều hành →</a>
+    </nav>
+  </header>
+
+  <main class="page">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">DỰ BÁO TRƯỚC · TUA VIDEO ĐỂ KIỂM CHỨNG</p>
+        <h1>Đưa một video giao thông vào, hệ thống dự báo mức ùn tắc sau 5, 10 và 15 phút</h1>
+        <p class="lead">Mỗi dự báo chỉ dùng phần video đã xảy ra trước thời điểm đó. Bạn tua tới thời điểm được dự báo để tự xem đường có tắc thật hay không.</p>
+      </div>
+    </section>
+
+    <section class="card upload-card" id="uploadCard" aria-labelledby="uploadTitle">
+      <div class="card-head">
+        <div>
+          <h2 id="uploadTitle">1. Nạp video</h2>
+          <p class="muted" id="limitText">Đang kiểm tra cấu hình máy chủ…</p>
+        </div>
+        <span class="chip" id="serverChip">Đang kết nối</span>
+      </div>
+      <div class="upload-grid">
+        <label class="file-drop" for="videoFile">
+          <input id="videoFile" type="file" accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm,.mp4,.mov,.avi,.mkv,.mpeg,.mpg,.webm" />
+          <strong id="fileName">Chọn video từ máy tính</strong>
+          <span class="muted">Nên dùng video quay liên tục, camera cố định, dài 20–60 phút</span>
+        </label>
+        <div class="upload-options">
+          <label class="check"><input id="realTiming" type="checkbox" checked /><span><strong>Video quay liên tục theo thời gian thực</strong><small>Không tua nhanh, không ghép đoạn. Khi đó “5 phút” trên video là 5 phút ngoài đời.</small></span></label>
+          <div class="actions">
+            <button class="btn primary" id="analyzeBtn" type="button" disabled>Phân tích và dự báo</button>
+            <label class="btn ghost" for="resultFile">Mở kết quả đã lưu<input id="resultFile" type="file" accept="application/json,.json" hidden /></label>
+          </div>
+        </div>
+      </div>
+      <div class="progress" id="progressWrap" hidden>
+        <div class="progress-track"><span id="progressBar"></span></div>
+        <p id="progressText" class="muted">Đang chuẩn bị…</p>
+      </div>
+      <p class="notice" id="uploadNotice" hidden></p>
+    </section>
+
+    <section id="workspace" hidden>
+      <div class="workspace-grid">
+        <div class="card player-card">
+          <div class="card-head">
+            <div>
+              <h2>2. Xem video và dự báo</h2>
+              <p class="muted" id="videoMeta">—</p>
+            </div>
+            <label class="switch" title="Ẩn đường CI phía sau thời điểm đang xem, để dự báo không bị lộ đáp án">
+              <input id="blindMode" type="checkbox" checked /><span>Ẩn tương lai</span>
+            </label>
+          </div>
+          <div class="video-wrap">
+            <video id="player" controls preload="metadata" playsinline></video>
+            <div class="video-badge" id="nowBadge" hidden></div>
+          </div>
+          <div class="chart-wrap">
+            <svg id="ciChart" viewBox="0 0 1000 260" preserveAspectRatio="none" role="img" aria-label="Chỉ số ùn tắc theo thời gian và dự báo"></svg>
+            <div class="chart-legend">
+              <span><i class="sw observed"></i>CI quan sát (trung bình 60 giây)</span>
+              <span><i class="sw forecast"></i>Dự báo lập tại thời điểm chọn</span>
+              <span><i class="sw actual"></i>Thực tế tại thời điểm được dự báo</span>
+              <span><i class="sw warn"></i>Cảnh báo tắc đã đúng</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="card forecast-card" aria-live="polite">
+          <div class="card-head">
+            <div>
+              <h2 id="forecastTitle">Dự báo tại 00:00</h2>
+              <p class="muted" id="forecastSub">Phát video hoặc bấm vào biểu đồ để chọn thời điểm.</p>
+            </div>
+            <button class="btn small ghost" id="unlockBtn" type="button" hidden>Theo video</button>
+          </div>
+          <div class="now-row" id="nowRow"></div>
+          <div class="horizon-list" id="horizonList"></div>
+          <p class="fine" id="methodLine"></p>
+        </aside>
+      </div>
+
+      <div class="card" id="highlightsCard">
+        <div class="card-head">
+          <div>
+            <h2>3. Những lần dự báo trước được cơn tắc</h2>
+            <p class="muted">Bấm “Xem lúc dự báo” để quay lại thời điểm hệ thống phát cảnh báo, rồi “Tua tới” để kiểm chứng.</p>
+          </div>
+        </div>
+        <div id="hitList" class="moment-list"></div>
+        <details class="honest">
+          <summary>Các lần dự báo sai (bỏ lỡ hoặc báo nhầm)</summary>
+          <div id="missList" class="moment-list"></div>
+        </details>
+      </div>
+
+      <div class="card" id="metricsCard">
+        <div class="card-head">
+          <div>
+            <h2>4. Mô hình có tốt hơn cách đoán đơn giản không?</h2>
+            <p class="muted" id="metricsSub">So trên mọi thời điểm trong video mà kết quả thực tế đã được quan sát.</p>
+          </div>
+          <div class="actions">
+            <button class="btn small ghost" id="exportJson" type="button">Tải kết quả (.json)</button>
+            <button class="btn small ghost" id="exportCsv" type="button">Tải dự báo (.csv)</button>
+          </div>
+        </div>
+        <div id="verdicts" class="verdicts"></div>
+        <div class="table-wrap">
+          <table id="metricsTable">
+            <thead>
+              <tr>
+                <th>Chân trời</th>
+                <th>Số lần kiểm chứng</th>
+                <th>Sai số TB mô hình</th>
+                <th>Giữ nguyên mức hiện tại</th>
+                <th>Kéo dài xu hướng</th>
+                <th>Cải thiện so với giữ nguyên</th>
+                <th>Bắt được lúc bắt đầu tắc</th>
+                <th>Cảnh báo đúng</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="fine" id="libraryLine"></p>
+      </div>
+
+      <details class="card" id="how">
+        <summary><h2>Cách hệ thống dự báo và giới hạn</h2></summary>
+        <div class="how-body">
+          <ol>
+            <li><strong>Đo hiện trạng.</strong> Mỗi giây lấy 1 khung hình, nhận diện phương tiện, tính chỉ số ùn tắc CI từ số xe, phần diện tích xe chiếm và mức độ di chuyển. CI quan sát là trung bình 60 giây, cập nhật mỗi 15 giây.</li>
+            <li><strong>Dự báo không nhìn trước.</strong> Tại mỗi thời điểm t, bốn bộ dự báo (giữ nguyên, kéo dài xu hướng có giảm chấn, hồi quy ridge, tìm tình huống tương tự) được kết hợp theo sai số gần đây của chính chúng. Hồi quy và tình huống tương tự học từ phần video trước t và từ các video đã phân tích trước đó.</li>
+            <li><strong>Kiểm chứng.</strong> Phần video sau t được dùng để chấm điểm. Cảnh báo tắc được phát khi xác suất CI ≥ 0,55 từ 40% trở lên; ngưỡng này cố định trước khi chấm.</li>
+          </ol>
+          <ul id="limitList"></ul>
+          <p class="fine">Thang CI: 0–0,29 Thông thoáng · 0,30–0,54 Đông đúc · 0,55–1 Tắc nghẽn nghiêm trọng.</p>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script src="/static/forecast.js"></script>
+</body>
+</html>
