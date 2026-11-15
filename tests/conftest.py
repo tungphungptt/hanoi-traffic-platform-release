@@ -10,3 +10,4 @@ def isolate_public_upload_quota(monkeypatch, tmp_path):
     monkeypatch.setattr(main, 'VIDEO_REVIEW_FUTURES', {})
     # Cross-video forecast library must never read or write the developer's real data/.
     monkeypatch.setattr(main, 'FORECAST_LIBRARY_DIR', tmp_path / 'forecast_library')
+    monkeypatch.setattr(main, 'BUNDLED_FORECAST_LIBRARY_ENABLED', False)

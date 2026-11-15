@@ -65,3 +65,20 @@ def test_worker_passes_library_and_saves_series(monkeypatch, tmp_path):
     assert main.VIDEO_REVIEW_JOBS['f' * 32]['status'] == 'succeeded'
     assert seen['forecast_library'] == [] and seen['forecast_library_videos'] == 0
     assert len(list(main.FORECAST_LIBRARY_DIR.glob('*.json'))) == 1
+
+
+def test_bundled_training_library_is_valid_and_loaded(monkeypatch):
+    import json
+    from traffic_brain import minute_forecaster as mf
+    files = sorted(main.BUNDLED_FORECAST_LIBRARY_DIR.glob('*.json'))
+    assert len(files) >= 2, 'the shipped forecaster must have a training library'
+    for path in files:
+        record = json.loads(path.read_text(encoding='utf-8'))
+        assert record['video_key'] == path.stem
+        series = mf.record_to_series(record)
+        assert series is not None and series['t'].size > 100
+    monkeypatch.setattr(main, 'BUNDLED_FORECAST_LIBRARY_ENABLED', True)
+    assert len(main._load_forecast_library(None)) == len(files)
+    assert len(main._load_forecast_library(files[0].stem)) == len(files) - 1
+    status = client.get('/api/aicc/status').json()
+    assert status['forecast_library_videos'] >= len(files)

@@ -1,7 +1,7 @@
 {
   "manifest_version": "hanoi-release-file-manifest/1.0",
   "project_version": "8.0.0",
-  "files_count": 231,
+  "files_count": 236,
   "files": [
     {
       "path": ".env.example",
@@ -35,8 +35,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 22515,
-      "sha256": "67f95348aed571c197374a52e5035d283ee9e5960cd8d38a06271527b3f8dfc0"
+      "bytes": 23156,
+      "sha256": "82944722e526960a236069e41bd4549f0b5ae28cb8927f659d7df98bef9baaeb"
     },
     {
       "path": "SOURCE_RELEASE_NOTES.md",
@@ -45,8 +45,8 @@
     },
     {
       "path": "THIRD_PARTY_NOTICES.md",
-      "bytes": 2498,
-      "sha256": "75e33ad6a9d44e33132ef430a10a225d72100268d327e9e27e66884f1a55d846"
+      "bytes": 2849,
+      "sha256": "0749e78578e273a74a5f53b8db920b51ae3fb5969b066e74908af76eb5296908"
     },
     {
       "path": "VERSION",
@@ -95,8 +95,8 @@
     },
     {
       "path": "app/main.py",
-      "bytes": 114320,
-      "sha256": "ddc9d2b4a5cb19cee86292ece828ca3e12fcd11ec1cce11990daffa8665084ab"
+      "bytes": 114434,
+      "sha256": "1f27ab86cb1df6a377afc29c5b153099d974f1f6d1dfc84b45742c99575358c4"
     },
     {
       "path": "app/public_upload.py",
@@ -764,6 +764,26 @@
       "sha256": "4195ae6eb8f42d71e006747d4db51beb650d33c655ff56fdc644fd965692cebb"
     },
     {
+      "path": "models/forecast_library/14dceead19e719efebfe120a50fd442d.json",
+      "bytes": 5600,
+      "sha256": "111c11998bea43859d937111d5143994d197ff45bec51a51446ed4572b3357ed"
+    },
+    {
+      "path": "models/forecast_library/87034197f709848ba0c0264a2a96f326.json",
+      "bytes": 5695,
+      "sha256": "0e02fd684ec71e3e1c9c7434f10d5e66a95596273e2c313eb322554d4763ef1e"
+    },
+    {
+      "path": "models/forecast_library/README.md",
+      "bytes": 2720,
+      "sha256": "6889448a5b2528aaf37fcc0150ee48902d5fcb543bbf6a727bd7114a365e51dc"
+    },
+    {
+      "path": "models/forecast_library/ec265317b963df87a414dc281a2d50eb.json",
+      "bytes": 5613,
+      "sha256": "3ee02de033e026d74b881dc9bc3afd4884a4ea98287a1f8db9ba863c8e73f63a"
+    },
+    {
       "path": "models/hanoi_manifest.json",
       "bytes": 403,
       "sha256": "e283155ee27d32fee0b68df5ee401c66991c3ba9177fd287851f6ed6174835a2"
@@ -835,8 +855,8 @@
     },
     {
       "path": "static/forecast.html",
-      "bytes": 8585,
-      "sha256": "23334df98eecfccc179a287e4b8f439ade1523e6e1e98d3140813da15ee2a0e0"
+      "bytes": 8715,
+      "sha256": "bf36a9f8de66031b958cc55feafc022beb858b0eefb26d159e93b38c99978028"
     },
     {
       "path": "static/forecast.js",
@@ -865,8 +885,8 @@
     },
     {
       "path": "tests/conftest.py",
-      "bytes": 550,
-      "sha256": "953f4f06bc26b9ee7d2982b6c9ec2eb73231b14891a68cdcd833192eba764713"
+      "bytes": 623,
+      "sha256": "ba1f31ba6a5cd36533e079a8951fea98c5ee729b7da96bd3b1cfe6ba1d767530"
     },
     {
       "path": "tests/forecast_page.test.cjs",
@@ -910,8 +930,8 @@
     },
     {
       "path": "tests/test_forecast_page.py",
-      "bytes": 3034,
-      "sha256": "0393f035cf45c5410fe86a2c00c50e21957bf20944419c8cf0cac25f7fab0a10"
+      "bytes": 3887,
+      "sha256": "915ef6effe56eed9a34c35e28125578be910c442143cbfd024dce82ad88621f8"
     },
     {
       "path": "tests/test_forecast_providers.py",
@@ -945,8 +965,8 @@
     },
     {
       "path": "tests/test_minute_forecaster.py",
-      "bytes": 5540,
-      "sha256": "d20735aedca63d99b69bed818b74f00b73d1521650b23e9f74dc119131f0aa37"
+      "bytes": 6600,
+      "sha256": "f5310d2dc7407bfc61a018b3558d415bf2f2cadf4de030d6c07c6bcb046ff903"
     },
     {
       "path": "tests/test_mlp_inference_parity.py",
@@ -1032,6 +1052,11 @@
       "path": "tests/video_review_frontend.test.cjs",
       "bytes": 13190,
       "sha256": "c68271d077deb5038d5598e2c7c2a411db2c793c3faf79db2278697e087364b8"
+    },
+    {
+      "path": "tools/build_forecast_library.py",
+      "bytes": 10041,
+      "sha256": "e4eedd3a35a01e940c86dbe30c16c26c883002073f7d8cac9eb47fcafd9ffaef"
     },
     {
       "path": "tools/build_track1_cnn_lstm_final.ps1",
@@ -1135,8 +1160,8 @@
     },
     {
       "path": "traffic_brain/minute_forecaster.py",
-      "bytes": 25644,
-      "sha256": "3988c9404128f0727b30b39fbde35038c3e114a5d60d90218b6d159d1650dd26"
+      "bytes": 27669,
+      "sha256": "e53c608b5a9821d67a22542586caeffd26cc4f942efaedbeb4742109ea2ac08a"
     },
     {
       "path": "traffic_brain/providers.py",
