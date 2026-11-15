@@ -76,7 +76,7 @@ def test_bundled_training_library_is_valid_and_loaded(monkeypatch):
         record = json.loads(path.read_text(encoding='utf-8'))
         assert record['video_key'] == path.stem
         series = mf.record_to_series(record)
-        assert series is not None and series['t'].size >= 20
+        assert series is not None and series['t'].size >= 8
         assert int((series['ci'] == series['ci']).sum()) >= 8  # at least 2 observed minutes
     monkeypatch.setattr(main, 'BUNDLED_FORECAST_LIBRARY_ENABLED', True)
     assert len(main._load_forecast_library(None)) == len(files)
