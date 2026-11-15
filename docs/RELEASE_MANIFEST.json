@@ -965,8 +965,8 @@
     },
     {
       "path": "tests/test_minute_forecaster.py",
-      "bytes": 5540,
-      "sha256": "d20735aedca63d99b69bed818b74f00b73d1521650b23e9f74dc119131f0aa37"
+      "bytes": 6600,
+      "sha256": "f5310d2dc7407bfc61a018b3558d415bf2f2cadf4de030d6c07c6bcb046ff903"
     },
     {
       "path": "tests/test_mlp_inference_parity.py",
