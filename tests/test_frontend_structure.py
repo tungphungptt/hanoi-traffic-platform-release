@@ -6,7 +6,7 @@ client = TestClient(app)
 
 
 def test_overview_has_camera_specific_video_player_and_illustrative_street_fallback():
-    response = client.get("/")
+    response = client.get("/dashboard")
     assert response.status_code == 200
     html = response.text
     assert 'class="traffic-monitor-grid"' in html
@@ -17,7 +17,7 @@ def test_overview_has_camera_specific_video_player_and_illustrative_street_fallb
 
 
 def test_model_artifacts_are_in_collapsed_technical_area_not_overview_cards():
-    html = client.get("/").text
+    html = client.get("/dashboard").text
     assert '<details class="advanced-artifact-settings">' in html
     assert 'id="providerUiTitle"' in html
     assert 'id="detectorFileName"' in html
@@ -70,7 +70,8 @@ def test_video_upload_works_without_camera_selection_and_shows_experimental_hano
     backend = (root / "app/main.py").read_text(encoding="utf-8")
     render = (root / "render.yaml").read_text(encoding="utf-8")
     assert "Đoạn A / điểm đi (không bắt buộc)" in html
-    assert "LSTM thử nghiệm +5 / +10 / +15 phút" in html
+    assert "LSTM thử nghiệm +5 / +10 / +15 giây" in html
+    assert "horizon_seconds)} phút" not in js
     assert "if (originId) form.append('camera_id', originId)" in js
     assert "canAnalyzeUploadedScenarioVideo" in js
     assert "PUBLIC_VIDEO_REVIEW_ENABLED" in backend

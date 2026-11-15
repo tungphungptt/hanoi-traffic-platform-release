@@ -40,7 +40,9 @@ jobs:
         run: python -m pytest -q
 
       - name: Check frontend syntax
-        run: node --check static/app.js
+        run: |
+          node --check static/app.js
+          node --check static/forecast.js
 
       - name: Test video review frontend behavior
-        run: node --test tests/video_review_frontend.test.cjs
+        run: node --test tests/video_review_frontend.test.cjs tests/forecast_page.test.cjs
