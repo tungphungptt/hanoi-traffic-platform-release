@@ -47,7 +47,7 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') {
       failed += 1;
       if (failed === 3 && loaded === 0 && config.fallback_tile_url_template) {
         map.removeLayer(base);
-        L.tileLayer(config.fallback_tile_url_template, { maxZoom: 19, subdomains: 'abcd', attribution: config.fallback_attribution }).addTo(map);
+        L.tileLayer(config.fallback_tile_url_template, { maxZoom: 19, subdomains: 'abc', attribution: config.fallback_attribution }).addTo(map);
       }
     });
     try {
