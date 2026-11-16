@@ -40,13 +40,26 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') {
   async function init() {
     const config = await getJson('/api/map/config');
     map = L.map('map', { zoomControl: true }).setView(config.center, 10);
-    L.tileLayer(config.tile_url_template, { maxZoom: 19, attribution: config.attribution }).addTo(map);
+    const base = L.tileLayer(config.tile_url_template, { maxZoom: 19, attribution: config.attribution }).addTo(map);
+    let loaded = 0, failed = 0;
+    base.on('tileload', () => { loaded += 1; });
+    base.on('tileerror', () => {
+      failed += 1;
+      if (failed === 3 && loaded === 0 && config.fallback_tile_url_template) {
+        map.removeLayer(base);
+        L.tileLayer(config.fallback_tile_url_template, { maxZoom: 19, subdomains: 'abcd', attribution: config.fallback_attribution }).addTo(map);
+      }
+    });
     try {
       const boundary = await getJson(config.boundary_url);
       const layer = L.geoJSON(boundary, { style: { color: '#2f6b48', weight: 2, fillOpacity: 0.04 }, interactive: false }).addTo(map);
       map.fitBounds(layer.getBounds(), { padding: [10, 10] });
     } catch { /* the map still works without the outline */ }
     pinLayer = L.layerGroup().addTo(map);
+    // Inner districts sit close together: show only their temperature until the user zooms in.
+    const zoomClass = () => document.getElementById('map').classList.toggle('zoomed-out', map.getZoom() < 11);
+    map.on('zoomend', zoomClass);
+    zoomClass();
     map.on('click', e => showPoint(e.latlng.lat, e.latlng.lng, 'Điểm đã chọn'));
     $('refreshBtn').addEventListener('click', () => { loadOverview(); });
     loadOverview();
@@ -59,7 +72,7 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') {
       pinLayer.clearLayers();
       for (const area of data.areas) {
         const rainy = isRainy(area.weather_code) || (area.today_rain_probability_pct ?? 0) >= 60;
-        const icon = L.divIcon({ className: '', html: `<span class="area-pin${rainy ? ' rain' : ''}">${escapeHtml(area.name)} ${fmt(area.temperature_c, '°')}</span>` });
+        const icon = L.divIcon({ className: '', html: `<span class="area-pin${rainy ? ' rain' : ''}${area.inner ? ' inner' : ''}"><b>${escapeHtml(area.name)} </b>${fmt(area.temperature_c, '°')}</span>` });
         L.marker([area.latitude, area.longitude], { icon })
           .bindTooltip(`${escapeHtml(area.name)}: ${escapeHtml(area.description)}, ${fmt(area.today_min_c, '°')}–${fmt(area.today_max_c, '°')}, khả năng mưa ${fmt(area.today_rain_probability_pct, '%')}`)
           .on('click', () => showPoint(area.latitude, area.longitude, area.name))

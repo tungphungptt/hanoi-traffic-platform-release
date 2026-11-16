@@ -28,6 +28,8 @@ AREAS: list[tuple[str, float, float]] = [
     ("Phú Xuyên", 20.7400, 105.9100), ("Mỹ Đức", 20.6830, 105.7440),
 ]
 
+INNER_AREAS = {"Hoàn Kiếm", "Cầu Giấy", "Long Biên", "Hoàng Mai", "Hà Đông", "Bắc Từ Liêm", "Gia Lâm"}
+
 WMO_VI = {
     0: "Trời quang", 1: "Ít mây", 2: "Mây rải rác", 3: "Nhiều mây", 45: "Sương mù", 48: "Sương mù đóng băng",
     51: "Mưa phùn nhẹ", 53: "Mưa phùn", 55: "Mưa phùn dày", 56: "Mưa phùn lạnh", 57: "Mưa phùn lạnh dày",
@@ -154,7 +156,7 @@ def overview() -> dict[str, Any]:
         for (name, lat, lon), item in zip(AREAS, rows):
             current, daily = item.get("current") or {}, item.get("daily") or {}
             first = lambda key: (daily.get(key) or [None])[0]  # noqa: E731
-            areas.append({"name": name, "latitude": lat, "longitude": lon,
+            areas.append({"name": name, "latitude": lat, "longitude": lon, "inner": name in INNER_AREAS,
                           "temperature_c": _num(current.get("temperature_2m")),
                           "precipitation_mm": _num(current.get("precipitation")),
                           "wind_kmh": _num(current.get("wind_speed_10m")),

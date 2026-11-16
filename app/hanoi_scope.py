@@ -7,8 +7,6 @@ from pathlib import Path
 from typing import Any
 
 BOUNDARY_PATH = Path(__file__).resolve().parent.parent / "static" / "hanoi_boundary.geojson"
-HANOI_CENTER = (21.0285, 105.8542)
-BOUNDARY_SOURCE = "OpenStreetMap administrative boundary relation 1903516 (ODbL)"
 
 @lru_cache(maxsize=1)
 def _boundary_geometries() -> tuple[dict[str, Any], ...]:
