@@ -109,3 +109,44 @@ def test_evidence_picks_level_changes_peak_and_stay_within_limits():
         times = sorted(p["t"] for p in picks if p["camera"] == cam)
         assert all(b - a >= 60 for a, b in zip(times, times[1:]))
     assert va.pick_evidence([{"id": 0, "series": {"t": np.array([0.0]), "ci": np.array([np.nan])}}]) == []
+
+
+def test_blur_private_destroys_detail_inside_every_box_and_keeps_the_rest():
+    rng = np.random.default_rng(3)
+    frame = rng.integers(0, 255, (180, 320, 3), dtype=np.uint8)
+    boxes = [Detection(3, (40, 50, 100, 130)), Detection(0, (200, 20, 230, 90))]
+    out = va.blur_private(frame, boxes)
+    assert out.shape == frame.shape and not np.shares_memory(out, frame)
+    # Inside the boxes the picture is a few flat cells, not the original pixels.
+    for d in boxes:
+        x1, y1, x2, y2 = (int(v) for v in d.box)
+        inner_before = frame[y1 + 4:y2 - 4, x1 + 4:x2 - 4].astype(float)
+        inner_after = out[y1 + 4:y2 - 4, x1 + 4:x2 - 4].astype(float)
+        assert inner_after.std() < 0.5 * inner_before.std()
+        assert np.abs(inner_after - inner_before).mean() > 20
+    # Far from any box nothing changes.
+    assert np.array_equal(out[150:, 250:], frame[150:, 250:])
+    # Boxes touching the border are clipped, not an error.
+    va.blur_private(frame, [Detection(2, (-20, -20, 30, 30)), Detection(2, (300, 160, 400, 260))])
+
+
+def test_evidence_pictures_never_keep_the_original_pixels_of_people_or_vehicles(tmp_path):
+    import cv2
+
+    class FakeDetector:
+        def detect(self, frame, class_ids=None, min_score=0.25):
+            assert 0 in class_ids and min_score < 0.25  # privacy pass looks for people, with a low bar
+            return [Detection(0, (30, 30, 70, 90), 0.2), Detection(3, (120, 60, 200, 130), 0.9)]
+
+    rng = np.random.default_rng(1)
+    video = tmp_path / "v.avi"
+    writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"MJPG"), 2.0, (320, 180))
+    noise = rng.integers(0, 255, (180, 320, 3), dtype=np.uint8)
+    for _ in range(40):
+        writer.write(noise)
+    writer.release()
+    cameras = [{"id": 0, "series": {"t": np.arange(0, 20, 1.0), "ci": np.linspace(0.1, 0.9, 20)}}]
+    saved = va.capture_evidence(video, FakeDetector(), cameras, tmp_path / "ev", limit=3)
+    assert saved
+    image = cv2.imread(str(tmp_path / "ev" / saved[0]["file"]))
+    assert image[40:80, 40:60].astype(float).std() < 40  # the person (score 0.2, below the counting bar) is blurred too

@@ -44,7 +44,25 @@ Congestion onsets (CI below 0.55 at forecast time, at or above 0.55 at the targe
 | +10 min | 39 | 3 / 3 | 15 / 33 |
 | +15 min | 28 | 0 / 0 | 12 / 18 |
 
-The onsets come from 5 of the 7 videos. The watch threshold was set after this check.
+The onsets come from 5 of the 7 videos. The watch threshold was set after this check, so this table is optimistic.
+
+### Thresholds chosen without the scored video (`tools/honest_eval.py`)
+
+For each held-out video the cut-off is picked again from the other videos only (warning: highest recall
+with at least 50% of firings right; watch: best F1) and then applied to the held-out video.
+Result in `artifacts/honest_eval.json`.
+
+| Horizon | Onsets (videos) | Warning caught / false | Watch caught / false |
+| --- | --- | --- | --- |
+| +5 min | 52 (5) | 23 / 14 | 23 / 3 |
+| +10 min | 39 (4) | 0 / 0 | 18 / 91 |
+| +15 min | 28 (4) | 10 / 16 | 12 / 37 |
+
+Reading: at +5 minutes about 44% of onsets are caught with few false alarms, and that holds up when the
+threshold is not tuned on the test video. At +10 and +15 minutes the learned thresholds change from video
+to video and the false alarms outnumber the hits (watch precision 17% and 24%), so those two horizons are
+useful as a CI forecast but not yet as a jam alarm. The onsets come from only 4–5 videos, so every figure
+here has a wide margin.
 
 ### Model history (same check)
 

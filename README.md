@@ -124,6 +124,7 @@ phân tích, nên demo luôn chạy nhanh trên Render.
 | `FORECAST_BUNDLED_LIBRARY` | true | Dùng thư viện học đi kèm |
 | `MAP_TILE_URL_TEMPLATE`, `MAP_ATTRIBUTION` | OpenStreetMap | Nguồn ảnh nền bản đồ (HTTPS, có `{z}/{x}/{y}`) |
 | `LIVE_TOKEN` | (trống) | Nếu đặt: bật nhận số liệu trực tiếp từ bộ thu nhận (`tools/live_collector.py`); để trống thì tắt |
+| `LIVE_DB` | (trống) | Đường dẫn file SQLite lưu bền số liệu trực tiếp kèm thời tiết (xem mục "Lưu số liệu có dấu thời gian"); để trống thì chỉ giữ trong bộ nhớ |
 | `UPLOAD_TOKEN` | (trống) | Nếu đặt: phải nhập mã này mới tải video lên được (dùng cho bản công khai) |
 | `UPLOADS_PER_HOUR` | 20 | Số lượt tải video tối đa mỗi giờ cho toàn máy chủ |
 
@@ -159,9 +160,26 @@ python tools/live_collector.py --source rtsp://... --camera-id tdh-216 --name "2
 
 - `--source` có thể là URL RTSP/HLS, số thứ tự webcam hoặc một file video (phát đúng tốc độ gốc, dùng để thử).
 - Cần khoảng 9 phút số liệu liên tục mới có dự báo +5 phút. Nếu mất tín hiệu quá 2 phút, thẻ camera báo "Mất tín hiệu".
-- Số liệu giữ trong bộ nhớ (tối đa 3 giờ và 64 camera), mất khi khởi động lại; mẫu cũ hơn 15 phút hoặc ở tương lai bị từ chối.
-- API: `POST /api/live/<id>/samples` và `DELETE /api/live/<id>` cần tiêu đề `X-Live-Token`; `GET /api/live`, `GET /api/live/<id>` công khai.
+- Số liệu giữ trong bộ nhớ (tối đa 3 giờ và 64 camera); nếu đặt `LIVE_DB` thì còn được ghi xuống file và nạp lại sau khi khởi động lại. Mẫu cũ hơn 15 phút hoặc ở tương lai bị từ chối.
+- API: `POST /api/live/<id>/samples`, `DELETE /api/live/<id>` và `GET /api/live/export` cần tiêu đề `X-Live-Token`; `GET /api/live`, `GET /api/live/<id>`, `GET /api/live/history` công khai. Mã camera `export` và `history` bị giữ chỗ.
 - Chưa kiểm định trên luồng camera thật: các con số +18% ở trên chỉ đo trên video đã ghi.
+
+### Lưu số liệu có dấu thời gian (để học giờ cao điểm và mưa)
+
+Với `LIVE_DB=/đường/dẫn/live.sqlite`, mỗi mẫu đo được ghi kèm giờ thật, và cứ 10 phút một ảnh chụp thời tiết
+(Open-Meteo, nhiệt độ, độ ẩm, lượng mưa, gió, mã thời tiết) tại tọa độ camera. `GET /api/live/export?camera_id=...&since=<epoch>`
+trả về CSV, mỗi dòng ghép với ảnh chụp thời tiết gần nhất **trước** thời điểm đo (không nhìn trước tương lai); có cột giờ Hà Nội.
+Mỗi lần tối đa 200.000 dòng, dùng `since` để lấy tiếp. **Gói Render miễn phí có ổ đĩa tạm: file mất khi khởi động lại**,
+nên hoặc gắn ổ đĩa bền, hoặc tải CSV về định kỳ.
+
+Chưa có camera thật thì mô phỏng bằng video ghi sẵn, phát nhanh hơn thời gian thật:
+
+```bash
+python tools/replay_video.py part000.mp4 part001.mp4 --camera-id demo-tdh --db live.sqlite \
+    --start "2026-03-02 07:00" --lat 21.0075 --lng 105.7993 --forecast
+```
+
+Video ghi sẵn không có ngày thật nên bản phát lại **không** có thời tiết; nó chỉ kiểm tra đường ống lưu trữ và dự báo.
 
 **Quyền dữ liệu.** Việc Hà Nội có hệ thống camera tập trung (Quyết định 319/QĐ-UBND ngày 17/01/2025) không có
 nghĩa ứng dụng bên thứ ba được lấy luồng hình hay API: cần xin tài liệu giao diện, điều kiện sử dụng và quyền

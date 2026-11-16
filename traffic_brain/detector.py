@@ -13,6 +13,7 @@ import numpy as np
 MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "detector.onnx"
 INPUT_SIZE = 640
 VEHICLE_CLASS_IDS = frozenset({2, 3, 5, 7})  # COCO: car, motorcycle, bus, truck
+PERSON_CLASS_ID = 0  # only used to blur people in saved pictures, never counted as traffic
 CONFIDENCE_THRESHOLD = 0.25
 NMS_THRESHOLD = 0.45
 TRACK_DISTANCE_PIXELS = 50.0
@@ -40,7 +41,8 @@ class Track:
 
 
 def parse_detections(output: np.ndarray, input_shape: tuple[int, int], frame_shape: tuple[int, int],
-                     class_ids: frozenset[int] = VEHICLE_CLASS_IDS) -> list[Detection]:
+                     class_ids: frozenset[int] = VEHICLE_CLASS_IDS,
+                     min_score: float = CONFIDENCE_THRESHOLD) -> list[Detection]:
     """Decode a YOLOv8 output ([N,6] xyxy/score/class or [4+classes, N] cxcywh) and apply NMS."""
     out = np.asarray(output).squeeze()
     if out.ndim != 2:
@@ -53,7 +55,7 @@ def parse_detections(output: np.ndarray, input_shape: tuple[int, int], frame_sha
     if out.shape[1] == 6:
         for row in out:
             class_id, score = int(row[5]), float(row[4])
-            if class_id in class_ids and score >= CONFIDENCE_THRESHOLD:
+            if class_id in class_ids and score >= min_score:
                 boxes.append(tuple(map(float, row[:4])))
                 scores.append(score)
                 classes.append(class_id)
@@ -62,7 +64,7 @@ def parse_detections(output: np.ndarray, input_shape: tuple[int, int], frame_sha
         best = class_scores.argmax(axis=1)
         best_score = class_scores[np.arange(len(out)), best]
         for row, class_id, score in zip(out, best, best_score):
-            if int(class_id) not in class_ids or score < CONFIDENCE_THRESHOLD:
+            if int(class_id) not in class_ids or score < min_score:
                 continue
             cx, cy, w, h = map(float, row[:4])
             boxes.append((cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2))
@@ -74,7 +76,7 @@ def parse_detections(output: np.ndarray, input_shape: tuple[int, int], frame_sha
     for class_id in set(classes):
         idx = [i for i, c in enumerate(classes) if c == class_id]
         xywh = [[boxes[i][0], boxes[i][1], boxes[i][2] - boxes[i][0], boxes[i][3] - boxes[i][1]] for i in idx]
-        nms = cv2.dnn.NMSBoxes(xywh, [scores[i] for i in idx], CONFIDENCE_THRESHOLD, NMS_THRESHOLD)
+        nms = cv2.dnn.NMSBoxes(xywh, [scores[i] for i in idx], min_score, NMS_THRESHOLD)
         kept.extend(idx[int(i)] for i in np.asarray(nms).reshape(-1))
     (ih, iw), (fh, fw) = input_shape, frame_shape
     sx, sy = fw / iw, fh / ih
@@ -111,13 +113,14 @@ class Detector:
             self._input_name = self._session.get_inputs()[0].name
             self.error = None
 
-    def detect(self, frame: np.ndarray) -> list[Detection]:
+    def detect(self, frame: np.ndarray, class_ids: frozenset[int] = VEHICLE_CLASS_IDS,
+               min_score: float = CONFIDENCE_THRESHOLD) -> list[Detection]:
         if self._session is None:
             self.load()
         resized = cv2.resize(frame, (INPUT_SIZE, INPUT_SIZE))
         tensor = np.ascontiguousarray(resized[:, :, ::-1].transpose(2, 0, 1)[np.newaxis], dtype=np.float32) / 255.0
         output = self._session.run(None, {self._input_name: tensor})[0]
-        return parse_detections(output, (INPUT_SIZE, INPUT_SIZE), frame.shape[:2])
+        return parse_detections(output, (INPUT_SIZE, INPUT_SIZE), frame.shape[:2], class_ids, min_score)
 
 
 def update_tracks(detections: list[Detection], tracks: dict[int, Track], next_id: int,
