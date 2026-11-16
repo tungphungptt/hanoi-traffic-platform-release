@@ -40,6 +40,7 @@ h1, h2, h3 { font-family: Manrope, sans-serif; margin: 0; }
 .sidebar-spacer { flex: 1; min-height: 32px; }
 .support-card { background: var(--panel-subtle); border: 1px solid var(--line); padding: 15px 14px 13px; border-radius: 13px; margin: 0 3px 17px; }
 .support-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 9px; background: var(--gold-soft); color: var(--brand); font-size: 17px; margin-bottom: 10px; }
+.support-icon img { width: 20px; height: auto; display: block; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.08); }
 .support-card strong { font-size: 12px; }
 .support-card p { font-size: 10.5px; color: var(--muted); line-height: 1.55; margin: 6px 0 9px; }
 .text-link, .link-button { padding: 0; border: 0; background: transparent; color: var(--brand); font-size: 11px; font-weight: 700; text-decoration: none; }
