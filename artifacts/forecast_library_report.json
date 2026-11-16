@@ -1,0 +1,700 @@
+{
+ "created_at": "2026-11-16T04:43:23+00:00",
+ "records": [
+  {
+   "video_key": "14dceead19e719efebfe120a50fd442d",
+   "filename": "cam_3.mp4",
+   "camera": null,
+   "metrics": [
+    {
+     "horizon_minutes": 5,
+     "evaluated": 88,
+     "trained_anchors": 61,
+     "mae_model": 0.08641435055346026,
+     "mae_persistence": 0.09517155681818182,
+     "mae_trend": 0.2334002990645718,
+     "rmse_model": 0.10705919330681167,
+     "skill_vs_persistence": 0.0920149523397158,
+     "level_accuracy_model": 0.36363636363636365,
+     "level_accuracy_persistence": 0.4318181818181818,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 15,
+      "false_negative": 0,
+      "recall": null,
+      "precision": 0.0
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 10,
+     "evaluated": 68,
+     "trained_anchors": 21,
+     "mae_model": 0.07895493507969488,
+     "mae_persistence": 0.07693380882352942,
+     "mae_trend": 0.2578554167744021,
+     "rmse_model": 0.09326319315282292,
+     "skill_vs_persistence": -0.026270976142641178,
+     "level_accuracy_model": 0.5735294117647058,
+     "level_accuracy_persistence": 0.5294117647058824,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 23,
+      "false_negative": 0,
+      "recall": null,
+      "precision": 0.0
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 15,
+     "evaluated": 48,
+     "trained_anchors": 0,
+     "mae_model": 0.0947030768510811,
+     "mae_persistence": 0.09986306249999999,
+     "mae_trend": 0.4151322399267399,
+     "rmse_model": 0.1048165334914625,
+     "skill_vs_persistence": 0.05167061293477637,
+     "level_accuracy_model": 0.6041666666666666,
+     "level_accuracy_persistence": 0.5,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 22,
+      "false_negative": 0,
+      "recall": null,
+      "precision": 0.0
+     },
+     "actual_onsets": 0
+    }
+   ]
+  },
+  {
+   "video_key": "87034197f709848ba0c0264a2a96f326",
+   "filename": "cam_6.mp4",
+   "camera": null,
+   "metrics": [
+    {
+     "horizon_minutes": 5,
+     "evaluated": 88,
+     "trained_anchors": 61,
+     "mae_model": 0.05078195064667526,
+     "mae_persistence": 0.0595622159090909,
+     "mae_trend": 0.20536109065934066,
+     "rmse_model": 0.06368965325059353,
+     "skill_vs_persistence": 0.14741334130041195,
+     "level_accuracy_model": 0.7954545454545454,
+     "level_accuracy_persistence": 0.7954545454545454,
+     "onset_model": {
+      "true_positive": 2,
+      "false_positive": 4,
+      "false_negative": 10,
+      "recall": 0.16666666666666666,
+      "precision": 0.3333333333333333
+     },
+     "onset_trend": {
+      "true_positive": 3,
+      "false_positive": 18,
+      "false_negative": 9,
+      "recall": 0.25,
+      "precision": 0.14285714285714285
+     },
+     "actual_onsets": 12
+    },
+    {
+     "horizon_minutes": 10,
+     "evaluated": 68,
+     "trained_anchors": 21,
+     "mae_model": 0.06041391988819463,
+     "mae_persistence": 0.06416151470588236,
+     "mae_trend": 0.274157390021743,
+     "rmse_model": 0.07246117837150862,
+     "skill_vs_persistence": 0.05840876473797063,
+     "level_accuracy_model": 0.7058823529411765,
+     "level_accuracy_persistence": 0.6911764705882353,
+     "onset_model": {
+      "true_positive": 1,
+      "false_positive": 0,
+      "false_negative": 15,
+      "recall": 0.0625,
+      "precision": 1.0
+     },
+     "onset_trend": {
+      "true_positive": 11,
+      "false_positive": 11,
+      "false_negative": 5,
+      "recall": 0.6875,
+      "precision": 0.5
+     },
+     "actual_onsets": 16
+    },
+    {
+     "horizon_minutes": 15,
+     "evaluated": 48,
+     "trained_anchors": 0,
+     "mae_model": 0.0885936225763553,
+     "mae_persistence": 0.10051929166666666,
+     "mae_trend": 0.3459375425407926,
+     "rmse_model": 0.09789744336805785,
+     "skill_vs_persistence": 0.11864060015323463,
+     "level_accuracy_model": 0.6875,
+     "level_accuracy_persistence": 0.7083333333333334,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 13,
+      "recall": 0.0,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 7,
+      "false_positive": 8,
+      "false_negative": 6,
+      "recall": 0.5384615384615384,
+      "precision": 0.4666666666666667
+     },
+     "actual_onsets": 13
+    }
+   ]
+  },
+  {
+   "video_key": "93dfb74776b48d79ee341326c3ca57b7-cam0",
+   "filename": "hanoi_broadcast_1.mp4",
+   "camera": "Camera 1",
+   "metrics": [
+    {
+     "horizon_minutes": 5,
+     "evaluated": 8,
+     "trained_anchors": 0,
+     "mae_model": 0.24434920199172447,
+     "mae_persistence": 0.25127137499999996,
+     "mae_trend": 0.4866952010905761,
+     "rmse_model": 0.2687351381003509,
+     "skill_vs_persistence": 0.027548593660043807,
+     "level_accuracy_model": 0.25,
+     "level_accuracy_persistence": 0.25,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 3,
+      "recall": 0.0,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 3,
+      "false_positive": 2,
+      "false_negative": 0,
+      "recall": 1.0,
+      "precision": 0.6
+     },
+     "actual_onsets": 3
+    },
+    {
+     "horizon_minutes": 10,
+     "evaluated": 14,
+     "trained_anchors": 0,
+     "mae_model": 0.10965846616234785,
+     "mae_persistence": 0.15504849999999998,
+     "mae_trend": 0.6422872409733124,
+     "rmse_model": 0.1270569719337423,
+     "skill_vs_persistence": 0.292747326402075,
+     "level_accuracy_model": 0.14285714285714285,
+     "level_accuracy_persistence": 0.07142857142857142,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 11,
+      "false_negative": 0,
+      "recall": null,
+      "precision": 0.0
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 15,
+     "evaluated": 0
+    }
+   ]
+  },
+  {
+   "video_key": "93dfb74776b48d79ee341326c3ca57b7-cam1",
+   "filename": "hanoi_broadcast_1.mp4",
+   "camera": "Camera 2",
+   "metrics": [
+    {
+     "horizon_minutes": 5,
+     "evaluated": 3,
+     "trained_anchors": 0,
+     "mae_model": 0.05880846143815646,
+     "mae_persistence": 0.07994433333333333,
+     "mae_trend": 0.10284482417582418,
+     "rmse_model": 0.0702135977935945,
+     "skill_vs_persistence": 0.2643823647518506,
+     "level_accuracy_model": 1.0,
+     "level_accuracy_persistence": 1.0,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 10,
+     "evaluated": 0
+    },
+    {
+     "horizon_minutes": 15,
+     "evaluated": 0
+    }
+   ]
+  },
+  {
+   "video_key": "c50232740fc08ac6af37509d2a8f6e1b-cam0",
+   "filename": "hanoi_broadcast_2.mp4",
+   "camera": "Camera 1",
+   "metrics": [
+    {
+     "horizon_minutes": 5,
+     "evaluated": 3,
+     "trained_anchors": 0,
+     "mae_model": 0.1756981790030382,
+     "mae_persistence": 0.1755556666666667,
+     "mae_trend": 0.12445973260073266,
+     "rmse_model": 0.17590154242693987,
+     "skill_vs_persistence": -0.0008117786174461905,
+     "level_accuracy_model": 0.0,
+     "level_accuracy_persistence": 0.0,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 10,
+     "evaluated": 9,
+     "trained_anchors": 0,
+     "mae_model": 0.15720445913354364,
+     "mae_persistence": 0.1845488888888889,
+     "mae_trend": 0.45082853872053885,
+     "rmse_model": 0.16826139753135488,
+     "skill_vs_persistence": 0.14816902946410304,
+     "level_accuracy_model": 0.5555555555555556,
+     "level_accuracy_persistence": 0.5555555555555556,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 15,
+     "evaluated": 0
+    }
+   ]
+  },
+  {
+   "video_key": "c50232740fc08ac6af37509d2a8f6e1b-cam1",
+   "filename": "hanoi_broadcast_2.mp4",
+   "camera": "Camera 2",
+   "metrics": [
+    {
+     "horizon_minutes": 5,
+     "evaluated": 6,
+     "trained_anchors": 0,
+     "mae_model": 0.13573865932230023,
+     "mae_persistence": 0.14847216666666668,
+     "mae_trend": 0.23117281562881564,
+     "rmse_model": 0.14240632719917046,
+     "skill_vs_persistence": 0.08576359886330964,
+     "level_accuracy_model": 1.0,
+     "level_accuracy_persistence": 1.0,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 10,
+     "evaluated": 0
+    },
+    {
+     "horizon_minutes": 15,
+     "evaluated": 0
+    }
+   ]
+  },
+  {
+   "video_key": "db1fafdfb19e7e8859415f1f4ea5e0cd-cam0",
+   "filename": "hanoi_broadcast_4.mp4",
+   "camera": "Camera 1",
+   "metrics": [
+    {
+     "horizon_minutes": 5,
+     "evaluated": 3,
+     "trained_anchors": 0,
+     "mae_model": 0.22907484864732072,
+     "mae_persistence": 0.299286,
+     "mae_trend": 0.705508,
+     "rmse_model": 0.2620275863443988,
+     "skill_vs_persistence": 0.2345955084857938,
+     "level_accuracy_model": 0.6666666666666666,
+     "level_accuracy_persistence": 0.3333333333333333,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 1,
+      "false_negative": 0,
+      "recall": null,
+      "precision": 0.0
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 10,
+     "evaluated": 8,
+     "trained_anchors": 0,
+     "mae_model": 0.049300008570601316,
+     "mae_persistence": 0.0492115,
+     "mae_trend": 0.5159198928571429,
+     "rmse_model": 0.05837635750858328,
+     "skill_vs_persistence": -0.0017985342979043306,
+     "level_accuracy_model": 0.5,
+     "level_accuracy_persistence": 0.5,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 7,
+      "false_negative": 0,
+      "recall": null,
+      "precision": 0.0
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 15,
+     "evaluated": 0
+    }
+   ]
+  },
+  {
+   "video_key": "db1fafdfb19e7e8859415f1f4ea5e0cd-cam1",
+   "filename": "hanoi_broadcast_4.mp4",
+   "camera": "Camera 2",
+   "metrics": [
+    {
+     "horizon_minutes": 5,
+     "evaluated": 0
+    },
+    {
+     "horizon_minutes": 10,
+     "evaluated": 0
+    },
+    {
+     "horizon_minutes": 15,
+     "evaluated": 0
+    }
+   ]
+  },
+  {
+   "video_key": "ec265317b963df87a414dc281a2d50eb",
+   "filename": "cam_2.mp4",
+   "camera": null,
+   "metrics": [
+    {
+     "horizon_minutes": 5,
+     "evaluated": 88,
+     "trained_anchors": 61,
+     "mae_model": 0.08609908575906355,
+     "mae_persistence": 0.1036320340909091,
+     "mae_trend": 0.14256300341325343,
+     "rmse_model": 0.10445549345743765,
+     "skill_vs_persistence": 0.16918463953399887,
+     "level_accuracy_model": 0.9318181818181818,
+     "level_accuracy_persistence": 0.8863636363636364,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 1,
+      "false_negative": 0,
+      "recall": null,
+      "precision": 0.0
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 10,
+     "evaluated": 68,
+     "trained_anchors": 21,
+     "mae_model": 0.08489867966289291,
+     "mae_persistence": 0.10758708823529413,
+     "mae_trend": 0.23065482800043097,
+     "rmse_model": 0.09966347588473329,
+     "skill_vs_persistence": 0.21088412136204882,
+     "level_accuracy_model": 1.0,
+     "level_accuracy_persistence": 0.9264705882352942,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 10,
+      "false_negative": 0,
+      "recall": null,
+      "precision": 0.0
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 15,
+     "evaluated": 48,
+     "trained_anchors": 0,
+     "mae_model": 0.05164016413859557,
+     "mae_persistence": 0.0664383125,
+     "mae_trend": 0.3447750592948718,
+     "rmse_model": 0.060062385294041204,
+     "skill_vs_persistence": 0.22273516295893925,
+     "level_accuracy_model": 1.0,
+     "level_accuracy_persistence": 0.8958333333333334,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 18,
+      "false_negative": 0,
+      "recall": null,
+      "precision": 0.0
+     },
+     "actual_onsets": 0
+    }
+   ]
+  },
+  {
+   "video_key": "f33efea32ba5b9e0c86e5b2dfac8eaf5-cam0",
+   "filename": "hanoi_broadcast_3.mp4",
+   "camera": "Camera 1",
+   "metrics": [
+    {
+     "horizon_minutes": 5,
+     "evaluated": 3,
+     "trained_anchors": 0,
+     "mae_model": 0.06702247723633843,
+     "mae_persistence": 0.08586633333333334,
+     "mae_trend": 0.07670217948717949,
+     "rmse_model": 0.07837601563044919,
+     "skill_vs_persistence": 0.21945569777438856,
+     "level_accuracy_model": 1.0,
+     "level_accuracy_persistence": 0.6666666666666666,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 10,
+     "evaluated": 8,
+     "trained_anchors": 0,
+     "mae_model": 0.028620512807697104,
+     "mae_persistence": 0.057634875,
+     "mae_trend": 0.18199531868131869,
+     "rmse_model": 0.045449643982290164,
+     "skill_vs_persistence": 0.5034167627205385,
+     "level_accuracy_model": 0.875,
+     "level_accuracy_persistence": 0.875,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "recall": null,
+      "precision": null
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 15,
+     "evaluated": 0
+    }
+   ]
+  },
+  {
+   "video_key": "f33efea32ba5b9e0c86e5b2dfac8eaf5-cam1",
+   "filename": "hanoi_broadcast_3.mp4",
+   "camera": "Camera 2",
+   "metrics": [
+    {
+     "horizon_minutes": 5,
+     "evaluated": 6,
+     "trained_anchors": 0,
+     "mae_model": 0.1323095066053205,
+     "mae_persistence": 0.143925,
+     "mae_trend": 0.16321482539682539,
+     "rmse_model": 0.15912441486575848,
+     "skill_vs_persistence": 0.08070518252339409,
+     "level_accuracy_model": 1.0,
+     "level_accuracy_persistence": 0.6666666666666666,
+     "onset_model": {
+      "true_positive": 0,
+      "false_positive": 1,
+      "false_negative": 0,
+      "recall": null,
+      "precision": 0.0
+     },
+     "onset_trend": {
+      "true_positive": 0,
+      "false_positive": 2,
+      "false_negative": 0,
+      "recall": null,
+      "precision": 0.0
+     },
+     "actual_onsets": 0
+    },
+    {
+     "horizon_minutes": 10,
+     "evaluated": 0
+    },
+    {
+     "horizon_minutes": 15,
+     "evaluated": 0
+    }
+   ]
+  }
+ ],
+ "summary": [
+  {
+   "horizon_minutes": 5,
+   "evaluated": 296,
+   "mae_model": 0.0838,
+   "mae_persistence": 0.096,
+   "mae_trend": 0.2042,
+   "skill_vs_persistence": 0.1273
+  },
+  {
+   "horizon_minutes": 10,
+   "evaluated": 243,
+   "mae_model": 0.0775,
+   "mae_persistence": 0.0889,
+   "mae_trend": 0.2901,
+   "skill_vs_persistence": 0.1284
+  },
+  {
+   "horizon_minutes": 15,
+   "evaluated": 144,
+   "mae_model": 0.0783,
+   "mae_persistence": 0.0889,
+   "mae_trend": 0.3686,
+   "skill_vs_persistence": 0.1195
+  }
+ ]
+}

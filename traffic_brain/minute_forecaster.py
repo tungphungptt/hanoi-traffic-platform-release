@@ -37,7 +37,6 @@ SIGMA_FLOOR = 0.03
 Z_80 = 1.2816
 # Fixed before any evaluation: warn when the forecast gives at least a 40% chance of CI >= 0.55.
 WARNING_PROBABILITY = 0.40
-METHOD_RIDGE = "online_ridge"
 METHOD_ENSEMBLE = "online_ensemble"
 METHOD_DAMPED = "damped_trend"
 # Only relative features: absolute CI levels differ between cameras, so learning from
@@ -282,8 +281,11 @@ def forecast_series(series: Mapping[str, np.ndarray], *,
     history: dict[int, dict[int, dict[str, float]]] = {h: {} for h in horizons}
     final_history: dict[int, dict[int, float]] = {h: {} for h in horizons}
     anchors: list[dict[str, Any]] = []
+    # A camera that comes on air mid-video (broadcast recordings) needs its own warm-up.
+    observed_so_far = np.cumsum(np.isfinite(ci))
+    min_observed = int((warmup_seconds - WINDOW_SECONDS) / step_seconds) + 1
     for i, tau in enumerate(times):
-        if tau < warmup_seconds or not valid[i]:
+        if tau < warmup_seconds or not valid[i] or observed_so_far[i] < min_observed:
             continue
         ci_now = float(ci[i])
         slope_3m = float(features[i, slope_col])
