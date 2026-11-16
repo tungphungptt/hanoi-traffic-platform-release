@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>hanoiFlow · Bản đồ và thời tiết Hà Nội</title>
+  <link rel="icon" href="/static/vietnam-flag.svg" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="/static/app.css" />
+  <link rel="stylesheet" href="/static/map.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="hanoiFlow">
+      <span class="brand-mark" aria-hidden="true">hF</span>
+      <span class="brand-copy"><strong>hanoi<span>Flow</span></strong><small>Bản đồ và thời tiết Hà Nội</small></span>
+    </a>
+    <nav class="top-links">
+      <a href="/" class="link">← Dự báo ùn tắc từ video</a>
+    </nav>
+  </header>
+
+  <main class="page map-page">
+    <section class="card map-card">
+      <div class="card-head">
+        <div>
+          <h2>Toàn thành phố</h2>
+          <p class="muted" id="overviewMeta">Đang tải thời tiết các khu vực…</p>
+        </div>
+        <button class="btn small ghost" id="refreshBtn" type="button">Cập nhật</button>
+      </div>
+      <div id="map" class="map" aria-label="Bản đồ Hà Nội"></div>
+      <p class="fine">Bấm vào bất kỳ điểm nào trong ranh giới Hà Nội để xem dự báo chi tiết tại đó. <span id="attribution"></span></p>
+    </section>
+
+    <aside class="card weather-card" aria-live="polite">
+      <div class="card-head">
+        <div>
+          <h2 id="placeTitle">Hoàn Kiếm</h2>
+          <p class="muted" id="placeMeta">—</p>
+        </div>
+        <span class="chip" id="weatherChip">Đang tải</span>
+      </div>
+      <div class="now" id="now"></div>
+      <h3>24 giờ tới</h3>
+      <div class="hours" id="hours"></div>
+      <h3>3 ngày</h3>
+      <div class="days" id="days"></div>
+    </aside>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="/static/map.js"></script>
+</body>
+</html>

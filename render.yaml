@@ -1,0 +1,24 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Free instance: 512 MB RAM, shared CPU, disk wiped on every restart.
+services:
+  - type: web
+    name: hanoi-traffic-platform
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      # Analysis runs on a shared CPU (roughly 10x slower than a laptop): keep uploads modest.
+      - key: MAX_UPLOAD_MIB
+        value: "500"
+      - key: MAX_VIDEO_MINUTES
+        value: "40"
+      # The disk is wiped on restart and anyone can upload: do not learn from public uploads.
+      - key: FORECAST_LIBRARY_ENABLED
+        value: "false"
+      - key: FORECAST_BUNDLED_LIBRARY
+        value: "true"
