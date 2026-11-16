@@ -150,3 +150,34 @@ def test_evidence_pictures_never_keep_the_original_pixels_of_people_or_vehicles(
     assert saved
     image = cv2.imread(str(tmp_path / "ev" / saved[0]["file"]))
     assert image[40:80, 40:60].astype(float).std() < 40  # the person (score 0.2, below the counting bar) is blurred too
+
+
+def test_yolox_head_is_decoded_to_boxes_in_the_original_frame():
+    from traffic_brain.detector import parse_yolox, yolox_letterbox
+    out = np.zeros((8400, 85), dtype=np.float32)
+    row = 5 * 80 + 10  # stride-8 grid is 80 x 80: cell (x=10, y=5)
+    out[row, :4] = [0.5, 0.5, np.log(4.0), np.log(4.0)]   # centre (10.5, 5.5) * 8, size 4 * 8
+    out[row, 4] = 1.0
+    out[row, 5 + 2] = 0.9                                  # car
+    person = 20 * 80 + 40
+    out[person, :4] = [0.5, 0.5, np.log(4.0), np.log(4.0)]
+    out[person, 4] = 1.0
+    out[person, 5 + 0] = 0.95                              # person: not a vehicle
+    dets = parse_yolox(out, 640, 0.5)
+    assert len(dets) == 1 and dets[0].class_id == 2 and dets[0].score == pytest.approx(0.9)
+    assert dets[0].box == pytest.approx((136, 56, 200, 120))  # (68, 28, 100, 60) / 0.5
+    assert parse_yolox(out, 640, 0.5, frozenset({0}))[0].class_id == 0
+    with pytest.raises(RuntimeError):
+        parse_yolox(out[:100], 640, 0.5)
+    frame = np.full((540, 960, 3), 200, dtype=np.uint8)
+    tensor, ratio = yolox_letterbox(frame, 640)
+    assert tensor.shape == (1, 3, 640, 640) and ratio == pytest.approx(640 / 960)
+    assert tensor[0, 0, 100, 100] == 200 and tensor[0, 0, 639, 100] == 114  # content on top, grey padding below
+
+
+def test_detector_picks_decoder_from_the_model_output_shape():
+    from traffic_brain.detector import MODEL_PATH, Detector
+    pytest.importorskip("onnxruntime")
+    shipped = Detector(MODEL_PATH)
+    shipped.load()
+    assert shipped.kind == "yolov8"

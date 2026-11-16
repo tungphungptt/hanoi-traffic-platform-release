@@ -1,0 +1,92 @@
+{
+  "frames": 48,
+  "traffic_frames": 39,
+  "videos": [
+    "cam1_003.mp4",
+    "cam1_015.mp4",
+    "cam2_004.mp4",
+    "cam2_016.mp4",
+    "cam3_006.mp4",
+    "cam3_018.mp4",
+    "cam4_005.mp4",
+    "cam4_019.mp4"
+  ],
+  "note": "Relative comparison against the consensus of the models; no human labels.",
+  "models": {
+    "yolov8n (shipped, AGPL-3.0)": {
+      "ms_per_frame_mean": 76.6,
+      "ms_per_frame_p95": 97.1,
+      "vehicles_per_frame_mean": 3.9,
+      "motorbikes_per_frame_mean": 0.02,
+      "cars_buses_trucks_per_frame_mean": 3.88,
+      "recall_vs_consensus": 0.318,
+      "precision_vs_consensus": 0.994,
+      "traffic_frames_only": {
+        "vehicles_per_frame_mean": 4.77,
+        "motorbikes_per_frame_mean": 0.03,
+        "recall_vs_consensus": 0.301,
+        "precision_vs_consensus": 0.892
+      }
+    },
+    "yolox_nano (Apache-2.0)": {
+      "ms_per_frame_mean": 23.8,
+      "ms_per_frame_p95": 36.6,
+      "vehicles_per_frame_mean": 5.5,
+      "motorbikes_per_frame_mean": 0.23,
+      "cars_buses_trucks_per_frame_mean": 5.27,
+      "recall_vs_consensus": 0.379,
+      "precision_vs_consensus": 0.961,
+      "traffic_frames_only": {
+        "vehicles_per_frame_mean": 6.77,
+        "motorbikes_per_frame_mean": 0.28,
+        "recall_vs_consensus": 0.389,
+        "precision_vs_consensus": 0.961
+      }
+    },
+    "yolox_tiny (Apache-2.0)": {
+      "ms_per_frame_mean": 70.8,
+      "ms_per_frame_p95": 86.3,
+      "vehicles_per_frame_mean": 8.38,
+      "motorbikes_per_frame_mean": 0.21,
+      "cars_buses_trucks_per_frame_mean": 8.17,
+      "recall_vs_consensus": 0.564,
+      "precision_vs_consensus": 0.92,
+      "traffic_frames_only": {
+        "vehicles_per_frame_mean": 10.31,
+        "motorbikes_per_frame_mean": 0.26,
+        "recall_vs_consensus": 0.579,
+        "precision_vs_consensus": 0.896
+      }
+    },
+    "yolox_s (Apache-2.0)": {
+      "ms_per_frame_mean": 143.4,
+      "ms_per_frame_p95": 162.6,
+      "vehicles_per_frame_mean": 13.79,
+      "motorbikes_per_frame_mean": 2.04,
+      "cars_buses_trucks_per_frame_mean": 11.75,
+      "recall_vs_consensus": 0.95,
+      "precision_vs_consensus": 0.93,
+      "traffic_frames_only": {
+        "vehicles_per_frame_mean": 16.92,
+        "motorbikes_per_frame_mean": 2.51,
+        "recall_vs_consensus": 0.949,
+        "precision_vs_consensus": 0.941
+      }
+    },
+    "yolox_m (Apache-2.0)": {
+      "ms_per_frame_mean": 320.1,
+      "ms_per_frame_p95": 358.5,
+      "vehicles_per_frame_mean": 17.52,
+      "motorbikes_per_frame_mean": 3.98,
+      "cars_buses_trucks_per_frame_mean": 13.54,
+      "recall_vs_consensus": 0.97,
+      "precision_vs_consensus": 0.742,
+      "traffic_frames_only": {
+        "vehicles_per_frame_mean": 21.51,
+        "motorbikes_per_frame_mean": 4.9,
+        "recall_vs_consensus": 0.97,
+        "precision_vs_consensus": 0.748
+      }
+    }
+  }
+}

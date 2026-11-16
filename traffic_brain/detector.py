@@ -1,4 +1,9 @@
-"""YOLOv8n ONNX vehicle detector (COCO classes) and a greedy nearest-centre tracker, on CPU."""
+"""ONNX vehicle detector (COCO classes) and a greedy nearest-centre tracker, on CPU.
+
+Shipped: YOLOv8n (AGPL-3.0). Also understood, picked from the model's output shape: the official YOLOX
+ONNX exports (Apache-2.0), e.g. ``DETECTOR_MODEL=/path/yolox_s.onnx``. Changing the detector changes the
+CI scale, so the forecast library must be rebuilt with the same detector.
+"""
 from __future__ import annotations
 
 import os
@@ -10,7 +15,7 @@ from typing import Any
 import cv2
 import numpy as np
 
-MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "detector.onnx"
+MODEL_PATH = Path(os.getenv("DETECTOR_MODEL") or Path(__file__).resolve().parents[1] / "models" / "detector.onnx")
 INPUT_SIZE = 640
 VEHICLE_CLASS_IDS = frozenset({2, 3, 5, 7})  # COCO: car, motorcycle, bus, truck
 PERSON_CLASS_ID = 0  # only used to blur people in saved pictures, never counted as traffic
@@ -84,13 +89,60 @@ def parse_detections(output: np.ndarray, input_shape: tuple[int, int], frame_sha
             for i in sorted(kept)]
 
 
+YOLOX_STRIDES = (8, 16, 32)
+
+
+def yolox_letterbox(frame: np.ndarray, size: int) -> tuple[np.ndarray, float]:
+    """Resize keeping the aspect ratio, pad bottom/right with 114; returns (NCHW float32 BGR 0-255, ratio)."""
+    h, w = frame.shape[:2]
+    ratio = min(size / h, size / w)
+    resized = cv2.resize(frame, (int(w * ratio), int(h * ratio)), interpolation=cv2.INTER_LINEAR)
+    canvas = np.full((size, size, 3), 114, dtype=np.uint8)
+    canvas[:resized.shape[0], :resized.shape[1]] = resized
+    return np.ascontiguousarray(canvas.transpose(2, 0, 1)[None], dtype=np.float32), ratio
+
+
+def parse_yolox(output: np.ndarray, size: int, ratio: float, class_ids: frozenset[int] = VEHICLE_CLASS_IDS,
+                min_score: float = CONFIDENCE_THRESHOLD) -> list[Detection]:
+    """Decode the raw YOLOX head ([N, 85]: cx, cy, w, h as grid offsets, objectness, 80 class scores) and apply NMS."""
+    out = np.asarray(output).reshape(-1, np.asarray(output).shape[-1])
+    grids, strides = [], []
+    for stride in YOLOX_STRIDES:
+        n = size // stride
+        gx, gy = np.meshgrid(np.arange(n), np.arange(n))
+        grids.append(np.stack((gx, gy), 2).reshape(-1, 2))
+        strides.append(np.full((n * n, 1), stride))
+    grid, stride = np.concatenate(grids), np.concatenate(strides)
+    if len(grid) != len(out):
+        raise RuntimeError(f"Unexpected YOLOX output rows: {len(out)} for input {size}")
+    centre = (out[:, :2] + grid) * stride
+    wh = np.exp(np.clip(out[:, 2:4], -10, 10)) * stride
+    scores_all = out[:, 4:5] * out[:, 5:]
+    cls = scores_all.argmax(1)
+    score = scores_all[np.arange(len(out)), cls]
+    keep = np.isin(cls, list(class_ids)) & (score >= min_score)
+    boxes = (np.concatenate([centre - wh / 2, centre + wh / 2], 1)[keep]) / ratio
+    cls, score = cls[keep], score[keep]
+    found: list[Detection] = []
+    for class_id in set(cls.tolist()):
+        idx = np.flatnonzero(cls == class_id)
+        xywh = [[float(b[0]), float(b[1]), float(b[2] - b[0]), float(b[3] - b[1])] for b in boxes[idx]]
+        nms = cv2.dnn.NMSBoxes(xywh, score[idx].tolist(), min_score, NMS_THRESHOLD)
+        for k in np.asarray(nms).reshape(-1):
+            b = boxes[idx[int(k)]]
+            found.append(Detection(int(class_id), (float(b[0]), float(b[1]), float(b[2]), float(b[3])), float(score[idx[int(k)]])))
+    return found
+
+
 class Detector:
-    """Loads models/detector.onnx on first use; one instance is shared by the worker thread."""
+    """Loads the ONNX model (models/detector.onnx, or DETECTOR_MODEL) on first use; shared by the worker thread."""
 
     def __init__(self, path: Path = MODEL_PATH) -> None:
         self.path = Path(path)
         self._session: Any = None
         self._input_name = ""
+        self._input_size = INPUT_SIZE
+        self.kind = "yolov8"  # or "yolox", from the output shape
         self._lock = threading.Lock()
         self.error: str | None = None
 
@@ -110,13 +162,22 @@ class Detector:
             options.intra_op_num_threads = max(1, min(4, os.cpu_count() or 1))
             self._session = ort.InferenceSession(str(self.path), sess_options=options,
                                                  providers=["CPUExecutionProvider"])
-            self._input_name = self._session.get_inputs()[0].name
+            model_input = self._session.get_inputs()[0]
+            self._input_name = model_input.name
+            if isinstance(model_input.shape[-1], int):
+                self._input_size = int(model_input.shape[-1])
+            out_shape = self._session.get_outputs()[0].shape
+            self.kind = "yolox" if len(out_shape) == 3 and out_shape[-1] == 85 else "yolov8"
             self.error = None
 
     def detect(self, frame: np.ndarray, class_ids: frozenset[int] = VEHICLE_CLASS_IDS,
                min_score: float = CONFIDENCE_THRESHOLD) -> list[Detection]:
         if self._session is None:
             self.load()
+        if self.kind == "yolox":
+            tensor, ratio = yolox_letterbox(frame, self._input_size)
+            output = self._session.run(None, {self._input_name: tensor})[0]
+            return parse_yolox(output, self._input_size, ratio, class_ids, min_score)
         resized = cv2.resize(frame, (INPUT_SIZE, INPUT_SIZE))
         tensor = np.ascontiguousarray(resized[:, :, ::-1].transpose(2, 0, 1)[np.newaxis], dtype=np.float32) / 255.0
         output = self._session.run(None, {self._input_name: tensor})[0]
