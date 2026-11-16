@@ -68,22 +68,25 @@ liệu cũ (tối đa 3 giờ) và ghi rõ.
 1. **Đo** (`traffic_brain/video_analysis.py`): 1 khung hình/giây, YOLOv8n ONNX nhận diện ô tô, xe máy, buýt,
    tải; bám vết để đo chuyển động. CI (0–1) = phần diện tích xe chiếm + số xe + tỉ lệ xe đứng yên.
    CI quan sát là trung bình 60 giây, mỗi 15 giây.
-2. **Dự báo** (`traffic_brain/minute_forecaster.py`): tại mỗi thời điểm t, năm bộ dự báo (giữ nguyên, hồi
-   về mức thường gặp của đoạn đường, xu hướng giảm chấn, hồi quy ridge, tình huống tương tự) được trộn theo
-   nghịch đảo sai số gần đây của chính chúng. Ridge và tình huống tương tự học từ phần video trước t và từ
-   thư viện huấn luyện. Cảnh báo tắc khi xác suất CI ≥ 0,55 từ 40% trở lên (cố định trước khi chấm).
+2. **Dự báo** (`traffic_brain/minute_forecaster.py`): tại mỗi thời điểm t, CI sau h phút = CI hiện tại
+   cộng tổ hợp ba xu hướng: kéo về mức trung bình của camera, kéo về mức trung bình 10 phút gần nhất và xu
+   hướng 3 phút (giảm dần). Trọng số học bằng bình phương tối thiểu (không âm) trên thư viện huấn luyện và
+   phần video đã xem xong trước t. Cảnh báo tắc khi xác suất CI ≥ 0,55 từ 40% trở lên (cố định trước khi
+   chấm); mức "theo dõi" khi từ 20% đến dưới 40%.
 3. **Học** (`models/forecast_library/`): chuỗi CI của 3 video AIC21 và 19 chuỗi camera Hà Nội (không lưu
    hình ảnh). Video đã phân tích trên máy bạn cũng được lưu thành chuỗi số vào `data/forecast_library/`
    để lần sau học thêm. Một video không bao giờ học từ chính nó.
 
 Kiểm tra chéo bỏ-một-video trên 7 video (3 AIC21 + 4 bản ghi Hà Nội dài 80–109 phút, toàn bộ thư mục Drive
-"Hanoi Flow" trừ phần giữ lại làm demo), so với "giữ nguyên mức hiện tại": **tốt hơn 9,5% ở +5 phút, 9,9% ở
-+10 phút, 7,9% ở +15 phút** (851 / 640 / 486 lần kiểm chứng; khoảng tin cậy 95% đều dương). Riêng camera Hà
-Nội: +9,0% / +9,7% / +6,6% trên 587 / 436 / 342 lần. Chi tiết: `models/forecast_library/README.md` và trang
-**Đánh giá mô hình**.
+"Hanoi Flow" trừ phần giữ lại làm demo), so với "giữ nguyên mức hiện tại": **tốt hơn 18,3% ở +5 phút, 16,0% ở
++10 phút, 11,1% ở +15 phút** (851 / 640 / 486 lần kiểm chứng; khoảng tin cậy 95% đều dương). Riêng camera Hà
+Nội: +19,2% / +19,1% / +10,1%. Cảnh báo tắc trước 5 phút: bắt 23/52 lần chuyển sang tắc, không báo nhầm lần
+nào; trước 10–15 phút cảnh báo 40% hầu như không bật, mức "theo dõi" bắt 15/39 và 12/28 lần (đúng 31% và
+40% số lần bật). Chi tiết: `models/forecast_library/README.md` và trang **Đánh giá mô hình**.
 
 **Giới hạn.** "Thực tế" dùng để chấm là CI thị giác do chính hệ thống đo, không phải nhãn chuyên gia; số
-lần kiểm chứng trên Hà Nội còn ít; mô hình chưa được kiểm định trên luồng camera trực tiếp.
+lần kiểm chứng trên Hà Nội còn ít; các lần chuyển sang tắc (52 lần) tập trung ở 5 video; cấu trúc mô hình và
+ngưỡng "theo dõi" được chọn sau khi xem chính các kết quả kiểm tra chéo này nên con số có thể hơi lạc quan; mô hình chưa được kiểm định trên luồng camera trực tiếp.
 
 **Kiểm chứng CI bằng nhãn của người** (để không chỉ "tự chấm mình"):
 

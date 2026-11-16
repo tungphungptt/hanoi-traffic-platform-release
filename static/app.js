@@ -489,12 +489,13 @@ if (typeof document !== 'undefined') {
         const sameLevel = levelKey(item.ci) === levelKey(item.actual_ci);
         const warnOk = item.warning ? item.actual_ci >= SEVERE_CI : true;
         const ok = sameLevel && warnOk;
-        const warnText = item.warning ? (item.actual_ci >= SEVERE_CI ? ' Cảnh báo tắc: đúng.' : ' Cảnh báo tắc: báo nhầm.') : '';
+        const warnText = item.warning ? (item.actual_ci >= SEVERE_CI ? ' Cảnh báo tắc: đúng.' : ' Cảnh báo tắc: báo nhầm.')
+          : item.watch ? (item.actual_ci >= SEVERE_CI ? ' Mức theo dõi: đã tắc thật.' : ' Mức theo dõi: không tắc.') : '';
         verify = `<div class="verify ${ok ? 'hit' : 'miss'}">${ok ? '✓' : '✗'} Thực tế lúc ${fmtTime(item.target_t)}: ${LEVEL_LABEL[levelKey(item.actual_ci)]} (CI ${num(item.actual_ci)}).${warnText}</div>`;
       }
       return `<article class="hcard${item.warning ? ' warning' : ''}">
         <div class="hrow"><span class="htitle">+${item.horizon_minutes} phút</span><span class="htime">→ ${fmtTime(item.target_t)}</span></div>
-        <div class="hrow">${levelChip(item.ci)}${item.warning ? '<span class="warn-flag">⚠ Cảnh báo sắp tắc</span>' : ''}</div>
+        <div class="hrow">${levelChip(item.ci)}${item.warning ? '<span class="warn-flag">⚠ Cảnh báo sắp tắc</span>' : item.watch ? '<span class="watch-flag">◔ Theo dõi: có thể tắc</span>' : ''}</div>
         <div class="hmeta">CI dự báo <strong>${num(item.ci)}</strong> (${num(item.lower)}–${num(item.upper)}) · khả năng tắc ${pct(item.p_gridlock)}</div>
         <div class="pbar" aria-hidden="true"><span style="width:${Math.round(item.p_gridlock * 100)}%"></span></div>
         ${verify}
@@ -587,8 +588,10 @@ if (typeof document !== 'undefined') {
     const lead = `Lúc <strong>${fmtTime(record.t)}</strong> đường đang ${LEVEL_LABEL[levelKey(record.observed_ci)].toLowerCase()} (CI ${num(record.observed_ci)}).`;
     const said = kind === 'miss'
       ? `Hệ thống không cảnh báo tắc sau ${record.horizon_minutes} phút (CI dự báo ${num(record.predicted_ci)}, khả năng tắc ${pct(record.p_gridlock)}).`
+      : kind === 'watch'
+      ? `Hệ thống báo mức theo dõi: sau <strong>${record.horizon_minutes} phút</strong> có thể tắc (khả năng ${pct(record.p_gridlock)}, chưa tới ngưỡng cảnh báo 40%).`
       : `Hệ thống cảnh báo: sau <strong>${record.horizon_minutes} phút</strong> sẽ tắc (khả năng ${pct(record.p_gridlock)}, CI dự báo ${num(record.predicted_ci)}).`;
-    const outcome = kind === 'hit' && state.blind
+    const outcome = (kind === 'hit' || kind === 'watch') && state.blind
       ? `Kết quả: tua tới ${fmtTime(record.target_t)} để xem.`
       : `Thực tế lúc ${fmtTime(record.target_t)}: ${LEVEL_LABEL[levelKey(record.actual_ci)]} (CI ${num(record.actual_ci)}).`;
     return `<div class="moment"><div><p>${lead} ${said}</p><p class="muted">${outcome}</p></div>
@@ -612,8 +615,8 @@ if (typeof document !== 'undefined') {
 
   function renderHighlights() {
     const h = forecast().highlights || {};
-    const hits = h.hits || [];
-    $('hitList').innerHTML = hits.length ? hits.map(r => momentRow(r, 'hit')).join('')
+    const hits = [...(h.hits || []).map(r => momentRow(r, 'hit')), ...(h.watch_hits || []).map(r => momentRow(r, 'watch'))];
+    $('hitList').innerHTML = hits.length ? hits.join('')
       : '<p class="empty">Trong video này hệ thống chưa có lần cảnh báo tắc nào trúng. Xem mục 4 để biết mô hình so với cách đoán đơn giản ra sao.</p>';
     const wrong = [...(h.misses || []).map(r => momentRow(r, 'miss')), ...(h.false_alarms || []).map(r => momentRow(r, 'false'))];
     $('missList').innerHTML = wrong.length ? wrong.join('') : '<p class="empty">Không có trường hợp sai nào được ghi nhận.</p>';
@@ -635,10 +638,13 @@ if (typeof document !== 'undefined') {
       const trendOnset = m.onset_trend || {};
       const caught = m.actual_onsets ? `${onset.true_positive}/${onset.true_positive + onset.false_negative} (${pct(onset.recall)}) · xu hướng ${pct(trendOnset.recall)}` : 'Không có lần chuyển sang tắc';
       const precision = onset.true_positive + onset.false_positive ? `${onset.true_positive}/${onset.true_positive + onset.false_positive} (${pct(onset.precision)})` : 'Không phát cảnh báo';
+      const watch = m.onset_watch || {};
+      const watchText = m.actual_onsets && watch.true_positive + watch.false_positive
+        ? `<br><span class="muted">Mức theo dõi (≥20%): bắt ${watch.true_positive}/${m.actual_onsets}, đúng ${watch.true_positive}/${watch.true_positive + watch.false_positive}</span>` : '';
       return `<tr><td>+${m.horizon_minutes} phút</td><td>${m.evaluated} (${m.trained_anchors} sau khi đủ dữ liệu học)</td>
         <td>${num(m.mae_model, 3)}</td><td>${num(m.mae_persistence, 3)}</td><td>${num(m.mae_trend, 3)}</td>
         <td class="${skill >= 0.05 ? 'good' : skill <= -0.05 ? 'bad' : ''}">${skill === null ? '—' : pct(skill)}</td>
-        <td>${caught}</td><td>${precision}</td></tr>`;
+        <td>${caught}${watchText}</td><td>${precision}</td></tr>`;
     }).join('');
     document.querySelector('#metricsTable tbody').innerHTML = rows;
     const libVideos = mf.method?.library_videos || 0;
