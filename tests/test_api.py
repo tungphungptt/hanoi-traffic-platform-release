@@ -1,157 +1,66 @@
+import time
+
+import numpy as np
 from fastapi.testclient import TestClient
-from app.main import app
 
-client = TestClient(app)
+import app.main as main
 
-
-def test_health_ok():
-    response = client.get('/api/health')
-    assert response.status_code == 200
-    assert response.json()['ok'] is True
+client = TestClient(main.app)
 
 
-def test_dashboard_has_demo_or_production_mode():
-    response = client.get('/api/dashboard')
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload['mode'] in ('demo', 'production', 'error')
-    assert len(payload['cameras']) >= 1
-    assert 'forecast' in payload
+def test_home_and_status():
+    assert "hanoiFlow" in client.get("/").text
+    status = client.get("/api/status").json()
+    assert status["ready"] is True
+    assert status["max_duration_seconds"] == main.MAX_VIDEO_SECONDS
+    assert status["library_videos"] >= 1
 
 
-def test_forecast_accepts_features():
-    response = client.post('/api/forecast', json={'features': {'speed.mean_kmh': 18.0, 'density.areal_occupancy': 0.45}})
-    assert response.status_code == 200
-    assert 'mode' in response.json()
+def test_upload_rejects_unsupported_and_unreadable_files():
+    assert client.post("/api/analyze", files={"file": ("a.txt", b"x")}).status_code == 400
+    assert client.post("/api/analyze", files={"file": ("a.mp4", b"not a video")}).status_code == 400
+    assert client.get("/api/jobs/not-an-id").status_code == 404
+    assert client.get("/api/jobs/" + "0" * 32).status_code == 404
 
 
-def test_manifest_schema_exists():
-    response = client.get('/api/models/manifest')
-    assert response.status_code == 200
-    assert 'ordered_input_keys' in response.json()['feature_schema']
+def test_job_runs_and_returns_the_best_checked_camera(monkeypatch, tmp_path):
+    monkeypatch.setattr(main, "_check_video", lambda path: None)
+    monkeypatch.setattr(main.detector, "load", lambda: None)
+    seen = {}
+
+    def fake_analyze(path, detector, **kwargs):
+        seen["library"] = kwargs["library_videos"]
+        series = {"t": np.arange(4.0), "ci": np.zeros(4), "occupancy": np.zeros(4), "count": np.zeros(4), "motion": np.zeros(4)}
+        cam = lambda i, checked: {"id": i, "label": f"Camera {i + 1}", "on_air_seconds": 60.0, "intervals": [[0, 60]],
+                                   "series": series, "checked_forecasts": checked,
+                                   "minute_forecast": {"available": True, "camera": i}}
+        return {"video": {"duration_seconds": 60}, "mode": "broadcast", "cameras": [cam(0, 3), cam(1, 9)], "timeline": []}
+
+    monkeypatch.setattr(main, "analyze_video", fake_analyze)
+    response = client.post("/api/analyze", files={"file": ("clip.mp4", b"\0" * 1024)}, data={"timing_confirmed": "true"})
+    assert response.status_code == 202
+    job_id = response.json()["job_id"]
+    for _ in range(100):
+        job = client.get(f"/api/jobs/{job_id}").json()
+        if job["status"] in {"succeeded", "failed"}:
+            break
+        time.sleep(0.05)
+    assert job["status"] == "succeeded", job
+    result = job["result"]
+    assert result["main_camera"] == 1 and result["minute_forecast"]["camera"] == 1
+    assert all("series" not in cam for cam in result["cameras"])
+    assert seen["library"] >= 1
+    assert not list((main.UPLOAD_DIR).glob("upload_*")), "uploaded video must be deleted after analysis"
 
 
-def test_forecaster_refuses_to_reuse_one_output_for_three_horizons(monkeypatch):
-    import numpy as np
-    import app.main as main
-
-    class InputMeta:
-        name = "features"
-        shape = [1, 8]
-
-    class SingleOutputSession:
-        def get_inputs(self):
-            return [InputMeta()]
-
-        def run(self, _outputs, _inputs):
-            return [np.asarray([[0.52]], dtype=np.float32)]
-
-    monkeypatch.setattr(main.runtime, "forecaster_session", SingleOutputSession())
-    result = main.runtime.predict({})
-    assert result["mode"] == "error"
-    assert "trả 1 giá trị" in result["error"]
-    assert result["predictions"] == []
-
-
-def test_street_scene_placeholder_asset_is_served():
-    response = client.get('/static/street-traffic-demo.jpg')
-    assert response.status_code == 200
-    assert response.headers['content-type'].startswith('image/jpeg')
-    assert len(response.content) > 1000
-
-
-def test_model_status_exposes_provider_without_secret(monkeypatch):
-    import app.main as main
-    monkeypatch.setenv('FORECAST_PROVIDER', 'remote_http')
-    monkeypatch.setenv('FORECAST_API_URL', 'https://model.example.test/predict')
-    monkeypatch.setenv('FORECAST_API_KEY', 'do-not-expose-this-secret')
-    response = client.get('/api/models/status')
-    assert response.status_code == 200
-    payload = response.json()
-    assert 'detector' in payload and 'forecaster' in payload
-    assert payload['forecast_provider']['provider'] == 'remote_http'
-    assert payload['forecast_provider']['secret_configured'] is True
-    assert 'do-not-expose-this-secret' not in response.text
-    monkeypatch.setenv('FORECAST_PROVIDER', 'local_onnx')
-
-
-def test_observations_endpoint_builds_features_then_routes_to_forecast_provider(monkeypatch):
-    import app.main as main
-    monkeypatch.setenv('FORECAST_PROVIDER', 'local_onnx')
-    observations = [
-        {"track_id": "m1", "class_id": 0, "speed_kmh": 14.0, "active_now": True},
-        {"track_id": "c1", "class_id": 1, "speed_kmh": 22.0, "active_now": True},
-        {"track_id": "b1", "class_id": 2, "speed_kmh": 11.0, "active_now": True},
-    ]
-    response = client.post('/api/forecast/from-observations', json={
-        "observations": observations,
-        "previous_features": {"flow.pcu_equivalent": 3.0, "speed.mean_kmh": 18.0}
-    })
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload['feature_quality']['ready_for_real_forecast'] is True
-    assert payload['features']['flow.pcu_equivalent'] > 0
-    assert payload['forecast']['provider'] == 'local_onnx'
-    assert payload['mode'] in ('demo', 'production', 'error')
-
-
-def test_observations_endpoint_refuses_to_forecast_with_missing_measured_features(monkeypatch):
-    import app.main as main
-    monkeypatch.setenv('FORECAST_PROVIDER', 'local_onnx')
-    response = client.post('/api/forecast/from-observations', json={
-        "observations": [{"track_id": "c1", "class_id": 1}],
-        "previous_features": {}
-    })
-    assert response.status_code == 200, response.text
-    payload = response.json()
-    assert payload['mode'] == 'insufficient_features'
-    assert payload['predictions'] == []
-    assert payload['feature_quality']['ready_for_real_forecast'] is False
-
-
-def test_map_config_exposes_real_hanoi_basemap_and_explicit_live_traffic_toggle(monkeypatch):
-    import app.main as main
-    monkeypatch.delenv("TRAFFIC_TILE_URL_TEMPLATE", raising=False)
-    response = client.get("/api/map/config")
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["tile_url_template"] == "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-    assert "OpenStreetMap" in payload["base_map_name"]
-    assert payload["traffic_layer_enabled"] is False
-    assert payload["camera_refresh_seconds"] >= 10
-
-
-def test_map_config_accepts_configured_https_traffic_layer(monkeypatch):
-    monkeypatch.setenv("TRAFFIC_TILE_URL_TEMPLATE", "https://traffic.example.test/tiles/{z}/{x}/{y}.png?key=browser-restricted")
-    monkeypatch.setenv("TRAFFIC_TILE_ATTRIBUTION", "Traffic provider")
-    response = client.get("/api/map/config")
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["traffic_layer_enabled"] is True
-    assert payload["traffic_tile_url_template"].startswith("https://traffic.example.test/")
-    assert payload["traffic_attribution"] == "Traffic provider"
-    monkeypatch.delenv("TRAFFIC_TILE_URL_TEMPLATE", raising=False)
-    monkeypatch.delenv("TRAFFIC_TILE_ATTRIBUTION", raising=False)
-
-
-def test_map_config_rejects_non_https_remote_traffic_tiles(monkeypatch):
-    monkeypatch.setenv("TRAFFIC_TILE_URL_TEMPLATE", "http://traffic.example.test/{z}/{x}/{y}.png")
-    response = client.get("/api/map/config")
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["traffic_layer_enabled"] is False
-    assert payload["traffic_tile_url_template"] == ""
-    assert "HTTPS" in payload["configuration_warning"]
-    monkeypatch.delenv("TRAFFIC_TILE_URL_TEMPLATE", raising=False)
-
-
-def test_camera_map_points_include_real_geographic_coordinates_and_are_marked_fixture():
-    response = client.get("/api/cameras")
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["telemetry_mode"] == "not_connected"
-    assert payload["demo"] is True
-    assert payload["items"] and all(item["telemetry_live"] is False for item in payload["items"])
-    assert all(item["ci"] is None and item["speed"] is None for item in payload["items"])
-    assert payload["demo"] is True
-    assert any(isinstance(row.get("lat"), (int, float)) and isinstance(row.get("lng"), (int, float)) for row in payload["items"])
+def test_library_skips_records_cut_from_the_uploaded_video():
+    files = main._library_files()
+    series, videos = main.load_library(None)
+    assert len(series) == len(files) and videos >= 1
+    import json
+    for path in files:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        source = (record.get("source_video_keys") or [record["video_key"]])[0]
+        sharing = sum(1 for p in files if source in {json.loads(p.read_text(encoding="utf-8"))["video_key"],
+                                                     *(json.loads(p.read_text(encoding="utf-8")).get("source_video_keys") or [])})
+        assert len(main.load_library(source)[0]) == len(files) - sharing

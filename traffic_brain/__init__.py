@@ -1,5 +1,1 @@
-"""Pluggable prediction providers for Hanoi Traffic Platform."""
-
-from .providers import ForecastProviderManager, ProviderConfigurationError
-
-__all__ = ["ForecastProviderManager", "ProviderConfigurationError"]
+"""Video congestion analysis and +5/+10/+15 minute forecasting."""

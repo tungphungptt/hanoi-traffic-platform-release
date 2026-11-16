@@ -1,1418 +1,626 @@
-const $ = (selector, root = document) => root.querySelector(selector);
-const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-const state = { dashboard: null, cameras: [], alerts: [], modelStatus: null, providerStatus: null, aiccStatus: null, manifest: null, currentPage: 'video', mapLayer: 'status', scenarioResult: null, scenarioJobId: null, scenarioBusy: false, scenarioPendingJobId: null, routeResult: null, routeMap: null, routeMapLayers: [], selectedRouteId: null, selectedCameraId: null, publicDemoMode: false, leafletMap: null, leafletMarkers: new Map(), baseTileLayer: null, trafficTileLayer: null, mapConfig: null, mapPollSeconds: 45, mapPollBusy: false, mapPollTimer: null };
+/* hanoiFlow — forecast verification page.
+ * Upload a long traffic video, get causal +5/+10/+15 minute CI forecasts, then seek the
+ * video to each forecast's target time to check it. The browser plays the user's own file
+ * locally; only the analysis result comes from the server.
+ */
+'use strict';
 
+const SEVERE_CI = 0.55;
+const BUSY_CI = 0.30;
+const LEVEL_LABEL = { free: 'Thông thoáng', busy: 'Đông đúc', gridlock: 'Tắc nghẽn nghiêm trọng' };
+const LEVEL_COLOR = { free: '#3f8f5a', busy: '#c4892a', gridlock: '#b5443a' };
+const SESSION_CONTRACT = 'hanoiflow-forecast-session/1.1';
+const ACCEPTED_CONTRACTS = [SESSION_CONTRACT, 'hanoiflow-forecast-session/1.0'];
+const JOB_KEY = 'hanoiflow-forecast-job';
 
-function canAnalyzeUploadedScenarioVideo() {
-  return Boolean(state.aiccStatus?.video_review_enabled);
+function levelKey(ci) {
+  return ci < BUSY_CI ? 'free' : ci < SEVERE_CI ? 'busy' : 'gridlock';
 }
 
-const PAGE_NAMES = { overview: 'Tổng quan', cameras: 'Điểm giám sát', alerts: 'Cảnh báo', analytics: 'Báo cáo & xu hướng', video: 'Dự báo & phương án', models: 'Nguồn xử lý', settings: 'Cài đặt vận hành' };
+function fmtTime(seconds) {
+  const s = Math.max(0, Math.round(Number(seconds) || 0));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = String(s % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${String(m).padStart(2, '0')}:${sec}`;
+}
 
-async function api(path, options = {}) {
-  const { timeoutMs = 30000, ...requestOptions } = options;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(path, { ...requestOptions, signal: controller.signal, cache: 'no-store' });
-    const raw = await response.text();
-    let payload;
-    try { payload = raw ? JSON.parse(raw) : {}; }
-    catch {
-      const error = new Error(`Máy chủ trả phản hồi không phải JSON (HTTP ${response.status}).`);
-      error.status = response.status;
-      throw error;
+function num(value, digits = 2) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
+  return Number(value).toLocaleString('vi-VN', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function pct(value, digits = 0) {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '—';
+  return `${num(Number(value) * 100, digits)}%`;
+}
+
+/** Last item with item.t <= t (items sorted by t), or null. */
+function lastAtOrBefore(items, t) {
+  let lo = 0, hi = (items || []).length - 1, found = null;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (items[mid].t <= t + 1e-6) { found = items[mid]; lo = mid + 1; } else hi = mid - 1;
+  }
+  return found;
+}
+
+function skillVerdict(metric) {
+  if (!metric || !metric.evaluated) return { tone: 'neutral', title: 'Chưa kiểm chứng được', text: 'Video kết thúc trước khi có thể so sánh chân trời này.' };
+  const skill = metric.skill_vs_persistence;
+  if (skill === null || skill === undefined) return { tone: 'neutral', title: 'Không xác định', text: `${metric.evaluated} lần kiểm chứng, đường không thay đổi.` };
+  if (skill >= 0.05) return { tone: 'good', title: `Tốt hơn ${pct(skill)}`, text: `so với giữ nguyên mức hiện tại · ${metric.evaluated} lần kiểm chứng` };
+  if (skill <= -0.05) return { tone: 'bad', title: `Kém hơn ${pct(-skill)}`, text: `so với giữ nguyên mức hiện tại · ${metric.evaluated} lần kiểm chứng` };
+  return { tone: 'neutral', title: 'Tương đương', text: `với giữ nguyên mức hiện tại · ${metric.evaluated} lần kiểm chứng` };
+}
+
+/** Whether an anchor's horizon outcome may be shown at playback time t. */
+function isRevealed(item, t, blind) {
+  return !blind || t >= item.target_t - 0.5;
+}
+
+function forecastCsv(anchors) {
+  const header = ['thoi_diem_du_bao_s', 'ci_luc_du_bao', 'chan_troi_phut', 'thoi_diem_dich_s', 'ci_du_bao', 'ci_thap', 'ci_cao',
+    'xac_suat_tac', 'canh_bao', 'ci_thuc_te', 'ci_giu_nguyen', 'ci_xu_huong', 'phuong_phap'];
+  const lines = [header.join(',')];
+  for (const anchor of anchors || []) {
+    for (const item of anchor.horizons || []) {
+      lines.push([anchor.t, anchor.observed_ci, item.horizon_minutes, item.target_t, item.ci, item.lower, item.upper,
+        item.p_gridlock, item.warning ? 1 : 0, item.actual_ci ?? '', item.persistence_ci, item.trend_ci, item.method]
+        .map(v => (typeof v === 'number' ? String(Math.round(v * 10000) / 10000) : String(v))).join(','));
     }
-    if (!response.ok) {
-      const detail = typeof payload?.detail === 'string' ? payload.detail
-        : Array.isArray(payload?.detail) ? payload.detail.map(item => item.msg || 'Dữ liệu không hợp lệ').join('; ') : '';
-      const error = new Error(`HTTP ${response.status}: ${detail || 'Yêu cầu thất bại.'}`);
-      error.status = response.status;
-      throw error;
-    }
-    if (!payload || typeof payload !== 'object') throw new Error('Phản hồi JSON không hợp lệ.');
-    return payload;
-  } catch (error) {
-    if (controller.signal.aborted) throw new Error('Yêu cầu quá thời gian chờ. Kiểm tra kết nối và trạng thái tác vụ trước khi gửi lại.');
-    if (error instanceof TypeError) throw new Error('Mất kết nối máy chủ. Kiểm tra backend đang chạy và kết nối mạng.');
-    throw error;
-  } finally { clearTimeout(timer); }
-}
-function numberVN(value, digits = 0) { return Number(value ?? 0).toLocaleString('vi-VN', { maximumFractionDigits: digits, minimumFractionDigits: digits }); }
-function escapeHtml(text) { return String(text ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch])); }
-function toast(title, detail = '', type = 'success') {
-  const el = document.createElement('div'); el.className = `toast ${type === 'error' ? 'error' : ''}`;
-  el.innerHTML = `<strong>${escapeHtml(title)}</strong>${detail ? `<small>${escapeHtml(detail)}</small>` : ''}`;
-  $('#toastStack').appendChild(el); setTimeout(() => el.remove(), 4400);
-}
-function setPage(page) {
-  if (!PAGE_NAMES[page]) return;
-  state.currentPage = page;
-  $$('.page').forEach(section => section.classList.toggle('active', section.id === `page-${page}`));
-  $$('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.page === page));
-  $('#pageCrumb').textContent = PAGE_NAMES[page];
-  $('#sidebar').classList.remove('open');
-  if (page === 'cameras') renderCameraTable();
-  if (page === 'alerts') renderAlertFeed();
-  if (page === 'analytics') renderAnalytics();
-  if (page === 'models') { renderModelStatus(); if (state.manifest && $('#manifestEditor')) $('#manifestEditor').value = JSON.stringify(state.manifest, null, 2); }
-  if (page === 'settings') renderProviderStatus();
-  if (page === 'video') {
-    refreshAiccStatus();
-    if (!state.routeMap) initScenarioRouteMap();
-    if (state.routeMap) requestAnimationFrame(() => state.routeMap.invalidateSize({ pan: false }));
   }
-  if (page === 'overview' && state.leafletMap) {
-    requestAnimationFrame(() => state.leafletMap.invalidateSize({ pan: false }));
-    if (state.dashboard) void pollCameraMapData();
-  }
-  if (page === 'overview') { void refreshWeatherForecast(); void refreshSegmentForecasts(true); }
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  return '﻿' + lines.join('\r\n') + '\r\n';
 }
 
-const CI_LEVELS = [
-  {key:'free', min:0, label:'Thông thoáng', color:'#7eaa87'},
-  {key:'busy', min:0.30, label:'Đông đúc', color:'#d3a052'},
-  {key:'gridlock', min:0.55, label:'Tắc nghẽn nghiêm trọng', color:'#b85b4e'},
-];
-function severityFromCI(ci) { return ci < CI_LEVELS[1].min ? 'free' : ci < CI_LEVELS[2].min ? 'busy' : 'gridlock'; }
-function levelVN(key) { return CI_LEVELS.find(level => level.key === key)?.label || 'Chưa xác định'; }
-function ciColor(key) { return CI_LEVELS.find(level => level.key === key)?.color || '#aab2ac'; }
-function cameraStatusVN(status) { return ({ online:'Có telemetry mới', attention:'Có cảnh báo từ nguồn', offline:'Nguồn mất kết nối', unverified:'Chưa có telemetry' })[status] || status; }
-function alertClass(type) { return type === 'critical' ? 'critical' : type === 'warning' ? 'warning' : 'info'; }
-function alertIcon(type) { return type === 'critical' ? '!' : type === 'warning' ? '⌁' : 'i'; }
-function ciColorClass(ci) { return severityFromCI(Number(ci)); }
-function updateDate() {
-  const d = new Date();
-  $('#dateToday').textContent = d.toLocaleDateString('vi-VN', { day:'numeric', month:'long', year:'numeric' }).toLocaleUpperCase('vi-VN');
-}
-
-
-let weatherLastSuccessMs = 0;
-let weatherRequestBusy = false;
-let segmentForecastBusy = false;
-
-function fmtValue(value, suffix = '', digits = 1) {
-  const num = Number(value);
-  return value == null || !Number.isFinite(num) ? '—' : `${numberVN(num, digits)}${suffix}`;
-}
-
-function renderWeatherForecast(payload) {
-  const current = payload?.current || {};
-  $('#weatherTemperature').textContent = fmtValue(current.temperature_c, '°C');
-  $('#weatherDescription').textContent = current.description || 'Không có mô tả';
-  $('#weatherFeelsLike').textContent = fmtValue(current.apparent_temperature_c, '°C');
-  $('#weatherHumidity').textContent = fmtValue(current.relative_humidity_pct, '%', 0);
-  $('#weatherWind').textContent = fmtValue(current.wind_speed_kmh, ' km/h');
-  $('#weatherRain').textContent = fmtValue(current.precipitation_mm, ' mm');
-  const stale = Boolean(payload?.is_stale);
-  const fetchedAt = payload?.fetched_at ? new Date(payload.fetched_at) : null;
-  $('#weatherUpdatedAt').textContent = `Quan trắc: ${current.time || '—'} · lấy dữ liệu: ${fetchedAt && !Number.isNaN(fetchedAt.getTime()) ? fetchedAt.toLocaleTimeString('vi-VN') : '—'}`;
-  $('#weatherStatus').textContent = stale ? `Dữ liệu cache cũ (${fmtValue(payload.stale_age_seconds, ' giây', 0)})` : 'Đã cập nhật';
-  $('#weatherStatus').classList.toggle('is-stale', stale);
-  const rows = Array.isArray(payload?.hourly) ? payload.hourly.slice(0, 6) : [];
-  $('#weatherHourly').innerHTML = rows.length ? rows.map(item => {
-    const date = new Date(item.time);
-    const hour = Number.isNaN(date.getTime()) ? String(item.time).slice(-5) : date.toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'});
-    return `<article class="weather-hour"><small>${escapeHtml(hour)}</small><strong>${escapeHtml(fmtValue(item.temperature_c, '°C'))}</strong><span>${escapeHtml(item.description || '—')}</span><small>Mưa ${escapeHtml(fmtValue(item.precipitation_probability_pct, '%', 0))}</small></article>`;
-  }).join('') : '<div class="empty-state">Nhà cung cấp chưa trả dữ liệu theo giờ.</div>';
-  weatherLastSuccessMs = Date.now();
-}
-
-async function refreshWeatherForecast(force = false) {
-  if (weatherRequestBusy || !$('#weatherCard')) return;
-  if (!force && weatherLastSuccessMs && Date.now() - weatherLastSuccessMs < 10 * 60 * 1000) return;
-  weatherRequestBusy = true;
-  const status = $('#weatherStatus');
-  if (status) status.textContent = 'Đang lấy dữ liệu…';
-  try {
-    const payload = await api('/api/weather?latitude=21.0285&longitude=105.8542');
-    renderWeatherForecast(payload);
-  } catch (error) {
-    if (status) status.textContent = `Chưa có dữ liệu thời tiết: ${error.message}`;
-    $('#weatherDescription').textContent = 'Không thể lấy dữ liệu từ nhà cung cấp';
-    $('#weatherHourly').innerHTML = '<div class="empty-state">Kiểm tra kết nối backend/upstream rồi nhấn Cập nhật.</div>';
-  } finally {
-    weatherRequestBusy = false;
-  }
-}
-
-function renderSegmentForecasts(payload) {
-  const status = $('#segmentForecastStatus');
-  const host = $('#segmentForecastList');
-  if (!status || !host) return;
-  const items = Array.isArray(payload?.items) ? payload.items : [];
-  const ready = items.filter(item => item.available && Array.isArray(item.predictions) && item.predictions.length);
-  if (!ready.length) {
-    status.textContent = payload?.message || 'Chưa có dự báo theo đoạn đường.';
-    host.innerHTML = items.length ? items.map(item => `<article class="segment-forecast-row unavailable"><div><strong>${escapeHtml(item.name || item.camera_id)}</strong><small>${escapeHtml(item.area || item.camera_id)}</small></div><span>${escapeHtml(item.message || 'Chưa đủ chuỗi telemetry thật')}</span></article>`).join('') : '';
-    return;
-  }
-  status.textContent = `Có ${ready.length}/${items.length} đoạn đủ điều kiện baseline · chưa được kiểm định độc lập.`;
-  host.innerHTML = items.map(item => {
-    if (!item.available || !Array.isArray(item.predictions) || !item.predictions.length) {
-      return `<article class="segment-forecast-row unavailable"><div><strong>${escapeHtml(item.name || item.camera_id)}</strong><small>${escapeHtml(item.area || item.camera_id)}</small></div><span>${escapeHtml(item.message || 'Chưa đủ dữ liệu')}</span></article>`;
-    }
-    const predictions = item.predictions.map(pred => `<span class="segment-horizon"><small>+${numberVN(pred.horizon_minutes, 0)} phút</small><strong>${escapeHtml(pred.level || 'Chưa xác định')}</strong><em>CI ${escapeHtml(fmtValue(pred.ci, '', 2))}</em></span>`).join('');
-    return `<article class="segment-forecast-row"><div><strong>${escapeHtml(item.name || item.camera_id)}</strong><small>${escapeHtml(item.area || item.camera_id)} · hiện tại ${escapeHtml(fmtValue(item.current_ci, '', 2))}</small></div><div class="segment-horizons">${predictions}</div><small class="segment-method">Baseline ngoại suy tuyến tính · ${numberVN(item.sample_count || 0)} mẫu · không phải mô hình AI đã kiểm định</small></article>`;
-  }).join('');
-}
-
-async function refreshSegmentForecasts(force = false) {
-  if (segmentForecastBusy || !$('#segmentForecastList')) return;
-  if (document.hidden || state.currentPage !== 'overview') return;
-  segmentForecastBusy = true;
-  try {
-    const payload = await api('/api/traffic/segment-forecasts');
-    renderSegmentForecasts(payload);
-  } catch (error) {
-    const status = $('#segmentForecastStatus');
-    if (status) status.textContent = `Không đọc được dữ liệu dự báo đoạn đường: ${error.message}`;
-  } finally {
-    segmentForecastBusy = false;
-  }
-}
-
-async function loadAll({ quiet = false } = {}) {
-  const refresh = $('#refreshBtn'); refresh?.classList.add('rotating');
-  try {
-    const [dashboard, system, cameras, alerts, modelStatus, manifest, providerStatus, aiccStatus] = await Promise.all([
-      api('/api/dashboard'), api('/api/system'), api('/api/cameras'), api('/api/alerts'), api('/api/models/status'), api('/api/models/manifest'), api('/api/providers/status'), api('/api/aicc/status')
-    ]);
-    state.dashboard = dashboard; state.cameras = cameras.items || []; state.alerts = alerts.items || []; state.modelStatus = modelStatus; state.manifest = manifest; state.providerStatus = providerStatus; state.aiccStatus = aiccStatus; state.publicDemoMode = Boolean(system?.public_demo_mode);
-    $$('[data-operator-only]').forEach(el => { el.hidden = state.publicDemoMode; });
-    renderScenarioCameraOptions();
-    renderDashboard(dashboard, system);
-    renderCameraTable();
-    renderAlertFeed(); renderModelStatus(); renderAnalytics();
-    if ($('#manifestEditor')) $('#manifestEditor').value = JSON.stringify(manifest, null, 2);
-    renderProviderStatus();
-    if (!quiet) toast('Đã cập nhật dữ liệu', modelStatus.mode === 'production' ? 'Runtime đang dùng mô hình dự báo ONNX.' : 'Dữ liệu trên bảng điều khiển hiện là dữ liệu minh họa.');
-  } catch (error) {
-    toast('Không thể tải dữ liệu', `${error.message}. Vui lòng thử làm mới trang.`, 'error');
-  } finally { refresh?.classList.remove('rotating'); }
-}
-
-function cameraFeedUrl(feed) {
-  if (!feed?.available || !feed?.stream_url) return '';
-  return feed.stream_url;
-}
-
-function mapCameraTone(cam) {
-  if (!cam.telemetry_live) return 'reference';
-  if (state.mapLayer === 'forecast') return severityFromCI(Number(cam.ci || 0));
-  if (cam.status === 'offline') return 'offline';
-  if (cam.status === 'attention') return 'attention';
-  return 'online';
-}
-function mapPopupHtml(cam) {
-  const lat = Number(cam.lat), lng = Number(cam.lng);
-  const coords = Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : 'Chưa cấu hình tọa độ';
-  const status = cameraStatusVN(cam.status);
-  const feed = cam.feed || {};
-  return `<div class="map-popup"><strong>${escapeHtml(cam.name)}</strong><span>${escapeHtml(cam.area || 'Chưa cấu hình khu vực')} · ${escapeHtml(cam.id)}</span><span class="map-popup-status">${escapeHtml(status)}</span><small>Tọa độ tham chiếu: ${coords}</small><small>Vị trí khu vực tham khảo, chưa xác minh thiết bị camera.</small><small>${feed.available ? 'Đã gán clip cho điểm này' : 'Chưa có feed video được gán'}</small></div>`;
-}
-function mapMarkerIcon(cam) {
-  const tone = mapCameraTone(cam);
-  const selected = cam.id === state.selectedCameraId ? ' is-selected' : '';
-  const shortId = escapeHtml(String(cam.id).replace(/[^A-Za-z0-9]/g, '').slice(-3));
-  return L.divIcon({
-    className: 'hanoi-map-marker-shell',
-    html: `<span class="hanoi-map-marker ${tone}${selected}" aria-hidden="true"><i></i><b>${shortId}</b></span>`,
-    iconSize: [34, 42], iconAnchor: [17, 37], popupAnchor: [0, -34]
-  });
-}
-function updateMapStatus(payload = null) {
-  const sync = $('#mapSyncStatus');
-  const dataMode = $('#mapDataMode');
-  if (sync) sync.textContent = `Đồng bộ API: ${new Date().toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit', second:'2-digit' })} · ${state.mapPollSeconds}s`;
-  if (dataMode) dataMode.textContent = payload?.telemetry_mode === 'rtsp_collector' ? 'Đã nhận telemetry từ collector' : 'Điểm tham chiếu · chưa có telemetry live';
-  const count = $('#mapOnlineCount');
-  if (count) {
-    const online = state.cameras.filter(cam => cam.telemetry_live).length;
-    count.textContent = `${online}/${state.cameras.length} điểm có telemetry mới`;
-  }
-}
-function renderMapMarkers(cameras) {
-  if (!state.leafletMap || typeof L === 'undefined') return;
-  const keep = new Set();
+function validateSession(payload) {
+  if (!payload || typeof payload !== 'object') throw new Error('Tệp kết quả không hợp lệ.');
+  if (!ACCEPTED_CONTRACTS.includes(payload.contract)) throw new Error('Tệp kết quả không đúng định dạng hanoiFlow.');
+  const cameras = Array.isArray(payload.cameras) && payload.cameras.length
+    ? payload.cameras
+    : [{ id: 0, label: 'Camera', intervals: null, minute_forecast: payload.minute_forecast }];
   for (const cam of cameras) {
-    const lat = Number(cam.lat), lng = Number(cam.lng);
-    // Do not invent a geographic position for a camera without validated coordinates.
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
-    keep.add(cam.id);
-    let marker = state.leafletMarkers.get(cam.id);
-    if (!marker) {
-      marker = L.marker([lat, lng], { icon: mapMarkerIcon(cam), title: `${cam.name} (${cam.id})`, keyboard: true, riseOnHover: true }).addTo(state.leafletMap);
-      marker.on('click', () => { selectTrafficCamera(cam.id, false, false); marker.openPopup(); });
-      state.leafletMarkers.set(cam.id, marker);
-    } else {
-      marker.setLatLng([lat, lng]);
-      marker.setIcon(mapMarkerIcon(cam));
-      marker.options.title = `${cam.name} (${cam.id})`;
-    }
-    marker.bindPopup(mapPopupHtml(cam), { maxWidth: 260, closeButton: true, autoPan: true });
-    marker.bindTooltip(`${cam.name} · ${cam.id}`, { direction: 'top', offset: [0, -25], opacity: 0.96, className: 'hanoi-map-tooltip' });
+    const mf = cam.minute_forecast;
+    if (!mf || !Array.isArray(mf.anchors) || !Array.isArray(mf.observed)) throw new Error('Tệp kết quả thiếu dữ liệu dự báo.');
   }
-  for (const [id, marker] of state.leafletMarkers.entries()) {
-    if (!keep.has(id)) { marker.remove(); state.leafletMarkers.delete(id); }
-  }
-  updateMapStatus();
+  return { ...payload, cameras, main_camera: payload.main_camera ?? cameras[0].id };
 }
 
-const MAP_PROVIDER_FAILOVER_V3 = true;
-const BASE_OSM = {
-  name: 'OpenStreetMap',
-  url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'
-};
-const BASE_HOT = {
-  name: 'OpenStreetMap HOT',
-  url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-  subdomains: 'abc',
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> \u00b7 Tiles courtesy of <a href="https://www.hotosm.org/" target="_blank" rel="noopener">Humanitarian OpenStreetMap Team</a>'
-};
-const BASE_OSMFR = {
-  name: 'OpenStreetMap France',
-  url: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
-  subdomains: 'abc',
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> \u00b7 Tiles &copy; <a href="https://www.openstreetmap.fr/" target="_blank" rel="noopener">OpenStreetMap France</a>'
-};
-const BUILTIN_MAP_PROVIDERS = [BASE_OSM, BASE_HOT, BASE_OSMFR];
-let baseMapProviders = [...BUILTIN_MAP_PROVIDERS];
-let mapVisibilityListenerAdded = false;
+/** Whether time t falls inside one of the [start, end] on-air intervals (null = always on air). */
+function onAir(intervals, t) {
+  if (!Array.isArray(intervals)) return true;
+  return intervals.some(([a, b]) => t >= a - 0.5 && t <= b + 0.5);
+}
 
-const MAP_TILE_RUNTIME = {
-  base: {
-    mapKey: 'leafletMap', layerKey: 'baseTileLayer',
-    errorSelector: '#mapTileError', statusSelector: '#mapBaseStatus',
-    timer: null, activeIndex: -1, hasLoaded: false, loadedCount: 0, failedCount: 0
-  },
-  route: {
-    mapKey: 'routeMap', layerKey: 'routeBaseTileLayer',
-    errorSelector: '#scenarioRouteMapError', statusSelector: null,
-    timer: null, activeIndex: -1, hasLoaded: false, loadedCount: 0, failedCount: 0
-  }
-};
+if (typeof module !== 'undefined') {
+  module.exports = { levelKey, fmtTime, lastAtOrBefore, skillVerdict, isRevealed, forecastCsv, validateSession, onAir, SESSION_CONTRACT };
+}
 
-function mountMapTileLayer(kind, index) {
-  const runtime = MAP_TILE_RUNTIME[kind];
-  const map = state[runtime.mapKey];
-  if (!map || typeof L === 'undefined') return;
-
-  if (runtime.timer) window.clearTimeout(runtime.timer);
-  runtime.timer = null;
-
-  const provider = baseMapProviders[index];
-  const errorEl = $(runtime.errorSelector);
-  const statusEl = runtime.statusSelector ? $(runtime.statusSelector) : null;
-
-  if (!provider) {
-    if (errorEl) errorEl.hidden = false;
-    if (statusEl) statusEl.textContent = 'B\u1ea3n \u0111\u1ed3 n\u1ec1n kh\u00f4ng kh\u1ea3 d\u1ee5ng';
-    return;
-  }
-
-  const oldLayer = state[runtime.layerKey];
-  if (oldLayer && map.hasLayer(oldLayer)) map.removeLayer(oldLayer);
-
-  runtime.activeIndex = index;
-  runtime.hasLoaded = false;
-  runtime.loadedCount = 0;
-  runtime.failedCount = 0;
-
-  const options = {
-    maxZoom: 19,
-    attribution: provider.attribution,
-    updateWhenIdle: true,
-    keepBuffer: 1
+if (typeof document !== 'undefined') {
+  const $ = id => document.getElementById(id);
+  const state = {
+    limits: null,
+    file: null,
+    objectUrl: null,
+    session: null,
+    camera: null,
+    locked: null,
+    blind: true,
+    busy: false,
+    pendingRender: false,
   };
-  if (provider.subdomains) options.subdomains = provider.subdomains;
+  const player = $('player');
+  const chart = $('ciChart');
 
-  const layer = L.tileLayer(provider.url, options);
-  state[runtime.layerKey] = layer;
+  const camera = () => state.session?.cameras.find(c => c.id === state.camera) || state.session?.cameras[0];
+  const forecast = () => camera()?.minute_forecast;
+  const multiCamera = () => (state.session?.cameras.length || 0) > 1;
 
-  if (errorEl) errorEl.hidden = true;
-  if (statusEl) statusEl.textContent = `\u0110ang t\u1ea3i b\u1ea3n \u0111\u1ed3 \u00b7 ${provider.name}`;
+  const escapeHtml = text => String(text ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  layer.on('loading', () => {
-    if (runtime.timer) window.clearTimeout(runtime.timer);
-    runtime.timer = null;
-    runtime.loadedCount = 0;
-    runtime.failedCount = 0;
-  });
-
-  layer.on('tileload', () => {
-    if (state[runtime.layerKey] !== layer) return;
-    runtime.loadedCount += 1;
-    runtime.hasLoaded = true;
-    if (errorEl) errorEl.hidden = true;
-    if (statusEl) statusEl.textContent =
-      `B\u1ea3n \u0111\u1ed3 \u0111\u01b0\u1eddng ph\u1ed1 \u00b7 ${provider.name}`;
-  });
-
-  layer.on('tileerror', () => {
-    if (state[runtime.layerKey] !== layer) return;
-    runtime.failedCount += 1;
-    if (runtime.timer) return;
-
-    runtime.timer = window.setTimeout(() => {
-      runtime.timer = null;
-      if (state[runtime.layerKey] !== layer) return;
-
-      const total = runtime.loadedCount + runtime.failedCount;
-      const errorRatio = total > 0 ? runtime.failedCount / total : 0;
-      const partialFailure =
-        runtime.failedCount >= 2 && errorRatio >= 0.35;
-
-      if (!partialFailure) return;
-
-      if (index + 1 < baseMapProviders.length) {
-        console.warn(
-          `Tile provider ${provider.name} has partial failures; trying fallback.`
-        );
-        mountMapTileLayer(kind, index + 1);
-      } else {
-        if (errorEl) errorEl.hidden = false;
-        if (statusEl) statusEl.textContent =
-          `B\u1ea3n \u0111\u1ed3 kh\u00f4ng kh\u1ea3 d\u1ee5ng \u00b7 \u0111\u00e3 th\u1eed ${baseMapProviders.length} ngu\u1ed3n`;
-      }
-    }, 4000);
-  });
-
-  layer.addTo(map);
-}
-
-function configureBaseMapProviders(config) {
-  const configured = String(config.tile_url_template || '').trim();
-  const isCarto = /basemaps\.cartocdn\.com/i.test(configured);
-  const isCustom = configured && !isCarto && configured !== BASE_OSM.url;
-
-  const providers = isCustom ? [{
-    name: String(config.base_map_name || 'B\u1ea3n \u0111\u1ed3 c\u1ea5u h\u00ecnh'),
-    url: configured,
-    attribution: String(config.base_attribution || BASE_OSM.attribution),
-    ...(configured.includes('{s}') ? { subdomains: 'abc' } : {})
-  }, ...BUILTIN_MAP_PROVIDERS] : [...BUILTIN_MAP_PROVIDERS];
-
-  const seen = new Set();
-  baseMapProviders = providers.filter(provider => {
-    if (!provider.url || seen.has(provider.url)) return false;
-    seen.add(provider.url);
-    return true;
-  });
-
-  for (const kind of ['base', 'route']) {
-    const runtime = MAP_TILE_RUNTIME[kind];
-    const map = state[runtime.mapKey];
-    if (!map) continue;
-
-    const activeLayer = state[runtime.layerKey];
-    const activeUrl = activeLayer?._url;
-    const urlIsKnown = baseMapProviders.some(provider => provider.url === activeUrl);
-
-    if (isCustom && activeUrl !== configured) {
-      mountMapTileLayer(kind, 0);
-    } else if (!activeLayer || !urlIsKnown) {
-      mountMapTileLayer(kind, 0);
-    }
-    // Keep a working fallback layer instead of replacing it unnecessarily.
-  }
-}
-
-function isOverviewPollingAllowed() {
-  return !document.hidden &&
-    state.currentPage === 'overview' &&
-    Boolean($('#page-overview')?.classList.contains('active'));
-}
-
-function observeMapContainerResize(map, holder, observerKey) {
-  if (state[observerKey]) state[observerKey].disconnect();
-
-  const invalidate = () => {
-    if (!holder.isConnected || !map) return;
-    const width = holder.clientWidth;
-    const height = holder.clientHeight;
-    if (width < 1 || height < 1) return;
-
-    const size = map.getSize();
-    if (Math.abs(size.x - width) > 1 || Math.abs(size.y - height) > 1) {
-      map.invalidateSize({ pan: false, debounceMoveend: true });
-    }
-  };
-
-  if (typeof ResizeObserver !== 'undefined') {
-    const observer = new ResizeObserver(() => requestAnimationFrame(invalidate));
-    state[observerKey] = observer;
-    observer.observe(holder);
+  function toast(message) {
+    const el = $('toast');
+    el.textContent = message;
+    el.hidden = false;
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => { el.hidden = true; }, 5000);
   }
 
-  requestAnimationFrame(invalidate);
-  window.setTimeout(invalidate, 250);
-  window.setTimeout(invalidate, 800);
-}
-
-const HANOI_INNER_CITY = [21.0285, 105.8542];
-function initLeafletMap() {
-  const holder = $('#leafletMap');
-  if (!holder || state.leafletMap) return;
-
-  if (typeof L === 'undefined') {
-    const error = $('#mapTileError');
-    const status = $('#mapBaseStatus');
-    if (error) error.hidden = false;
-    if (status) status.textContent = 'Kh\u00f4ng t\u1ea3i \u0111\u01b0\u1ee3c th\u01b0 vi\u1ec7n b\u1ea3n \u0111\u1ed3';
-    return;
+  function notice(message, kind = 'info') {
+    const el = $('uploadNotice');
+    el.hidden = !message;
+    el.textContent = message || '';
+    el.className = `notice${kind === 'error' ? ' error' : ''}`;
   }
 
-  state.leafletMap = L.map(holder, {
-    center: HANOI_INNER_CITY, zoom: 11, minZoom: 8, maxZoom: 19,
-    zoomControl: false, preferCanvas: true, scrollWheelZoom: true, tap: true
-  });
-
-  mountMapTileLayer('base', 0);
-  observeMapContainerResize(state.leafletMap, holder, 'mapResizeObserver');
-  loadMapConfig();
-}
-function initScenarioRouteMap() {
-  const holder = $('#scenarioRouteMap');
-  if (!holder || state.routeMap) return;
-
-  if (typeof L === 'undefined') {
-    const message = $('#scenarioRouteMapError');
-    if (message) message.hidden = false;
-    return;
+  function setProgress(percent, text) {
+    $('progressWrap').hidden = false;
+    if (percent !== null) $('progressBar').style.width = `${Math.max(0, Math.min(100, percent))}%`;
+    $('progressText').textContent = text;
   }
 
-  state.routeMap = L.map(holder, {
-    center: HANOI_INNER_CITY, zoom: 11, minZoom: 8, maxZoom: 19,
-    zoomControl: true, preferCanvas: true, scrollWheelZoom: true, tap: true
-  });
-
-  mountMapTileLayer('route', 0);
-  observeMapContainerResize(state.routeMap, holder, 'routeMapResizeObserver');
-}
-async function loadMapConfig() {
-  try {
-    const config = await api('/api/map/config');
-    state.mapConfig = config;
-
-    const requestedInterval = Number(config.camera_refresh_seconds);
-    state.mapPollSeconds = Number.isFinite(requestedInterval)
-      ? Math.max(45, Math.min(120, requestedInterval))
-      : 45;
-
-    configureBaseMapProviders(config);
-
-    if (state.leafletMap && config.traffic_tile_url_template) {
-      if (state.trafficTileLayer) state.leafletMap.removeLayer(state.trafficTileLayer);
-      state.trafficTileLayer = L.tileLayer(config.traffic_tile_url_template, {
-        opacity: 0.72, maxZoom: 19,
-        attribution: config.traffic_attribution || 'Nh\u00e0 cung c\u1ea5p l\u1edbp giao th\u00f4ng',
-        updateWhenIdle: true, keepBuffer: 1
-      });
-      const button = $('#mapTrafficLayerButton');
-      if (button) {
-        button.title = `L\u1edbp d\u1eef li\u1ec7u t\u1eeb ${config.traffic_layer_name || 'nh\u00e0 cung c\u1ea5p b\u00ean ngo\u00e0i'}`;
-        button.setAttribute('aria-label', button.title);
-      }
-    } else if (state.leafletMap && state.trafficTileLayer) {
-      state.leafletMap.removeLayer(state.trafficTileLayer);
-      state.trafficTileLayer = null;
-    }
-
-    const trafficBtn = $('#mapTrafficLayerButton');
-    if (trafficBtn && !config.traffic_layer_enabled) {
-      trafficBtn.title = 'Ch\u01b0a c\u1ea5u h\u00ecnh nh\u00e0 cung c\u1ea5p lu\u1ed3ng giao th\u00f4ng tr\u1ef1c ti\u1ebfp; xem .env.example';
-    }
-
-    updateMapStatus();
-    scheduleMapPolling();
-  } catch (error) {
-    state.mapConfig = { traffic_layer_enabled: false, camera_refresh_seconds: 45 };
-    state.mapPollSeconds = 45;
-    scheduleMapPolling();
-    console.warn('Map configuration unavailable; using fallback tile providers.', error);
-  }
-}
-function scheduleMapPolling() {
-  if (state.mapPollTimer) window.clearInterval(state.mapPollTimer);
-
-  state.mapPollTimer = window.setInterval(() => {
-    if (isOverviewPollingAllowed()) void pollCameraMapData();
-  }, state.mapPollSeconds * 1000);
-
-  if (!mapVisibilityListenerAdded) {
-    document.addEventListener('visibilitychange', () => {
-      if (isOverviewPollingAllowed() && state.dashboard) void pollCameraMapData();
-    });
-    mapVisibilityListenerAdded = true;
-  }
-}
-async function pollCameraMapData() {
-  if (state.mapPollBusy) return;
-  state.mapPollBusy = true;
-
-  try {
-    const payload = await api('/api/cameras');
-    if (!Array.isArray(payload.items)) return;
-
-    const previous = state.cameras || [];
-    const next = payload.items;
-
-    const signature = (items) => JSON.stringify(items.map((cam) => [
-      cam.id, cam.name, cam.area, cam.lat, cam.lng, cam.status, cam.ci,
-      cam.telemetry_live, cam.speed, cam.vehicles, cam.occupancy,
-      cam.updated, cam.telemetry_source, cam.feed?.available,
-      cam.feed?.source_type, cam.feed?.stream_url
-    ]));
-
-    updateMapStatus(payload);
-
-    // Payload unchanged: no marker, table, or select rebuilding.
-    if (signature(previous) === signature(next)) return;
-
-    const selectedId = state.selectedCameraId;
-    const before = previous.find((cam) => cam.id === selectedId);
-    const after = next.find((cam) => cam.id === selectedId);
-
-    const selectedView = (cam) => cam ? JSON.stringify([
-      cam.id, cam.name, cam.area, cam.lat, cam.lng,
-      cam.status, cam.ci, cam.telemetry_live,
-      cam.feed?.available, cam.feed?.source_type, cam.feed?.stream_url
-    ]) : '';
-
-    state.cameras = next;
-    renderMapMarkers(next);
-    renderCameraPicker();
-    renderScenarioCameraOptions();
-    renderCameraTable();
-
-    if (!after && next.length) {
-      selectTrafficCamera(next[0].id, false, false);
-    } else if (after && selectedView(before) !== selectedView(after)) {
-      selectTrafficCamera(selectedId, false, false);
-    }
-
-    updateMapStatus(payload);
-  } catch (error) {
-    const sync = $('#mapSyncStatus');
-    if (sync) sync.textContent =
-      `M?t k?t n?i API ? ${new Date().toLocaleTimeString('vi-VN')}`;
-  } finally {
-    state.mapPollBusy = false;
-  }
-}
-
-
-function setMapLayer(layer) {
-  if (layer === 'traffic' && !state.trafficTileLayer) {
-    toast('Chưa có nguồn giao thông trực tiếp', 'Bản đồ đường phố là bản đồ thật; lớp màu ùn tắc cần URL tile/API được cấp phép. Cấu hình TRAFFIC_TILE_URL_TEMPLATE trong .env.', 'error');
-    layer = 'status';
-  }
-  state.mapLayer = layer;
-  const legend = $('#mapLegend');
-  if (legend) {
-    legend.innerHTML = layer === 'forecast'
-      ? '<span><i class="legend-dot free"></i>Thông thoáng · 0,00–0,29*</span><span><i class="legend-dot busy"></i>Đông đúc · 0,30–0,54*</span><span><i class="legend-dot gridlock"></i>Tắc nghẽn nghiêm trọng · 0,55–1,00*</span>'
-      : '<span><i class="legend-dot free"></i>Đang hoạt động*</span><span><i class="legend-dot busy"></i>Cần chú ý*</span><span><i class="legend-dot offline"></i>Mất kết nối*</span>';
-  }
-  if (state.leafletMap && state.trafficTileLayer) {
-    if (layer === 'traffic') state.trafficTileLayer.addTo(state.leafletMap);
-    else state.leafletMap.removeLayer(state.trafficTileLayer);
-  }
-  $$('[data-map-layer]').forEach(button => button.classList.toggle('selected', button.dataset.mapLayer === layer));
-  renderMapMarkers(state.cameras);
-  const sync = $('#mapSyncStatus');
-  if (sync && layer === 'traffic') sync.textContent = `Lớp giao thông: ${state.mapConfig?.traffic_layer_name || 'nhà cung cấp ngoài'}`;
-}
-
-function renderCameraPicker() {
-  const select = $('#trafficCameraSelect');
-  if (!select) return;
-  const current = state.selectedCameraId;
-  select.innerHTML = state.cameras.map(cam => `<option value="${escapeHtml(cam.id)}">${escapeHtml(cam.id)} · ${escapeHtml(cam.name)}</option>`).join('');
-  if (current && state.cameras.some(cam => cam.id === current)) select.value = current;
-  else if (state.cameras.length) select.value = state.cameras[0].id;
-}
-
-function selectTrafficCamera(cameraId, forceReload = false, focusMap = false) {
-  const cam = state.cameras.find(item => item.id === cameraId);
-  if (!cam) return;
-  const same = state.selectedCameraId === cameraId;
-  state.selectedCameraId = cameraId;
-  renderMapMarkers(state.cameras);
-  if (focusMap && state.leafletMap && Number.isFinite(Number(cam.lat)) && Number.isFinite(Number(cam.lng))) state.leafletMap.panTo([Number(cam.lat), Number(cam.lng)], { animate: true, duration: 0.45 });
-  const select = $('#trafficCameraSelect');
-  if (select && select.value !== cameraId) select.value = cameraId;
-  $('#trafficCameraTitle').textContent = cam.name;
-  $('#trafficCameraArea').textContent = `${cam.area || 'Chưa cấu hình khu vực'} · ${cam.id}`;
-  const statusBadge = $('#trafficCameraStatus');
-  const feed = cam.feed || {};
-  statusBadge.className = `camera-feed-badge ${feed.available ? 'online' : 'offline'}`;
-  statusBadge.textContent = feed.available ? (feed.source_type === 'demo_fallback' ? 'CLIP MẪU CHUNG' : 'ĐÃ GÁN CLIP') : 'CHƯA CÓ CLIP';
-  const video = $('#trafficCameraVideo');
-  const empty = $('#trafficCameraEmpty');
-  const tag = $('#trafficVideoTag');
-  const upload = $('#trafficFeedUpload');
-  const remove = $('#removeCameraFeed');
-  if (feed.available) {
-    const url = cameraFeedUrl(feed);
-    if (forceReload || !same || video.dataset.feedUrl !== url) {
-      video.pause();
-      video.muted = true;
-      video.loop = true;
-      video.src = url;
-      video.dataset.feedUrl = url;
-      video.load();
-    }
-    video.hidden = false;
-    empty.hidden = true;
-    if (video.paused) {
-  const playAttempt = video.play();
-  if (playAttempt && typeof playAttempt.catch === 'function') {
-    playAttempt.catch(() => {});
-  }
-}
-    tag.hidden = false;
-    tag.textContent = feed.source_type === 'demo_fallback' ? 'CLIP MẪU CHUNG' : 'CLIP ĐÃ GÁN';
-    $('#trafficFeedHint').textContent = feed.notice || 'Video đã được gán cho đúng mã camera này.';
-    remove.disabled = false;
-  } else {
-    if (!same || forceReload || video.dataset.feedUrl) {
-      video.pause(); video.removeAttribute('src'); delete video.dataset.feedUrl; video.load();
-    }
-    video.hidden = true;
-    empty.hidden = false;
-    tag.hidden = true;
-    $('#trafficFeedHint').textContent = feed.notice || 'Chưa có clip gắn cho điểm này. Ảnh phía trên chỉ minh họa giao thông đô thị.';
-    remove.disabled = true;
-  }
-  upload.dataset.cameraId = cameraId;
-  upload.disabled = state.publicDemoMode;
-  $('.camera-feed-upload')?.classList.toggle('is-disabled', state.publicDemoMode);
-  remove.disabled = state.publicDemoMode || remove.disabled;
-
-}
-
-async function uploadTrafficCameraClip(file) {
-  const cameraId = state.selectedCameraId;
-  if (!cameraId || !file) return;
-  if (file.size > 500 * 1024 * 1024) { toast('Video quá lớn', 'Giới hạn upload demo là 500 MB.', 'error'); return; }
-  $('#trafficFeedHint').textContent = `Đang tải ${file.name} lên điểm ${cameraId}…`;
-  const button = $('.camera-feed-upload');
-  if (button) button.classList.add('is-uploading');
-  try {
-    const form = new FormData(); form.append('file', file);
-    const result = await api(`/api/cameras/${encodeURIComponent(cameraId)}/feed`, { method:'POST', body:form });
-    const cam = state.cameras.find(item => item.id === cameraId);
-    if (cam) cam.feed = result.feed;
-    selectTrafficCamera(cameraId, true);
-    toast('Đã gán video', `${file.name} · ${cameraId}`);
-  } catch (error) {
-    $('#trafficFeedHint').textContent = `Không thể gán video: ${error.message}`;
-    toast('Gán video thất bại', error.message, 'error');
-  } finally {
-    if (button) button.classList.remove('is-uploading');
-    $('#trafficFeedUpload').value = '';
-  }
-}
-
-async function removeTrafficCameraClip() {
-  const cameraId = state.selectedCameraId;
-  if (!cameraId) return;
-  try {
-    const result = await api(`/api/cameras/${encodeURIComponent(cameraId)}/feed`, {method:'DELETE'});
-    const cam = state.cameras.find(item => item.id === cameraId);
-    if (cam) cam.feed = result.feed;
-    selectTrafficCamera(cameraId, true);
-    toast('Đã gỡ clip', `${cameraId} · clip đã gán được gỡ khỏi điểm này.`);
-  } catch (error) { toast('Không gỡ được clip', error.message, 'error'); }
-}
-
-function renderDashboard(data, system) {
-  const s = data.summary || {}; const cameras = data.cameras || []; const alerts = data.alerts || [];
-  const hasLiveTelemetry = data.data_source === 'live_telemetry';
-  const configuredCount = s.camera_total ?? cameras.length;
-  $('#navCameraCount').textContent = configuredCount;
-  $('#navAlertCount').textContent = alerts.length;
-  $('#mapOnlineCount').textContent = `${s.camera_online || 0}/${configuredCount} điểm có telemetry mới`;
-  $('#updatedAt').textContent = `Đồng bộ ${new Date(data.generated_at || Date.now()).toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' })}`;
-  const noticeTitle = hasLiveTelemetry ? 'Đã nhận telemetry gần đây.' : 'Chưa kết nối nguồn giao thông trực tiếp.';
-  const noticeBody = hasLiveTelemetry
-    ? 'Một số chỉ số được tính từ telemetry nhận qua collector đã cấu hình. Dự báo chỉ xuất hiện khi có chuỗi đo và forecaster hợp lệ.'
-    : 'Các marker là vị trí tham chiếu, không phải camera đã xác minh. Không có dữ liệu đo trực tiếp; chỉ số ùn tắc và dự báo được để trống thay vì mô phỏng.';
-  $('#demoNotice').style.display = 'flex';
-  $('#demoNotice').innerHTML = `<span class="notice-icon">i</span><span><strong>${noticeTitle}</strong> ${noticeBody}</span><button id="noticeDismiss" aria-label="Ẩn thông báo">×</button>`;
-  $('#systemPill').innerHTML = `<span class="status-pulse"></span><span>${hasLiveTelemetry ? 'Có telemetry mới' : 'Chưa có nguồn trực tiếp'}</span>`;
-  $('#noticeDismiss').addEventListener('click',()=>{$('#demoNotice').style.display='none';});
-  renderForecast(data.forecast, hasLiveTelemetry ? s.average_ci : null);
-  renderTrend(data.trend || []);
-  renderAlertPreview(alerts);
-  state.cameras = cameras;
-  if (!state.selectedCameraId || !cameras.some(cam => cam.id === state.selectedCameraId)) state.selectedCameraId = cameras[0]?.id || null;
-  renderMapMarkers(cameras);
-  renderCameraPicker();
-  if (state.selectedCameraId) selectTrafficCamera(state.selectedCameraId, false);
-  if (system?.model_status) { state.modelStatus = system.model_status; renderModelStatus(); }
-}
-
-function renderForecast(forecast, avgCI) {
-  const predictions = Array.isArray(forecast?.predictions) ? forecast.predictions : [];
-  const horizonList = $('#horizonList');
-  const currentLevel = $('#forecastCurrentLevel');
-  const clearPlot = () => {
-    $('#forecastLine').setAttribute('d', '');
-    $('#forecastArea').setAttribute('d', '');
-    $('#forecastPoints').innerHTML = '';
-  };
-  // The overview may not infer future traffic from fixture measurements. Only a successful
-  // observation-driven provider result can populate this chart.
-  if (!predictions.length || !['production', 'remote_api'].includes(forecast?.mode)) {
-    $('#forecastCurrent').textContent = '—';
-    currentLevel.textContent = 'Chưa đủ dữ liệu';
-    currentLevel.className = 'level-chip unavailable';
-    clearPlot();
-    horizonList.innerHTML = '<div class="empty-state">Chưa có dự báo hợp lệ cho +5 / +10 / +15 phút.</div>';
-    $('#forecastAdvice').textContent = forecast?.mode === 'error'
-      ? 'Nguồn dự báo lỗi. Kiểm tra cấu hình model/API; không sử dụng kết quả cũ.'
-      : 'Chưa có chuỗi telemetry và forecaster đã kiểm định. Phân tích frame chỉ mô tả trạng thái trong clip, không tự tạo ra dự báo tương lai.';
-    $('#forecastModeFoot').textContent = forecast?.mode === 'error'
-      ? 'Dự báo không khả dụng · kiểm tra nguồn xử lý'
-      : 'Chỉ hiển thị dự báo từ quan sát và bộ dự báo hợp lệ';
-    return;
-  }
-  $('#forecastCurrent').textContent = avgCI == null ? '—' : numberVN(avgCI, 2);
-  currentLevel.className = `level-chip ${avgCI == null ? 'unavailable' : severityFromCI(avgCI)}`;
-  currentLevel.textContent = avgCI == null ? 'Chưa có CI hiện tại' : levelVN(severityFromCI(avgCI));
-  const points = predictions.slice(0,3).map((p,i)=>({x:[146.7,293.3,440][i],ci:Number(p.ci)}));
-  const y = value => 156 - Math.max(0, Math.min(1, value)) * 144;
-  let line = '';
-  if (avgCI != null) line = `M0,${y(avgCI)} `;
-  line += points.map(p => `L${p.x},${y(p.ci)}`).join(' ');
-  $('#forecastLine').setAttribute('d', line);
-  $('#forecastArea').setAttribute('d', avgCI == null ? '' : `${line} L440,156 L0,156 Z`);
-  const circleValues = avgCI == null ? points : [{x:0,ci:Number(avgCI)}, ...points];
-  $('#forecastPoints').innerHTML = circleValues.map(p=>`<circle cx="${p.x}" cy="${y(p.ci)}" r="4" fill="#fff" stroke="#719d80" stroke-width="2"/>`).join('');
-  horizonList.innerHTML = predictions.map(p => {
-    const cls = severityFromCI(p.ci);
-    return `<div class="horizon-row"><span class="horizon-time">+${escapeHtml(p.horizon_minutes)} phút</span><span class="horizon-bar"><i class="${cls}" style="width:${Math.round(Number(p.ci)*100)}%;background:${ciColor(cls)}"></i></span><strong>${numberVN(p.ci,2)}</strong><span class="level-dot ${cls}"></span></div>`;
-  }).join('');
-  const lastKey = severityFromCI(Number(predictions[predictions.length-1].ci));
-  $('#forecastAdvice').textContent = lastKey === 'gridlock' ? 'Có tín hiệu nguy cơ cao trong chân trời dự báo. Xác minh nguồn và hiện trường trước quyết định điều hành.' : lastKey === 'busy' ? 'Mô hình báo xu hướng đông đúc; tiếp tục theo dõi chuỗi đo mới nhất.' : 'Dự báo hiện chưa cho thấy CI cao trong chân trời đã trả về.';
-  $('#forecastModeFoot').textContent = forecast.mode === 'production' ? 'Kết quả từ bộ dự báo cục bộ · cần kiểm định độc lập' : `Kết quả từ API dự báo${forecast.latency_ms != null ? ` · ${numberVN(forecast.latency_ms,1)} ms` : ''} · cần kiểm định độc lập`;
-}
-
-function renderTrend(trend) {
-  const container = $('#trendChart'); if (!container) return;
-  const data = Array.isArray(trend) ? trend : [];
-  if (data.length < 2) {
-    container.innerHTML = '<div class="empty-state trend-empty">Chưa có chuỗi quan sát theo thời gian. Không tạo đường xu hướng từ số liệu mẫu.</div>';
-    $('#trendAvg').textContent = '—';
-    const note = $('#trendSourceNote'); if (note) note.textContent = 'Cần telemetry có timestamp trước khi vẽ xu hướng.';
-    return;
-  }
-  const width = 680, height = 140, pad = { l: 8, r: 10, t: 12, b: 25 };
-  const plotW = width-pad.l-pad.r, plotH = height-pad.t-pad.b;
-  const x = i => pad.l + i * plotW / Math.max(1,data.length-1);
-  const y = v => pad.t + (1 - Math.max(0,Math.min(1,v))) * plotH;
-  const d = data.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(p.ci).toFixed(1)}`).join(' ');
-  const area = `${d} L${x(data.length-1)},${height-pad.b} L${x(0)},${height-pad.b} Z`;
-  const grid = [0,.25,.5,.75,1].map(v=>`<line x1="${pad.l}" y1="${y(v)}" x2="${width-pad.r}" y2="${y(v)}" stroke="#eef1eb" stroke-dasharray="3 5"/><text x="0" y="${y(v)+3}" fill="#b3bcb4" font-size="9">${v.toFixed(2)}</text>`).join('');
-  const labels = data.map((p,i)=>i%2===0 || i===data.length-1 ? `<text x="${x(i)}" y="${height-5}" text-anchor="middle" fill="#aeb7af" font-size="9">${escapeHtml(p.time)}</text>`:'').join('');
-  container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="Chỉ số ùn tắc đã quan sát theo thời gian">${grid}<path d="${area}" fill="#eaf2e9"/><path d="${d}" fill="none" stroke="#79a284" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${data.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.ci)}" r="2.7" fill="#fff" stroke="#79a284" stroke-width="1.8"/>`).join('')}${labels}</svg>`;
-  $('#trendAvg').textContent = numberVN(data.reduce((sum,p)=>sum+Number(p.ci),0)/data.length,2);
-  const note = $('#trendSourceNote'); if (note) note.textContent = 'CI tính từ telemetry đã quan sát; không phải dự báo.';
-}
-
-function renderAlertPreview(alerts) {
-  const items = alerts.filter(a => a.status !== 'Đã ghi nhận').slice(0,3);
-  $('#alertPreview').innerHTML = items.map(a => `<div class="preview-alert"><span class="alert-symbol ${alertClass(a.type)}">${alertIcon(a.type)}</span><div class="preview-alert-copy"><strong>${escapeHtml(a.title)}</strong><p>${escapeHtml(a.location)} · ${escapeHtml(a.time)}</p></div><span class="preview-alert-time">CI ${numberVN(a.ci,2)}</span></div>`).join('') || '<div class="empty-state">Không có cảnh báo đang mở.</div>';
-  $('#alertFooterText').textContent = items.length ? `${items.length} sự kiện cần theo dõi` : 'Không có cảnh báo đang mở';
-}
-
-function renderCameraTable() {
-  const tbody = $('#cameraTableBody'); if (!tbody) return;
-  const query = ($('#cameraSearch')?.value || '').trim().toLocaleLowerCase('vi-VN');
-  const status = $('#cameraStatusFilter')?.value || 'all';
-  const all = state.cameras || [];
-  const filtered = all.filter(cam => {
-    const live = Boolean(cam.telemetry_live);
-    const statusMatch = status === 'all' || (status === 'live' && live) || (status === 'unverified' && !live);
-    return statusMatch && `${cam.id} ${cam.name} ${cam.area}`.toLocaleLowerCase('vi-VN').includes(query);
-  });
-  tbody.innerHTML = filtered.map(cam => {
-    const live = Boolean(cam.telemetry_live);
-    const ci = live && Number.isFinite(Number(cam.ci)) ? Number(cam.ci) : null;
-    const speed = live && Number.isFinite(Number(cam.speed)) ? Number(cam.speed) : null;
-    const vehicles = live && Number.isFinite(Number(cam.vehicles)) ? Number(cam.vehicles) : null;
-    const cls = ci == null ? 'reference' : severityFromCI(ci);
-    return `<tr><td><div class="location-cell"><span class="camera-thumb">▣</span><div><strong>${escapeHtml(cam.name)}</strong><small>${escapeHtml(cam.id)} · ${escapeHtml(cam.area)}</small></div></div></td><td><span class="status-badge ${live ? 'online' : 'unverified'}">${live ? 'Có telemetry mới' : 'Chưa có telemetry'}</span></td><td>${vehicles == null ? '—' : numberVN(vehicles)}</td><td>${speed == null ? '—' : `${numberVN(speed,1)} km/h`}</td><td><div class="ci-cell"><span class="ci-value">${ci == null ? '—' : numberVN(ci,2)}</span><span class="ci-track"><i class="${cls}" style="width:${ci == null ? 0 : Math.round(ci*100)}%"></i></span></div></td><td>${escapeHtml(live ? (cam.updated || 'Đã nhận telemetry') : 'Vị trí tham chiếu')}</td><td><button class="table-action" data-camera-detail="${escapeHtml(cam.id)}" aria-label="Xem chi tiết">↗</button></td></tr>`;
-  }).join('') || '<tr><td colspan="7" style="text-align:center;padding:28px;color:#9ba69e">Không tìm thấy điểm giám sát phù hợp.</td></tr>';
-  $('#cameraCountBadge').textContent = `${filtered.length} điểm`;
-  $('#cameraTableFoot').textContent = `Hiển thị ${filtered.length} / ${all.length} điểm · số liệu chỉ xuất hiện khi có telemetry`;
-  $('#camTotalMetric').textContent = all.length;
-  $('#camOnlineMetric').textContent = all.filter(c=>c.telemetry_live).length;
-  $('#camIssueMetric').textContent = all.filter(c=>!c.telemetry_live).length;
-}
-
-function openCameraModal(cameraId) {
-  const cam = state.cameras.find(c => c.id === cameraId); if (!cam) return;
-  const live = Boolean(cam.telemetry_live);
-  $('#cameraModalTitle').textContent = cam.name;
-  const value = v => live && v != null && Number.isFinite(Number(v)) ? numberVN(v, 2) : '—';
-  $('#cameraModalContent').innerHTML = `<div class="feed-meta" style="margin-bottom:13px"><strong>${escapeHtml(cam.id)}</strong><span>${escapeHtml(cam.area)}</span><span>${live ? 'Có telemetry mới' : 'Chưa có telemetry'}</span></div><div class="modal-detail-grid"><div class="modal-stat"><span>Phương tiện ghi nhận</span><strong>${value(cam.vehicles)}</strong></div><div class="modal-stat"><span>Tốc độ đo</span><strong>${live && cam.speed != null ? `${numberVN(cam.speed,1)} <small style="font-size:10px">km/h</small>` : '—'}</strong></div><div class="modal-stat"><span>Độ chiếm dụng</span><strong>${live && cam.occupancy != null ? `${numberVN(cam.occupancy*100,0)}<small style="font-size:10px">%</small>` : '—'}</strong></div><div class="modal-stat"><span>Chỉ số ùn tắc</span><strong>${value(cam.ci)}</strong></div></div><div class="modal-note">${live ? 'Số liệu đến từ collector RTSP đã gửi telemetry gần đây. Hãy kiểm tra timestamp, camera calibration và chất lượng nguồn trước khi dùng cho quyết định điều hành.' : 'Đây là điểm tham chiếu trên bản đồ, chưa xác minh vị trí thiết bị camera và chưa có telemetry thật. Hãy gán clip để phân tích nội dung clip hoặc kết nối nguồn camera được cấp quyền.'}</div>`;
-  $('#cameraModal').hidden = false;
-  $('#cameraModalAlerts').onclick = () => { $('#cameraModal').hidden = true; setPage('alerts'); $('#alertSearch').value = cam.name; renderAlertFeed(); };
-}
-
-function renderAlertFeed() {
-  const container = $('#alertFeed'); if (!container) return;
-  const query = ($('#alertSearch')?.value || '').trim().toLocaleLowerCase('vi-VN');
-  const type = $('#alertTypeFilter')?.value || 'all';
-  const filtered = state.alerts.filter(a => (type === 'all' || a.type === type) && `${a.title} ${a.location} ${a.message} ${a.camera_id}`.toLocaleLowerCase('vi-VN').includes(query));
-  container.innerHTML = filtered.map(a => `<article class="feed-alert"><span class="alert-symbol ${alertClass(a.type)}">${alertIcon(a.type)}</span><div class="feed-main"><h3>${escapeHtml(a.title)}</h3><p>${escapeHtml(a.message)}</p><div class="feed-meta"><span>⌖ <strong>${escapeHtml(a.location)}</strong></span><span>Mã điểm: ${escapeHtml(a.camera_id)}</span><span>CI: <strong>${numberVN(a.ci,2)}</strong></span></div></div><div class="feed-side"><small>${escapeHtml(a.time)}</small><select data-alert-status="${escapeHtml(a.id)}" aria-label="Cập nhật trạng thái"><option ${a.status==='Chưa xử lý'?'selected':''}>Chưa xử lý</option><option ${a.status==='Đang theo dõi'?'selected':''}>Đang theo dõi</option><option ${a.status==='Đã ghi nhận'?'selected':''}>Đã ghi nhận</option></select></div></article>`).join('') || '<div class="empty-state" style="padding:30px;text-align:center;color:#9ba69e">Không tìm thấy cảnh báo phù hợp.</div>';
-  $('#alertCountBadge').textContent = `${filtered.length} sự kiện`;
-  $('#criticalAlertCount').textContent = state.alerts.filter(a=>a.type==='critical'&&a.status!=='Đã ghi nhận').length;
-  $('#watchAlertCount').textContent = state.alerts.filter(a=>a.type==='warning'&&a.status!=='Đã ghi nhận').length;
-  $('#resolvedAlertCount').textContent = state.alerts.filter(a=>a.status==='Đã ghi nhận').length;
-  $('#navAlertCount').textContent = state.alerts.filter(a=>a.status!=='Đã ghi nhận').length;
-}
-
-function renderAnalytics() {
-  if (!state.dashboard) return;
-  const trend = state.dashboard.trend || [];
-  const c = $('#analyticsChart');
-  if (!trend.length) {
-    if (c) c.innerHTML = '<div class="empty-state">Chưa có telemetry lịch sử. Số liệu mẫu đã được ẩn để tránh nhầm với thực tế.</div>';
-    const dist = $('#distributionList'); if (dist) dist.innerHTML = '<div class="empty-state">Chưa có CI thực theo camera.</div>';
-    return;
-  }
-  if (c) {
-    const width=700,height=250,pad={l:14,r:12,t:15,b:28},pw=width-pad.l-pad.r,ph=height-pad.t-pad.b;
-    const x=i=>pad.l+i*pw/Math.max(1,trend.length-1); const y=v=>pad.t+(1-Math.max(0,Math.min(1,v)))*ph;
-    const d=trend.map((p,i)=>`${i?'L':'M'}${x(i)},${y(p.ci)}`).join(' '); const area=`${d} L${x(trend.length-1)},${height-pad.b} L${x(0)},${height-pad.b} Z`;
-    const grid=[0,.25,.5,.75,1].map(v=>`<g><line x1="${pad.l}" y1="${y(v)}" x2="${width-pad.r}" y2="${y(v)}" stroke="#edf0eb" stroke-dasharray="4 5"/><text x="0" y="${y(v)+3}" font-size="10" fill="#aeb8b0">${v.toFixed(2)}</text></g>`).join('');
-    c.innerHTML=`<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="Diễn biến chỉ số ùn tắc">${grid}<path d="${area}" fill="#edf4eb"/><path d="${d}" fill="none" stroke="#6f9b7b" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/>${trend.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.ci)}" r="3" fill="white" stroke="#6f9b7b" stroke-width="2"/>`).join('')}${trend.map((p,i)=>i%2===0||i===trend.length-1?`<text x="${x(i)}" y="${height-7}" text-anchor="middle" font-size="10" fill="#aeb8b0">${escapeHtml(p.time)}</text>`:'').join('')}</svg>`;
-  }
-  const cams=state.cameras.filter(c=>c.status!=='offline'); const groups=CI_LEVELS.map(level=>({...level,count:0}));
-  cams.forEach(cam=>{const g=groups.find(x=>x.key===severityFromCI(cam.ci));if(g)g.count++});
-  const dist=$('#distributionList'); if(dist) dist.innerHTML=groups.map(g=>`<div class="distribution-item"><span>${levelVN(g.key)}</span><span class="distribution-track"><i style="width:${cams.length?g.count/cams.length*100:0}%;background:${g.color}"></i></span><strong>${g.count}</strong></div>`).join('');
-}
-
-function renderModelStatus() {
-  const status = state.modelStatus || {};
-  const provider = state.providerStatus || status.forecast_provider || {};
-  const providerName = provider.provider || 'local_onnx';
-  const remote = providerName === 'remote_http';
-  const configured = Boolean(provider.configured);
-  const remoteBlocked = remote && Boolean(provider.public_blocked);
-  const remoteReady = remote && configured && !remoteBlocked;
-  const localForecasterReady = Boolean(status.forecaster?.ready);
-  const demo = remote ? !remoteReady : !localForecasterReady;
-  const title = remote ? 'Dịch vụ dự báo bên ngoài' : 'Mô hình cục bộ';
-  const message = remote
-    ? (remoteBlocked ? 'API đang bị khóa ở chế độ demo công khai. Chỉ mở sau khi có xác thực, hạn mức và giám sát.' : configured ? 'Endpoint đã được cấu hình. Kết nối/đầu ra sẽ được xác nhận khi gửi yêu cầu dự báo.' : 'Chưa cấu hình URL hợp lệ. Hãy điền .env và khởi động lại server.')
-    : (localForecasterReady ? 'Forecaster ONNX đã được nạp; cần xác minh trên dữ liệu độc lập trước vận hành.' : 'Chưa nạp forecaster ONNX; hệ thống giữ nhãn dữ liệu minh họa cho đến khi cấu hình mô hình thật.');
-  const titleEl = $('#providerUiTitle'); if (titleEl) titleEl.textContent = title;
-  const messageEl = $('#providerUiMessage'); if (messageEl) messageEl.textContent = message;
-  const statusEl = $('#providerUiStatus'); if (statusEl) statusEl.textContent = remote ? (remoteBlocked ? 'API bị khóa trong chế độ demo' : configured ? 'Đã cấu hình endpoint' : 'Chưa cấu hình endpoint') : (localForecasterReady ? 'Đã nạp forecaster' : 'Chưa có forecaster đã huấn luyện');
-  const hostEl = $('#providerEndpointHost'); if (hostEl) hostEl.textContent = remote && provider.endpoint_host ? provider.endpoint_host : 'CPU · ONNX Runtime';
-  const dot = $('#providerStatusDot'); if (dot) dot.className = `provider-status-dot ${!demo ? 'ready' : 'demo'}`;
-  const chip = $('#modelModeChip'); if (chip) { chip.textContent = remote ? (remoteBlocked ? 'API BỊ KHÓA' : configured ? 'API ĐÃ CẤU HÌNH' : 'CHƯA CẤU HÌNH') : (localForecasterReady ? 'SẴN SÀNG' : 'DỮ LIỆU MẪU'); chip.className = `mode-chip ${demo ? 'demo' : 'production'}`; }
-  const det = status.detector || {}, fore = status.forecaster || {};
-  const detState = $('#detectorArtifactState'); if (detState) detState.innerHTML = `<span class="tiny-indicator ${det.ready?'green-indicator':'red-indicator'}"></span>${det.ready?'Đã nạp vào runtime':det.exists?'Có file nhưng chưa nạp':'Chưa có file'}`;
-  const foreState = $('#forecasterArtifactState'); if (foreState) foreState.innerHTML = `<span class="tiny-indicator ${fore.ready?'green-indicator':'red-indicator'}"></span>${fore.ready?'Đã nạp vào runtime':fore.exists?'Có file nhưng chưa nạp':'Chưa có file'}`;
-  const manifestState = $('#manifestArtifactState'); if (manifestState) manifestState.innerHTML = '<span class="tiny-indicator green-indicator"></span>Đã có manifest';
-  const detectorName = $('#detectorFileName'); if (detectorName) detectorName.textContent = det.file ? `artifacts/current/${det.file}` : 'artifacts/current/detector.onnx';
-  const forecasterName = $('#forecasterFileName'); if (forecasterName) forecasterName.textContent = fore.file ? `artifacts/current/${fore.file}` : 'artifacts/current/forecaster.onnx';
-  const runtimeProvider = $('#runtimeProvider'); if (runtimeProvider) runtimeProvider.textContent = status.provider || 'CPUExecutionProvider';
-  const runtimeDetector = $('#runtimeDetector'); if (runtimeDetector) runtimeDetector.textContent = det.ready ? 'Đã nạp' : 'Chưa sẵn sàng';
-  const detectorIcon = $('#runtimeDetectorIcon'); if (detectorIcon) { detectorIcon.textContent = det.ready ? '✓' : '–'; detectorIcon.className = `runtime-state ${det.ready?'runtime-ok':''}`; }
-  const runtimeForecaster = $('#runtimeForecaster'); if (runtimeForecaster) runtimeForecaster.textContent = fore.ready ? 'Đã nạp' : (remoteReady ? 'Đang dùng API ngoài' : 'Chưa sẵn sàng');
-  const forecasterIcon = $('#runtimeForecasterIcon'); if (forecasterIcon) { forecasterIcon.textContent = fore.ready || remoteReady ? '✓' : '–'; forecasterIcon.className = `runtime-state ${(fore.ready || remoteReady)?'runtime-ok':''}`; }
-  const features = $('#runtimeFeatures'); if (features) features.textContent = status.feature_count ?? 8;
-  const horizons = $('#runtimeHorizons'); if (horizons) horizons.textContent = (status.horizons_minutes || [5,10,15]).join(' · ') + ' phút';
-  const loadedAt = $('#runtimeLoadedAt'); if (loadedAt) loadedAt.textContent = status.loaded_at ? new Date(status.loaded_at).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
-  const dotNav = $('#modelNavDot'); if (dotNav) dotNav.style.background = demo ? '#ce8b4c' : '#70a276';
-}
-
-function scenarioWriteBlockReason() {
-  if (!state.aiccStatus) return 'Đang kiểm tra khả năng phân tích…';
-  if (!canAnalyzeUploadedScenarioVideo()) return 'Tính năng phân tích video hiện chưa sẵn sàng. Vui lòng thử lại sau.';
-  return '';
-}
-
-function scenarioUploadLimitBytes() {
-  const bytes = Number(state.aiccStatus?.upload_limit_bytes);
-  if (Number.isSafeInteger(bytes) && bytes > 0) return bytes;
-  const legacyBytes = Number(state.aiccStatus?.upload_limit_mb) * 1024 * 1024;
-  return Number.isSafeInteger(legacyBytes) && legacyBytes > 0 ? legacyBytes : 500 * 1024 * 1024;
-}
-
-function renderScenarioInputState() {
-  const file = $('#scenarioVideoFile')?.files?.[0];
-  const blocked = scenarioWriteBlockReason();
-  const maxBytes = scenarioUploadLimitBytes();
-  const maxMiB = Number((maxBytes / 1024 / 1024).toFixed(2));
-  const reason = blocked || (state.scenarioBusy ? 'Đang xử lý yêu cầu của bạn…' : '')
-    || (state.scenarioPendingJobId ? 'Video đã được tiếp nhận. Hãy theo dõi lại kết quả.' : '')
-    || (!file ? 'Chọn một video để bắt đầu.' : '')
-    || (file.size > maxBytes ? `Video vượt giới hạn ${maxMiB} MiB.` : '');
-  const button = $('#scenarioAnalyzeUploadBtn');
-  if (button) { button.disabled = Boolean(reason); button.title = reason; }
-  const input = $('#scenarioVideoFile');
-  if (input) input.disabled = state.scenarioBusy;
-  const resume = $('#scenarioResumeBtn');
-  if (resume) { resume.hidden = !state.scenarioPendingJobId || state.scenarioBusy; resume.disabled = state.scenarioBusy; }
-  const hint = $('#scenarioInputHint');
-  if (hint) hint.textContent = reason || 'Video đã chọn. Bấm Phân tích video để bắt đầu.';
-  const limit = $('#scenarioUploadLimit');
-  if (limit) limit.textContent = `Tối đa ${maxMiB} MiB và ${Math.floor(Number(state.aiccStatus?.upload_max_duration_seconds || 360) / 60)} phút.`;
-  const mode = $('#scenarioRuntimeMode');
-  if (mode) mode.textContent = blocked ? 'Chưa sẵn sàng' : 'Sẵn sàng nhận video';
-}
-
-function renderScenarioCameraOptions() {
-  const origin = $('#scenarioOriginSelect');
-  const destination = $('#scenarioDestinationSelect');
-  if (!origin || !destination || !state.cameras.length) { renderScenarioInputState(); return; }
-  const oldOrigin = origin.value;
-  const oldDestination = destination.value;
-  const optionHtml = state.cameras.filter(cam => cam.lat != null && cam.lng != null && Number.isFinite(Number(cam.lat)) && Number.isFinite(Number(cam.lng)))
-    .map(cam => `<option value="${escapeHtml(cam.id)}">${escapeHtml(cam.name)} · ${escapeHtml(cam.area || cam.id)}</option>`).join('');
-  origin.innerHTML = `<option value="">Không gắn camera (tùy chọn)</option>${optionHtml || ''}`;
-  destination.innerHTML = `<option value="">Chọn điểm đến…</option>${optionHtml || ''}`;
-  const preferredOrigin = oldOrigin || state.selectedCameraId || '';
-  origin.value = state.cameras.some(cam => cam.id === preferredOrigin) ? preferredOrigin : '';
-  const preferredDest = oldDestination || '';
-  destination.value = state.cameras.some(cam => cam.id === preferredDest) && preferredDest !== origin.value
-    ? preferredDest : '';
-  if (destination.value === origin.value) destination.value = '';
-  const button = $('#scenarioFindRoutesBtn'); if (button) button.disabled = !origin.value || !destination.value || state.publicDemoMode;
-  renderScenarioInputState();
-}
-
-function routePointFromCamera(cameraId) {
-  const camera = state.cameras.find(item => item.id === cameraId);
-  if (!camera || camera.lat == null || camera.lng == null || !Number.isFinite(Number(camera.lat)) || !Number.isFinite(Number(camera.lng))) {
-    throw new Error('Điểm đã chọn chưa có tọa độ hợp lệ.');
-  }
-  return { label: camera.name, camera_id: camera.id, lat: Number(camera.lat), lng: Number(camera.lng) };
-}
-
-function renderScenarioReview(result) {
-  state.scenarioResult = result;
-  state.scenarioJobId = result.job_id || state.scenarioJobId;
-  const summary = result.summary || {};
-  $('#scenarioCurrentState').textContent = summary.current_state || '—';
-  $('#scenarioCurrentCI').textContent = summary.current_ci == null ? '—' : numberVN(summary.current_ci, 2);
-  $('#scenarioSnapshotCount').textContent = numberVN((result.frames || []).length);
-  $('#scenarioFramesCaption').textContent = `${numberVN(summary.sampled_frames || 0)} mẫu · ${numberVN(summary.saved_frames || 0)} ảnh đã lưu · ${result.filename || 'video'}`;
-  const forecast = result.trend_forecast || {};
-  const badge = $('#scenarioForecastBadge');
-  const text = $('#scenarioForecastText');
-  const cards = $('#scenarioForecastCards');
-  cards.innerHTML = '';
-  if (forecast.available && Array.isArray(forecast.predictions) && forecast.predictions.length) {
-    badge.textContent = `Baseline tham khảo · ${forecast.confidence || 'độ tin cậy thấp'}`;
-    badge.className = 'status-tag status-warn';
-    text.textContent = forecast.message || 'Ngoại suy xu hướng từ clip, chưa phải dự báo được kiểm định.';
-    cards.innerHTML = forecast.predictions.filter(item => [5, 10].includes(Number(item.horizon_minutes))).map(item =>
-      `<article class="scenario-prediction-card"><small>+${numberVN(item.horizon_minutes)} phút</small><strong>${escapeHtml(item.level || levelVN(item.level_key))}</strong><span>CI ${numberVN(item.ci, 2)}</span></article>`).join('');
-  } else {
-    badge.textContent = 'Chưa đủ điều kiện'; badge.className = 'status-tag';
-    text.textContent = forecast.message || 'Chưa có baseline +5/+10. Không ngoại suy nếu clip không giữ đúng thời gian, quá ngắn hoặc thiếu mẫu.';
-  }
-  const hanoiForecast = result.hanoi_forecast || {};
-  const hanoiBadge = $('#hanoiForecastBadge');
-  const hanoiText = $('#hanoiForecastText');
-  const hanoiCards = $('#hanoiForecastCards');
-  hanoiCards.innerHTML = '';
-  if (hanoiForecast.available && Array.isArray(hanoiForecast.predictions)) {
-    hanoiBadge.textContent = 'Thử nghiệm · chưa hiệu chuẩn';
-    hanoiBadge.className = 'status-tag status-warn';
-    // The Hanoi LSTM horizons are seconds; minute forecasts live on the home page (/).
-    hanoiText.textContent = hanoiForecast.message || 'Xác suất tham khảo từ LSTM, chưa được hiệu chuẩn.';
-    hanoiCards.innerHTML = hanoiForecast.predictions.map(item =>
-      `<article class="scenario-prediction-card"><small>+${numberVN(item.horizon_seconds)} giây</small><strong>${escapeHtml(item.predicted_class === 'Tac_duong' ? 'Có nguy cơ tắc' : 'Thông thoáng')}</strong><span>Xác suất ùn tắc ${numberVN(Number(item.congestion_probability) * 100, 1)}% · chưa hiệu chuẩn</span></article>`).join('');
-  } else {
-    hanoiBadge.textContent = 'Chưa đủ dữ liệu';
-    hanoiBadge.className = 'status-tag';
-    hanoiText.textContent = hanoiForecast.message || 'LSTM cần ít nhất 30 giây clip được lấy mẫu ở 1 frame/giây.';
-  }
-  const frames = result.frames || [];
-  const gallery = $('#scenarioFrameGallery');
-  gallery.innerHTML = frames.length ? frames.map(frame => {
-    const tone = CI_LEVELS.some(level => level.key === frame.state_key) ? frame.state_key : severityFromCI(frame.ci);
-    const rawNote = (frame.raw_state_label && frame.raw_state_label !== frame.state_label) ? ` <small class="text-muted">(thô: ${escapeHtml(frame.raw_state_label)})</small>` : '';
-    const confNote = frame.model_confidence != null ? ` · tin cậy: ${numberVN(frame.model_confidence * 100, 0)}%` : '';
-    return `<article class="scenario-frame-card"><a class="scenario-frame-image" href="${escapeHtml(frame.url)}" target="_blank" rel="noopener"><img loading="lazy" src="${escapeHtml(frame.url)}" alt="Khung hình ${numberVN(frame.timestamp_seconds, 1)} giây · ${escapeHtml(frame.state_label)}"></a><div class="scenario-frame-copy"><div class="scenario-frame-head"><strong>${escapeHtml(frame.state_label)}</strong>${rawNote}<span class="scenario-state-dot ${tone}"></span></div><small>t = ${numberVN(frame.timestamp_seconds, 1)} giây · CI ${numberVN(frame.ci, 2)}</small><small>${numberVN(frame.vehicle_count)} xe phát hiện · chiếm dụng ảnh ${numberVN((frame.occupancy_ratio || 0) * 100, 1)}%${confNote}</small></div></article>`;
-  }).join('') : '<div class="empty-state">Không có ảnh minh chứng trong kết quả.</div>';
-  $('#scenarioExportBtn').disabled = !frames.length;
-  $('#scenarioJobStatus').textContent = `${result.filename || 'Video'} đã xử lý xong. Nhãn ảnh là baseline thị giác; không phải xác nhận từ camera trực tiếp.`;
-  $('#scenarioFindRoutesBtn').disabled = state.publicDemoMode || !$('#scenarioOriginSelect').value || !$('#scenarioDestinationSelect').value;
-  if (result.source_camera_id && $('#scenarioOriginSelect').value !== result.source_camera_id) {
-    $('#scenarioNotice').innerHTML = '<span class="notice-icon">i</span><span>Clip được gán cho một camera khác với điểm đi hiện chọn. Chọn đúng điểm A nếu muốn đính kèm bối cảnh video vào so sánh tuyến.</span>';
-  }
-}
-
-function videoRequestError(status, raw) {
-  let payload;
-  try { payload = raw ? JSON.parse(raw) : {}; } catch { payload = {}; }
-  const detail = typeof payload?.detail === 'string' ? payload.detail
-    : Array.isArray(payload?.detail) ? payload.detail.map(item => item.msg).join('; ') : '';
-  const message = status === 409 ? 'Hệ thống đang phân tích một video khác. Vui lòng thử lại sau'
-    : status === 413 ? detail || 'Video vượt giới hạn kích thước hoặc thời lượng.'
-    : status === 403 ? 'Tính năng phân tích video hiện đang bị tắt.'
-    : detail || `Không thể tải video lên (HTTP ${status}). Vui lòng thử lại.`;
-  const error = new Error(message); error.status = status; return error;
-}
-
-function uploadScenarioVideo(form, onProgress) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/scenarios/video-review');
-    xhr.timeout = 30 * 60 * 1000;
-    xhr.upload.onprogress = event => onProgress(event.loaded, event.lengthComputable ? event.total : null);
-    xhr.upload.onload = () => {
-      $('#scenarioProgressText').textContent = 'Đã tải video lên. Đang kiểm tra video…';
-      $('#scenarioJobStatus').textContent = 'Đã tải video lên. Đang kiểm tra video…';
-      $('#scenarioAnalyzeUploadBtn').textContent = 'Đang kiểm tra video…';
-    };
-    xhr.onload = () => {
-      if (xhr.status !== 202) { reject(videoRequestError(xhr.status, xhr.responseText)); return; }
-      try {
-        const job = JSON.parse(xhr.responseText);
-        if (!/^[a-f0-9]{32}$/.test(job.job_id || '')) throw new Error('Phản hồi tiếp nhận video không hợp lệ.');
-        resolve(job);
-      } catch (error) { reject(error); }
-    };
-    xhr.onerror = () => reject(new Error('Kết nối tải video bị gián đoạn. Kiểm tra mạng rồi thử lại.'));
-    xhr.ontimeout = () => reject(new Error('Tải video quá thời gian chờ. Chưa xác nhận được tác vụ; kiểm tra kết nối trước khi gửi lại.'));
-    xhr.onabort = () => reject(new Error('Đã dừng tải video.'));
-    xhr.send(form);
-  });
-}
-
-function rememberScenarioJob(jobId) {
-  state.scenarioPendingJobId = jobId;
-  try {
-    if (jobId) sessionStorage.setItem('scenario-review-job', jobId);
-    else sessionStorage.removeItem('scenario-review-job');
-  } catch {}
-}
-
-async function pollScenarioReviewJob(jobId, filename) {
-  const started = Date.now();
-  let failures = 0;
-  $('#scenarioProgressWrap').hidden = false;
-  while (Date.now() - started < 30 * 60 * 1000) {
-    let job;
+  async function getJson(path, timeoutMs = 20000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      job = await api(`/api/scenarios/video-reviews/${encodeURIComponent(jobId)}`, {timeoutMs: 15000});
-      failures = 0;
+      const response = await fetch(path, { signal: controller.signal, cache: 'no-store' });
+      const text = await response.text();
+      let payload = {};
+      try { payload = text ? JSON.parse(text) : {}; } catch { const e = new Error('Máy chủ trả dữ liệu hỏng.'); e.status = response.status; throw e; }
+      if (!response.ok) { const e = new Error(payload.detail || `HTTP ${response.status}`); e.status = response.status; throw e; }
+      return payload;
+    } finally { clearTimeout(timer); }
+  }
+
+  async function loadStatus() {
+    try {
+      const status = await getJson('/api/status');
+      state.limits = status;
+      const minutes = Math.floor((status.max_duration_seconds || 0) / 60);
+      const lib = status.library_videos ? ` Mô hình đã học từ ${status.library_videos} video.` : '';
+      $('limitText').textContent = `Tối đa ${Number(status.upload_limit_mib || 0).toLocaleString('vi-VN')} MiB và ${minutes} phút mỗi video.${lib} Cần tối thiểu khoảng 9 phút để có dự báo +5 phút, 25–30 phút để kiểm chứng đủ +15 phút.`;
+      const chip = $('serverChip');
+      if (status.ready) { chip.textContent = status.busy ? 'Đang bận' : 'Sẵn sàng'; chip.className = 'chip ok'; }
+      else { chip.textContent = 'Chưa sẵn sàng'; chip.className = 'chip bad'; notice(status.message || 'Máy chủ chưa sẵn sàng.', 'error'); }
     } catch (error) {
-      if (error.status && error.status < 500) { rememberScenarioJob(null); throw error; }
-      failures++;
-      $('#scenarioProgressText').textContent = 'Kết nối bị gián đoạn. Đang thử kết nối lại để theo dõi kết quả…';
-      $('#scenarioJobStatus').textContent = 'Video đã được tiếp nhận; không cần tải lại video.';
-      if (failures >= 5) throw new Error('Chưa kết nối lại được. Bấm “Theo dõi lại kết quả” để tiếp tục; không cần tải lại video.');
-      await new Promise(resolve => setTimeout(resolve, Math.min(failures * 1000, 5000)));
-      continue;
+      $('limitText').textContent = 'Không đọc được cấu hình máy chủ.';
+      $('serverChip').textContent = 'Mất kết nối';
+      $('serverChip').className = 'chip bad';
     }
-    if (!['queued', 'running', 'succeeded', 'failed'].includes(job.status)) throw new Error('Trạng thái phân tích không hợp lệ. Hãy theo dõi lại kết quả.');
-    const pct = Math.max(0, Math.min(100, Number(job.progress_percent || 0)));
-    $('#scenarioProgressBar').style.width = `${pct}%`;
-    $('#scenarioProgressText').textContent = job.status === 'queued' ? 'Đang chờ phân tích…'
-      : !job.frames_total ? 'Đang chuẩn bị phân tích…'
-      : `Đang phân tích ${numberVN(job.frames_decoded || 0)} / ${numberVN(job.frames_total)} khung hình · ${pct}%`;
-    $('#scenarioJobStatus').textContent = job.status === 'queued' ? 'Video đã được tiếp nhận.' : 'Đang phân tích video của bạn…';
-    if (job.status === 'succeeded') {
-      rememberScenarioJob(null);
-      state.scenarioJobId = jobId;
-      const result = { ...job.result, job_id: jobId };
-      renderScenarioReview(result);
-      $('#scenarioProgressText').textContent = 'Hoàn tất';
-      toast('Đã phân tích video', `${numberVN((result.frames || []).length)} ảnh minh chứng.`);
-      return result;
-    }
-    if (job.status === 'failed') { rememberScenarioJob(null); throw new Error(job.error || 'Không xử lý được video.'); }
-    await new Promise(resolve => setTimeout(resolve, 900));
+    renderInputs();
   }
-  throw new Error('Phân tích đang mất nhiều thời gian. Bấm “Theo dõi lại kết quả” để kiểm tra tiến độ.');
-}
 
-async function startScenarioReview() {
-  if (state.scenarioBusy) return;
-  const pending = state.scenarioPendingJobId;
-  const file = $('#scenarioVideoFile').files?.[0];
-  if (!pending && (scenarioWriteBlockReason() || !file)) { renderScenarioInputState(); return; }
-  if (!pending && file.size > scenarioUploadLimitBytes()) { renderScenarioInputState(); return; }
-  const button = $('#scenarioAnalyzeUploadBtn');
-  state.scenarioBusy = true;
-  renderScenarioInputState();
-  $('#scenarioProgressWrap').hidden = false;
-  try {
-    let jobId = pending;
-    if (!jobId) {
-      button.textContent = 'Đang tải video lên…';
-      $('#scenarioProgressBar').style.width = '0%';
-      $('#scenarioProgressText').textContent = 'Đang bắt đầu tải video…';
-      $('#scenarioJobStatus').textContent = 'Đang tải video của bạn…';
-      const form = new FormData(); form.append('file', file);
-      const originId = $('#scenarioOriginSelect')?.value;
-      if (originId) form.append('camera_id', originId);
-      form.append('preserve_real_timing', $('#scenarioPreserveTiming').checked ? 'true' : 'false');
-      const job = await uploadScenarioVideo(form, (loaded, total) => {
-        const pct = total ? Math.max(0, Math.min(100, Math.floor(loaded / total * 100))) : null;
-        if (pct !== null) $('#scenarioProgressBar').style.width = `${pct}%`;
-        const progress = pct === null ? `${numberVN(loaded / 1024 / 1024, 1)} MiB` : `${pct}% · ${numberVN(loaded / 1024 / 1024, 1)} / ${numberVN(total / 1024 / 1024, 1)} MiB`;
-        $('#scenarioProgressText').textContent = `Đang tải video lên: ${progress}`;
+  function renderInputs() {
+    const ready = Boolean(state.file) && !state.busy && Boolean(state.limits?.ready);
+    $('analyzeBtn').disabled = !ready;
+  }
+
+  function setVideoFile(file) {
+    state.file = file || null;
+    if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+    state.objectUrl = file ? URL.createObjectURL(file) : null;
+    player.src = state.objectUrl || '';
+    $('fileName').textContent = file ? `${file.name} · ${(file.size / 1048576).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} MiB` : 'Chọn video từ máy tính';
+    renderInputs();
+    if (state.session) checkVideoMatchesSession();
+  }
+
+  function upload(form) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/analyze');
+      xhr.timeout = 60 * 60 * 1000;
+      xhr.upload.onprogress = e => {
+        const p = e.lengthComputable ? Math.floor(e.loaded / e.total * 100) : null;
+        setProgress(p, `Đang tải video lên${p === null ? '' : `: ${p}%`}`);
+      };
+      xhr.upload.onload = () => setProgress(100, 'Đã tải lên. Máy chủ đang kiểm tra video…');
+      xhr.onload = () => {
+        let payload = {};
+        try { payload = JSON.parse(xhr.responseText || '{}'); } catch {}
+        if (xhr.status !== 202) {
+          const msg = xhr.status === 409 ? 'Máy chủ đang phân tích một video khác. Vui lòng thử lại sau.'
+            : xhr.status === 413 ? (payload.detail || 'Video vượt giới hạn dung lượng hoặc thời lượng.')
+            : (typeof payload.detail === 'string' ? payload.detail : `Không tải được video (HTTP ${xhr.status}).`);
+          reject(new Error(msg));
+          return;
+        }
+        if (!/^[a-f0-9]{32}$/.test(payload.job_id || '')) { reject(new Error('Phản hồi tiếp nhận không hợp lệ.')); return; }
+        resolve(payload);
+      };
+      xhr.onerror = () => reject(new Error('Mất kết nối khi tải video.'));
+      xhr.ontimeout = () => reject(new Error('Tải video quá thời gian chờ.'));
+      xhr.send(form);
+    });
+  }
+
+  async function poll(jobId) {
+    const started = Date.now();
+    let failures = 0;
+    while (Date.now() - started < 3 * 60 * 60 * 1000) {
+      let job;
+      try { job = await getJson(`/api/jobs/${jobId}`, 15000); failures = 0; }
+      catch (error) {
+        if (error.status && error.status < 500) { sessionStorage.removeItem(JOB_KEY); throw error; }
+        if (++failures >= 8) throw new Error('Mất kết nối với máy chủ khi đang phân tích. Tải lại trang để theo dõi tiếp.');
+        await new Promise(r => setTimeout(r, 2000));
+        continue;
+      }
+      const p = Number(job.progress_percent || 0);
+      if (job.status === 'queued') setProgress(0, 'Đang chờ đến lượt phân tích…');
+      else if (job.status === 'running') setProgress(p, job.frames_total ? `Đang phân tích khung hình ${Number(job.frames_decoded || 0).toLocaleString('vi-VN')} / ${Number(job.frames_total).toLocaleString('vi-VN')} · ${p}%` : 'Đang nạp mô hình…');
+      else if (job.status === 'succeeded') { sessionStorage.removeItem(JOB_KEY); return job.result; }
+      else if (job.status === 'failed') { sessionStorage.removeItem(JOB_KEY); throw new Error(job.error || 'Không phân tích được video.'); }
+      await new Promise(r => setTimeout(r, 1200));
+    }
+    throw new Error('Phân tích quá lâu. Tải lại trang để theo dõi tiếp.');
+  }
+
+  async function analyze() {
+    if (!state.file || state.busy) return;
+    state.busy = true; renderInputs(); notice('');
+    try {
+      const form = new FormData();
+      form.append('file', state.file);
+      form.append('timing_confirmed', $('realTiming').checked ? 'true' : 'false');
+      const job = await upload(form);
+      sessionStorage.setItem(JOB_KEY, job.job_id);
+      const result = await poll(job.job_id);
+      openResult(result);
+    } catch (error) {
+      notice(error.message, 'error');
+      setProgress(null, error.message);
+    } finally {
+      state.busy = false; renderInputs();
+    }
+  }
+
+  function openResult(review) {
+    if (!review || !review.minute_forecast) { notice('Kết quả không có phần dự báo theo phút.', 'error'); return; }
+    loadSession(validateSession({
+      contract: SESSION_CONTRACT,
+      created_at: new Date().toISOString(),
+      ...review,
+      filename: review.filename || state.file?.name || null,
+    }));
+  }
+
+  function loadSession(session) {
+    state.session = validateSession(session);
+    state.camera = state.session.main_camera;
+    setProgress(100, 'Hoàn tất. Phát video hoặc chọn một khoảnh khắc bên dưới.');
+    renderCameraTabs();
+    showCamera();
+    checkVideoMatchesSession();
+    $('workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderCameraTabs() {
+    const cams = state.session.cameras;
+    $('cameraRow').hidden = cams.length < 2;
+    $('airLegend').hidden = cams.length < 2;
+    $('cameraTabs').innerHTML = cams.map(cam => {
+      const checked = (cam.minute_forecast.metrics || []).reduce((n, m) => n + (m.evaluated || 0), 0);
+      const note = cam.minute_forecast.available ? `${checked} lần kiểm chứng` : 'chưa đủ dài để dự báo';
+      return `<button class="camera-tab" type="button" role="tab" data-camera="${cam.id}" aria-selected="${cam.id === state.camera}"${cam.minute_forecast.available ? '' : ' disabled'}>
+        ${escapeHtml(cam.label)}<small>${fmtTime(cam.on_air_seconds)} lên sóng · ${note}</small></button>`;
+    }).join('');
+  }
+
+  function showCamera() {
+    const session = state.session;
+    const mf = forecast();
+    state.locked = null;
+    state.panelKey = null;
+    document.querySelectorAll('.camera-tab').forEach(b => b.setAttribute('aria-selected', String(Number(b.dataset.camera) === state.camera)));
+    if (!mf.available) {
+      notice(mf.message || 'Video chưa đủ dài để dự báo theo phút.', 'error');
+      $('workspace').hidden = !multiCamera();
+      return;
+    }
+    notice(mf.timing_confirmed ? '' : 'Bạn chưa xác nhận video quay theo thời gian thực: “5 phút” ở đây là 5 phút trên dòng thời gian video.');
+    $('workspace').hidden = false;
+    const v = session.video || {};
+    const camText = multiCamera() ? ` · ${camera().label} (video có ${session.cameras.length} camera)` : '';
+    $('videoMeta').textContent = `${session.filename || 'Video'} · ${fmtTime(v.duration_seconds)}${camText} · ${mf.anchors.length.toLocaleString('vi-VN')} thời điểm dự báo, mỗi ${mf.step_seconds} giây`;
+    $('methodLine').textContent = 'Dự báo lập tại mỗi thời điểm chỉ dùng phần video trước đó. Khoảng trong ngoặc là khoảng tin cậy 80%.';
+    renderHighlights();
+    renderMetrics();
+    renderLimits();
+    scheduleRender();
+  }
+
+  $('cameraTabs').addEventListener('click', event => {
+    const button = event.target.closest('[data-camera]');
+    if (!button || !state.session) return;
+    state.camera = Number(button.dataset.camera);
+    notice('');
+    showCamera();
+  });
+
+  function checkVideoMatchesSession() {
+    if (!state.session) return;
+    if (!player.src) { notice('Chọn file video gốc ở mục 1 để phát và kiểm chứng.'); return; }
+    const expected = Number(state.session.video?.duration_seconds || 0);
+    player.addEventListener('loadedmetadata', () => {
+      if (expected && Math.abs(player.duration - expected) > 3) {
+        notice(`Video đang mở dài ${fmtTime(player.duration)}, khác video đã phân tích (${fmtTime(expected)}). Hãy chọn đúng file.`, 'error');
+      }
+    }, { once: true });
+  }
+
+  function duration() {
+    return Number(state.session?.video?.duration_seconds) || player.duration || 1;
+  }
+
+  function scheduleRender() {
+    if (state.pendingRender) return;
+    state.pendingRender = true;
+    requestAnimationFrame(() => { state.pendingRender = false; render(); });
+  }
+
+  function currentAnchor(t) {
+    const anchors = forecast()?.anchors || [];
+    return state.locked || lastAtOrBefore(anchors, t);
+  }
+
+  function render() {
+    if (!forecast()?.available) return;
+    const t = player.currentTime || 0;
+    const anchor = currentAnchor(t);
+    renderPanel(anchor, t);
+    renderChart(anchor, t);
+    renderBadge(t);
+  }
+
+  function renderBadge(t) {
+    const observed = lastAtOrBefore(forecast().observed.filter(o => o.ci !== null), t);
+    const badge = $('nowBadge');
+    if (multiCamera() && !onAir(camera().intervals, t)) {
+      badge.hidden = false;
+      badge.className = 'video-badge off';
+      badge.textContent = `${camera().label} đang không lên sóng`;
+      return;
+    }
+    badge.className = 'video-badge';
+    if (!observed) { badge.hidden = true; return; }
+    const key = levelKey(observed.ci);
+    badge.hidden = false;
+    badge.innerHTML = `<i style="background:${LEVEL_COLOR[key]}"></i>${LEVEL_LABEL[key]} · CI ${num(observed.ci)}`;
+  }
+
+  function levelChip(ci) {
+    const key = levelKey(ci);
+    return `<span class="level ${key}">${LEVEL_LABEL[key]}</span>`;
+  }
+
+  function renderPanel(anchor, t) {
+    const mf = forecast();
+    $('unlockBtn').hidden = !state.locked;
+    // Rebuild only when something visible changes, so buttons stay clickable during playback.
+    const key = anchor ? [anchor.t, Boolean(state.locked), state.blind, ...anchor.horizons.map(item => isRevealed(item, t, state.blind))].join('|') : `none|${Math.floor(t)}`;
+    if (key === state.panelKey) {
+      if (state.locked) $('forecastSub').textContent = `Đang giữ dự báo này để kiểm chứng. Video đang ở ${fmtTime(t)}.`;
+      return;
+    }
+    state.panelKey = key;
+    state.panelAnchor = anchor;
+    if (!anchor) {
+      const first = mf.anchors[0];
+      $('forecastTitle').textContent = `Khởi động · ${fmtTime(t)}`;
+      $('forecastSub').textContent = multiCamera()
+        ? `${camera().label} cần lên sóng khoảng ${Math.round(mf.warmup_seconds / 60)} phút trước dự báo đầu tiên${first ? ` (lúc ${fmtTime(first.t)})` : ''}.`
+        : `Hệ thống cần ${Math.round(mf.warmup_seconds / 60)} phút đầu video để có dự báo đầu tiên.`;
+      $('nowRow').innerHTML = '';
+      $('horizonList').innerHTML = '';
+      return;
+    }
+    $('forecastTitle').textContent = `Dự báo lập lúc ${fmtTime(anchor.t)}`;
+    $('forecastSub').textContent = state.locked
+      ? `Đang giữ dự báo này để kiểm chứng. Video đang ở ${fmtTime(t)}.`
+      : 'Cập nhật theo thời điểm đang xem.';
+    $('nowRow').innerHTML = `<span>Lúc lập dự báo:</span>${levelChip(anchor.observed_ci)}<strong>CI ${num(anchor.observed_ci)}</strong>`;
+    $('horizonList').innerHTML = anchor.horizons.map((item, index) => {
+      const revealed = isRevealed(item, t, state.blind);
+      let verify;
+      if (item.actual_ci === null || item.actual_ci === undefined) {
+        verify = multiCamera() && item.target_t <= duration()
+          ? '<div class="verify">Lúc đó camera này không lên sóng; chưa kiểm chứng được.</div>'
+          : '<div class="verify">Video kết thúc trước thời điểm này; chưa kiểm chứng được.</div>';
+      } else if (!revealed) {
+        verify = `<button class="btn small ghost" type="button" data-seek-index="${index}">Tua tới ${fmtTime(item.target_t)} để kiểm chứng</button>`;
+      } else {
+        const sameLevel = levelKey(item.ci) === levelKey(item.actual_ci);
+        const warnOk = item.warning ? item.actual_ci >= SEVERE_CI : true;
+        const ok = sameLevel && warnOk;
+        const warnText = item.warning ? (item.actual_ci >= SEVERE_CI ? ' Cảnh báo tắc: đúng.' : ' Cảnh báo tắc: báo nhầm.') : '';
+        verify = `<div class="verify ${ok ? 'hit' : 'miss'}">${ok ? '✓' : '✗'} Thực tế lúc ${fmtTime(item.target_t)}: ${LEVEL_LABEL[levelKey(item.actual_ci)]} (CI ${num(item.actual_ci)}).${warnText}</div>`;
+      }
+      return `<article class="hcard${item.warning ? ' warning' : ''}">
+        <div class="hrow"><span class="htitle">+${item.horizon_minutes} phút</span><span class="htime">→ ${fmtTime(item.target_t)}</span></div>
+        <div class="hrow">${levelChip(item.ci)}${item.warning ? '<span class="warn-flag">⚠ Cảnh báo sắp tắc</span>' : ''}</div>
+        <div class="hmeta">CI dự báo <strong>${num(item.ci)}</strong> (${num(item.lower)}–${num(item.upper)}) · khả năng tắc ${pct(item.p_gridlock)}</div>
+        <div class="pbar" aria-hidden="true"><span style="width:${Math.round(item.p_gridlock * 100)}%"></span></div>
+        ${verify}
+      </article>`;
+    }).join('');
+  }
+
+  $('horizonList').addEventListener('click', event => {
+    const button = event.target.closest('[data-seek-index]');
+    const anchor = state.panelAnchor;
+    if (!button || !anchor) return;
+    const item = anchor.horizons[Number(button.dataset.seekIndex)];
+    state.locked = anchor;
+    player.pause();
+    player.currentTime = item.target_t;
+    scheduleRender();
+  });
+
+  function renderChart(anchor, t) {
+    const mf = forecast();
+    const width = Math.max(320, Math.round(chart.clientWidth || 1000));
+    const height = 240;
+    chart.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    chart.setAttribute('preserveAspectRatio', 'xMinYMin meet');
+    const padL = 44, padR = 14, padT = 10, padB = 28;
+    const dur = duration();
+    const x = s => padL + (Math.max(0, Math.min(dur, s)) / dur) * (width - padL - padR);
+    const y = ci => padT + (1 - Math.max(0, Math.min(1, ci))) * (height - padT - padB);
+    const parts = [];
+    const band = (lo, hi, color) => `<rect x="${padL}" y="${y(hi)}" width="${width - padL - padR}" height="${y(lo) - y(hi)}" fill="${color}" opacity=".09"/>`;
+    parts.push(band(0, BUSY_CI, LEVEL_COLOR.free), band(BUSY_CI, SEVERE_CI, LEVEL_COLOR.busy), band(SEVERE_CI, 1, LEVEL_COLOR.gridlock));
+    if (multiCamera()) {
+      for (const [a, b] of camera().intervals || []) {
+        parts.push(`<rect x="${x(a)}" y="${padT}" width="${Math.max(1, x(b) - x(a))}" height="${height - padT - padB}" fill="#2d5f8f" opacity=".07"><title>${escapeHtml(camera().label)} lên sóng ${fmtTime(a)}–${fmtTime(b)}</title></rect>`);
+      }
+    }
+    for (const tick of [0, BUSY_CI, SEVERE_CI, 1]) {
+      parts.push(`<line x1="${padL}" x2="${width - padR}" y1="${y(tick)}" y2="${y(tick)}" stroke="#d9dfd8" stroke-dasharray="${tick === 0 || tick === 1 ? '' : '4 4'}"/>`);
+      parts.push(`<text x="${padL - 8}" y="${y(tick) + 4}" text-anchor="end" font-size="11" fill="#6f7d76">${num(tick, tick === 0 || tick === 1 ? 0 : 2)}</text>`);
+    }
+    const stepMin = dur > 3600 ? 10 : 5;
+    for (let s = 0; s <= dur; s += stepMin * 60) {
+      parts.push(`<text x="${x(s)}" y="${height - 8}" text-anchor="middle" font-size="11" fill="#6f7d76">${fmtTime(s)}</text>`);
+    }
+    // Observed CI line, cut at the playhead in blind mode.
+    const limit = state.blind ? t : dur;
+    let d = '', open = false;
+    for (const point of mf.observed) {
+      if (point.t > limit + 1e-6) break;
+      if (point.ci === null) { open = false; continue; }
+      d += `${open ? 'L' : 'M'}${x(point.t).toFixed(1)},${y(point.ci).toFixed(1)}`;
+      open = true;
+    }
+    parts.push(`<path d="${d}" fill="none" stroke="#3d4d46" stroke-width="2" stroke-linejoin="round"/>`);
+    // Correct congestion warnings that have already happened on screen.
+    for (const hit of mf.highlights?.hits || []) {
+      if (state.blind && hit.target_t > t) continue;
+      parts.push(`<path d="M${x(hit.t)},${y(1) + 2} l6,10 l-12,0 z" fill="${LEVEL_COLOR.gridlock}"><title>Lúc ${fmtTime(hit.t)} cảnh báo +${hit.horizon_minutes} phút sẽ tắc: đúng</title></path>`);
+    }
+    if (anchor) {
+      parts.push(`<line x1="${x(anchor.t)}" x2="${x(anchor.t)}" y1="${padT}" y2="${height - padB}" stroke="#2d5f8f" stroke-width="1" stroke-dasharray="3 3"/>`);
+      for (const item of anchor.horizons) {
+        parts.push(`<line x1="${x(anchor.t)}" y1="${y(anchor.observed_ci)}" x2="${x(item.target_t)}" y2="${y(item.ci)}" stroke="#2d5f8f" stroke-width="1.5" stroke-dasharray="5 4"/>`);
+        parts.push(`<line x1="${x(item.target_t)}" x2="${x(item.target_t)}" y1="${y(item.upper)}" y2="${y(item.lower)}" stroke="#2d5f8f" stroke-width="2" opacity=".45"/>`);
+        parts.push(`<circle cx="${x(item.target_t)}" cy="${y(item.ci)}" r="5" fill="#2d5f8f"><title>+${item.horizon_minutes} phút: CI dự báo ${num(item.ci)}</title></circle>`);
+        if (item.actual_ci !== null && item.actual_ci !== undefined && isRevealed(item, t, state.blind)) {
+          parts.push(`<circle cx="${x(item.target_t)}" cy="${y(item.actual_ci)}" r="6" fill="#fff" stroke="#1f2d28" stroke-width="2"><title>Thực tế: CI ${num(item.actual_ci)}</title></circle>`);
+        }
+      }
+    }
+    parts.push(`<line x1="${x(t)}" x2="${x(t)}" y1="${padT}" y2="${height - padB}" stroke="#1f2d28" stroke-width="2"/>`);
+    chart.innerHTML = parts.join('');
+    chart.dataset.padL = padL; chart.dataset.padR = padR; chart.dataset.width = width;
+  }
+
+  function seekFromChart(event) {
+    if (!state.session) return;
+    const rect = chart.getBoundingClientRect();
+    const width = Number(chart.dataset.width || rect.width);
+    const scale = width / rect.width;
+    const px = (event.clientX - rect.left) * scale;
+    const padL = Number(chart.dataset.padL || 44), padR = Number(chart.dataset.padR || 14);
+    const ratio = Math.max(0, Math.min(1, (px - padL) / (width - padL - padR)));
+    state.locked = null;
+    player.currentTime = ratio * duration();
+    scheduleRender();
+  }
+
+  function momentRow(record, kind) {
+    const lead = `Lúc <strong>${fmtTime(record.t)}</strong> đường đang ${LEVEL_LABEL[levelKey(record.observed_ci)].toLowerCase()} (CI ${num(record.observed_ci)}).`;
+    const said = kind === 'miss'
+      ? `Hệ thống không cảnh báo tắc sau ${record.horizon_minutes} phút (CI dự báo ${num(record.predicted_ci)}, khả năng tắc ${pct(record.p_gridlock)}).`
+      : `Hệ thống cảnh báo: sau <strong>${record.horizon_minutes} phút</strong> sẽ tắc (khả năng ${pct(record.p_gridlock)}, CI dự báo ${num(record.predicted_ci)}).`;
+    const outcome = kind === 'hit' && state.blind
+      ? `Kết quả: tua tới ${fmtTime(record.target_t)} để xem.`
+      : `Thực tế lúc ${fmtTime(record.target_t)}: ${LEVEL_LABEL[levelKey(record.actual_ci)]} (CI ${num(record.actual_ci)}).`;
+    return `<div class="moment"><div><p>${lead} ${said}</p><p class="muted">${outcome}</p></div>
+      <div class="actions"><button class="btn small ghost" type="button" data-at="${record.t}">Xem lúc dự báo</button>
+      <button class="btn small primary" type="button" data-at="${record.t}" data-target="${record.target_t}">Tua tới ${fmtTime(record.target_t)}</button></div></div>`;
+  }
+
+  function bindMoments(container) {
+    container.querySelectorAll('button[data-at]').forEach(button => {
+      button.addEventListener('click', () => {
+        const anchors = forecast().anchors;
+        state.locked = lastAtOrBefore(anchors, Number(button.dataset.at));
+        player.pause();
+        player.currentTime = Number(button.dataset.target || button.dataset.at);
+        if (!player.src) notice('Chọn file video gốc ở mục 1 để xem hình ảnh.');
+        scheduleRender();
+        document.querySelector('.player-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
-      jobId = job.job_id;
-      rememberScenarioJob(jobId);
-    }
-    button.textContent = 'Đang phân tích…';
-    $('#scenarioProgressBar').style.width = '0%';
-    await pollScenarioReviewJob(jobId, file?.name || 'Video');
-  } catch (error) {
-    $('#scenarioJobStatus').textContent = error.message;
-    $('#scenarioProgressText').textContent = error.message;
-    toast('Chưa hoàn tất phân tích', error.message, 'error');
-  } finally {
-    state.scenarioBusy = false;
-    button.textContent = 'Phân tích video';
-    renderScenarioInputState();
+    });
   }
-}
 
-function renderScenarioRoutes(payload) {
-  state.routeResult = payload;
-  const banner = $('#scenarioRouteMessage');
-  const forecast = payload.source_analysis || {};
-  const lines = [];
-  lines.push(payload.message || 'Đã lấy phương án từ dịch vụ chỉ đường.');
-  if (forecast.risk_message) lines.push(forecast.risk_message);
-  if (!forecast.source_is_origin && forecast.notice) lines.push(forecast.notice);
-  banner.textContent = lines.join(' ');
-  const list = $('#scenarioRouteList');
-  const items = payload.routes || [];
-  if (!items.some(route => route.route_id === state.selectedRouteId)) {
-    state.selectedRouteId = payload.recommended_route_id || items[0]?.route_id || null;
+  function renderHighlights() {
+    const h = forecast().highlights || {};
+    const hits = h.hits || [];
+    $('hitList').innerHTML = hits.length ? hits.map(r => momentRow(r, 'hit')).join('')
+      : '<p class="empty">Trong video này hệ thống chưa có lần cảnh báo tắc nào trúng. Xem mục 4 để biết mô hình so với cách đoán đơn giản ra sao.</p>';
+    const wrong = [...(h.misses || []).map(r => momentRow(r, 'miss')), ...(h.false_alarms || []).map(r => momentRow(r, 'false'))];
+    $('missList').innerHTML = wrong.length ? wrong.join('') : '<p class="empty">Không có trường hợp sai nào được ghi nhận.</p>';
+    bindMoments($('hitList'));
+    bindMoments($('missList'));
   }
-  list.innerHTML = items.map(route => {
-    const recommended = route.route_id === payload.recommended_route_id;
-    const status = route.traffic_aware ? 'Có telemetry mới' : 'Thời gian mạng lưới';
-    const duration = `${numberVN((route.duration_seconds || 0) / 60, 0)} phút`;
-    const distance = `${numberVN((route.distance_m || 0) / 1000, 1)} km`;
-    const ci = route.mean_live_ci == null ? 'Chưa có dữ liệu' : numberVN(route.mean_live_ci, 2);
-    return `<button type="button" class="scenario-route-option ${recommended ? 'recommended' : ''} ${state.selectedRouteId === route.route_id ? 'selected' : ''}" data-route-id="${escapeHtml(route.route_id)}"><span class="scenario-route-top"><strong>${escapeHtml(route.route_id)} · ${recommended ? 'ƯU TIÊN' : 'Phương án'}</strong><span>${escapeHtml(duration)}</span></span><span class="scenario-route-meta">${escapeHtml(distance)} · ${numberVN(route.live_camera_count || 0)} điểm telemetry mới</span><span class="scenario-route-meta">${escapeHtml(status)} · CI gần tuyến: ${escapeHtml(ci)}</span></button>`;
-  }).join('') || '<div class="empty-state">Dịch vụ chỉ đường không có tuyến phù hợp.</div>';
-  list.querySelectorAll('[data-route-id]').forEach(button => button.addEventListener('click', () => {
-    state.selectedRouteId = button.dataset.routeId;
-    renderScenarioRoutesSelectionOnly();
-    drawScenarioRouteMap(payload, state.selectedRouteId);
-  }));
-  renderScenarioRoutesSelectionOnly();
-  drawScenarioRouteMap(payload, state.selectedRouteId);
-}
-function renderScenarioRoutesSelectionOnly() {
-  $$('#scenarioRouteList [data-route-id]').forEach(button => {
-    button.classList.toggle('selected', button.dataset.routeId === state.selectedRouteId);
+
+  function renderMetrics() {
+    const mf = forecast();
+    const metrics = mf.metrics || [];
+    $('verdicts').innerHTML = metrics.map(m => {
+      const v = skillVerdict(m);
+      return `<div class="verdict ${v.tone}"><span>+${m.horizon_minutes} phút</span><strong>${v.title}</strong><span class="muted">${v.text}</span></div>`;
+    }).join('');
+    const rows = metrics.map(m => {
+      if (!m.evaluated) return `<tr><td>+${m.horizon_minutes} phút</td><td colspan="7" class="muted">Chưa đủ video để kiểm chứng</td></tr>`;
+      const skill = m.skill_vs_persistence;
+      const onset = m.onset_model || {};
+      const trendOnset = m.onset_trend || {};
+      const caught = m.actual_onsets ? `${onset.true_positive}/${onset.true_positive + onset.false_negative} (${pct(onset.recall)}) · xu hướng ${pct(trendOnset.recall)}` : 'Không có lần chuyển sang tắc';
+      const precision = onset.true_positive + onset.false_positive ? `${onset.true_positive}/${onset.true_positive + onset.false_positive} (${pct(onset.precision)})` : 'Không phát cảnh báo';
+      return `<tr><td>+${m.horizon_minutes} phút</td><td>${m.evaluated} (${m.trained_anchors} sau khi đủ dữ liệu học)</td>
+        <td>${num(m.mae_model, 3)}</td><td>${num(m.mae_persistence, 3)}</td><td>${num(m.mae_trend, 3)}</td>
+        <td class="${skill >= 0.05 ? 'good' : skill <= -0.05 ? 'bad' : ''}">${skill === null ? '—' : pct(skill)}</td>
+        <td>${caught}</td><td>${precision}</td></tr>`;
+    }).join('');
+    document.querySelector('#metricsTable tbody').innerHTML = rows;
+    const libVideos = mf.method?.library_videos || 0;
+    const lastAnchor = mf.anchors[mf.anchors.length - 1];
+    const libPairs = lastAnchor?.horizons?.[0]?.library_pairs || 0;
+    $('libraryLine').textContent = libVideos
+      ? `Mô hình học thêm từ ${libVideos} video đã phân tích trước (${libPairs.toLocaleString('vi-VN')} cặp mẫu cho +5 phút). Video đang kiểm chứng không bao giờ được dùng để học trước thời điểm dự báo.`
+      : 'Mô hình chỉ học từ phần đầu của chính video này. Phân tích trước 2–3 video khác của cùng camera để mô hình có thêm dữ liệu học; các video đó được lưu dưới dạng chuỗi số CI, không lưu hình ảnh.';
+    $('metricsSub').textContent = 'Sai số trung bình tính trên thang CI 0–1. “Giữ nguyên” là đoán mức sau 5/10/15 phút bằng đúng mức hiện tại — mốc so sánh tối thiểu một mô hình dự báo phải vượt qua.';
+  }
+
+  function renderLimits() {
+    const items = forecast().limitations || [];
+    $('limitList').innerHTML = items.map(text => `<li>${escapeHtml(text)}</li>`).join('');
+  }
+
+  function download(name, content, type) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function baseName() {
+    return (state.session?.filename || 'video').replace(/\.[^.]+$/, '').replace(/[^\w.-]+/g, '_').slice(0, 60);
+  }
+
+  // Wire up events.
+  $('videoFile').addEventListener('change', e => setVideoFile(e.target.files?.[0]));
+  $('analyzeBtn').addEventListener('click', analyze);
+  $('resultFile').addEventListener('change', async e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      loadSession(validateSession(JSON.parse(await file.text())));
+      toast('Đã mở kết quả. Chọn đúng file video gốc ở mục 1 để phát.');
+    } catch (error) { notice(error.message, 'error'); }
+    e.target.value = '';
   });
-}
-function drawScenarioRouteMap(payload, selectedRouteId) {
-  if (!state.routeMap || typeof L === 'undefined') return;
-  state.routeMapLayers.forEach(layer => { try { state.routeMap.removeLayer(layer); } catch {} });
-  state.routeMapLayers = [];
-  const bounds = [];
-  for (const route of payload.routes || []) {
-    const coordinates = route.geometry?.coordinates || [];
-    const latLngs = coordinates.map(point => [Number(point[1]), Number(point[0])]).filter(pair => Number.isFinite(pair[0]) && Number.isFinite(pair[1]));
-    if (latLngs.length < 2) continue;
-    const selected = route.route_id === selectedRouteId;
-    const color = selected ? '#27764f' : (route.recommended ? '#d39a36' : '#83948a');
-    const line = L.polyline(latLngs, { color, weight: selected ? 6 : 3, opacity: selected ? .95 : .62, lineJoin: 'round' }).addTo(state.routeMap);
-    line.bindTooltip(`${route.route_id}${route.recommended ? ' · ưu tiên' : ''} · ${numberVN((route.duration_seconds || 0)/60,0)} phút`);
-    line.on('click', () => { state.selectedRouteId = route.route_id; renderScenarioRoutesSelectionOnly(); drawScenarioRouteMap(payload, route.route_id); });
-    state.routeMapLayers.push(line); bounds.push(...latLngs);
-  }
-  for (const point of [payload.origin, payload.destination]) {
-    if (point && Number.isFinite(Number(point.lat)) && Number.isFinite(Number(point.lng))) {
-      const marker = L.circleMarker([Number(point.lat), Number(point.lng)], { radius: 7, color: '#fff', weight: 2, fillColor: point === payload.origin ? '#2b7550' : '#2e6ac2', fillOpacity: 1 }).addTo(state.routeMap);
-      marker.bindTooltip(escapeHtml(point.label || 'Điểm')); state.routeMapLayers.push(marker); bounds.push([Number(point.lat), Number(point.lng)]);
-    }
-  }
-  if (bounds.length > 1) state.routeMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 14, animate: true });
-}
+  $('blindMode').addEventListener('change', e => { state.blind = e.target.checked; if (state.session) renderHighlights(); scheduleRender(); });
+  $('unlockBtn').addEventListener('click', () => { state.locked = null; scheduleRender(); });
+  $('exportJson').addEventListener('click', () => state.session && download(`${baseName()}.hanoiflow.json`, JSON.stringify(state.session), 'application/json'));
+  $('exportCsv').addEventListener('click', () => state.session && download(`${baseName()}-du-bao.csv`, forecastCsv(forecast().anchors), 'text/csv'));
+  chart.addEventListener('click', seekFromChart);
+  ['timeupdate', 'seeked', 'loadedmetadata'].forEach(name => player.addEventListener(name, scheduleRender));
+  player.addEventListener('play', () => {
+    // Playing from before a locked forecast's anchor means the user is starting over.
+    if (state.locked && player.currentTime < state.locked.t) state.locked = null;
+  });
+  window.addEventListener('resize', scheduleRender);
 
-async function findScenarioRoutes() {
-  const button = $('#scenarioFindRoutesBtn');
-  button.disabled = true; button.textContent = 'Đang tìm tuyến…';
-  try {
-    const origin = routePointFromCamera($('#scenarioOriginSelect').value);
-    const destination = routePointFromCamera($('#scenarioDestinationSelect').value);
-    if (origin.camera_id === destination.camera_id) throw new Error('Điểm đi và điểm đến phải khác nhau.');
-    const payload = await api('/api/routes/alternatives', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origin, destination, analysis_job_id: state.scenarioJobId || null }) });
-    renderScenarioRoutes(payload);
-    toast('Đã tìm tuyến', payload.traffic_aware ? 'Có telemetry mới gần các phương án; vẫn cần xác minh tại hiện trường.' : 'Chưa có telemetry RTSP mới bao phủ tuyến; kết quả thời gian chỉ là tham chiếu.');
-  } catch (error) {
-    $('#scenarioRouteMessage').textContent = error.message;
-    toast('Không tìm được tuyến', error.message, 'error');
-  } finally {
-    button.textContent = 'Tìm các tuyến thay thế';
-    button.disabled = state.publicDemoMode || !$('#scenarioOriginSelect').value || !$('#scenarioDestinationSelect').value;
+  loadStatus();
+  const pendingJob = sessionStorage.getItem(JOB_KEY);
+  if (pendingJob && /^[a-f0-9]{32}$/.test(pendingJob)) {
+    state.busy = true; renderInputs();
+    setProgress(0, 'Đang theo dõi tiếp tác vụ phân tích trước đó…');
+    poll(pendingJob).then(openResult).catch(error => notice(error.message, 'error'))
+      .finally(() => { state.busy = false; renderInputs(); });
   }
 }
-function exportScenarioFrames() {
-  const result = state.scenarioResult;
-  if (!result?.frames?.length) return;
-  const headers = ['filename','timestamp_seconds','state_label','raw_state_label','ci','raw_ci','vehicle_count','occupancy_ratio','model_confidence','aicc_sequence_label'];
-  downloadCsv('hanoi-traffic-video-evidence.csv', headers,
-    result.frames.map(frame => [
-      frame.filename,
-      frame.timestamp_seconds,
-      frame.state_label,
-      frame.raw_state_label || frame.state_label,
-      frame.ci,
-      frame.raw_ci ?? frame.ci,
-      frame.vehicle_count,
-      frame.occupancy_ratio,
-      frame.model_confidence != null ? frame.model_confidence : '',
-      frame.aicc_sequence_label || ''
-    ]));
-}
-
-function renderProviderStatus() {
-  const status = state.providerStatus || {};
-  const nodes = {
-    providerDisplayName: status.display_name || 'Mô hình cục bộ',
-    providerConfigState: status.public_blocked ? 'Bị khóa trong public demo' : status.configured ? 'Đã cấu hình' : 'Chưa cấu hình',
-    providerHost: status.endpoint_host || 'Không dùng API ngoài',
-    providerTimeout: status.timeout_seconds ? `${numberVN(status.timeout_seconds, 1)} giây` : 'Không áp dụng',
-    providerSecretState: status.secret_configured ? 'Đã đặt trong môi trường' : (status.provider === 'remote_http' ? 'Chưa đặt (nếu API cần khóa)' : 'Không cần cho bộ cục bộ'),
-  };
-  for (const [id, value] of Object.entries(nodes)) {
-    const el = $(`#${id}`); if (el) el.textContent = value;
-  }
-}
-
-function downloadText(filename, content, type = 'text/plain;charset=utf-8') {
-  const blob = new Blob(['\ufeff', content], {type}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-}
-function downloadCsv(filename, headers, rows) {
-  const csv = [headers, ...rows].map(row => row.map(value => `"${String(value ?? '').replace(/"/g,'""')}"`).join(',')).join('\r\n');
-  downloadText(filename, csv, 'text/csv;charset=utf-8'); toast('Đã xuất tệp', filename);
-}
-function exportCameraCsv(){downloadCsv('hanoi-traffic-cameras.csv',['Mã điểm','Tên điểm','Khu vực','Trạng thái','Phương tiện','Tốc độ km/h','Occupancy','CI'],state.cameras.map(c=>[c.id,c.name,c.area,cameraStatusVN(c.status),c.vehicles,c.speed,c.occupancy,c.ci]));}
-function exportAlertCsv(){downloadCsv('hanoi-traffic-alerts.csv',['Mã cảnh báo','Loại','Tiêu đề','Vị trí','Mã camera','Thời điểm','CI','Nội dung','Trạng thái'],state.alerts.map(a=>[a.id,a.type,a.title,a.location,a.camera_id,a.time,a.ci,a.message,a.status]));}
-function exportSummary(){const s=state.dashboard?.summary||{};downloadCsv('hanoi-traffic-summary.csv',['Chỉ số','Giá trị'],[['Điểm giám sát',s.camera_total],['Camera trực tuyến',s.camera_online],['Phương tiện ghi nhận',s.total_vehicles],['Tốc độ trung bình km/h',s.average_speed],['Điểm CI cao',s.critical_points],['Chế độ dữ liệu',state.dashboard?.mode||'demo']]);}
-
-async function uploadArtifact(kind, file) {
-  if (!file) return;
-  const form = new FormData(); form.append('file', file);
-  try {
-    const result = await api(`/api/models/upload?kind=${encodeURIComponent(kind)}`, {method:'POST',body:form});
-    toast('Đã tải tệp lên', `${result.filename} · ${(result.bytes/1024/1024).toFixed(2)} MB. Nạp lại runtime để áp dụng.`);
-    const status = await api('/api/models/status'); state.modelStatus=status; renderModelStatus();
-  } catch(error) { toast('Tải tệp thất bại',error.message,'error'); }
-}
-async function reloadModels() {
-  const btn=$('#reloadModels'); if(btn){btn.disabled=true;btn.textContent='Đang nạp…';}
-  try { const result=await api('/api/models/reload',{method:'POST'}); state.modelStatus=result.status; renderModelStatus(); await loadAll({quiet:true}); toast('Đã nạp lại tệp', result.status.mode==='production'?'Bộ dự báo cục bộ đã sẵn sàng.':'Chưa có forecaster ONNX hợp lệ; dự báo cục bộ vẫn là minh họa.'); }
-  catch(error){toast('Không nạp được mô hình',error.message,'error');}
-  finally{if(btn){btn.disabled=false;btn.innerHTML='↻ Nạp lại mô hình';}}
-}
-async function saveManifest() {
-  let parsed; try { parsed=JSON.parse($('#manifestEditor').value); }
-  catch(error) { $('#manifestValidation').innerHTML='<span class="tiny-indicator red-indicator"></span> JSON không hợp lệ';toast('Không lưu được manifest','Kiểm tra dấu phẩy, dấu ngoặc và định dạng JSON.','error');return; }
-  if(!parsed.feature_schema || !Array.isArray(parsed.feature_schema.ordered_input_keys)){toast('Manifest thiếu cấu trúc','Cần feature_schema.ordered_input_keys là một mảng.','error');return;}
-  try {const result=await api('/api/models/manifest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(parsed)});state.manifest=parsed;$('#manifestValidation').innerHTML='<span class="tiny-indicator green-indicator"></span> Đã lưu manifest; nạp lại runtime để áp dụng';toast('Đã lưu cấu hình',result.message);}
-  catch(error){toast('Không lưu được manifest',error.message,'error');}
-}
-async function updateAlertStatus(alertId, status) {
-  try {await api(`/api/alerts/${encodeURIComponent(alertId)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});const item=state.alerts.find(a=>a.id===alertId);if(item)item.status=status;renderAlertFeed();renderAlertPreview(state.alerts);$('#navAlertCount').textContent=state.alerts.filter(a=>a.status!=='Đã ghi nhận').length;toast('Đã cập nhật trạng thái',`${alertId} · ${status}`);}
-  catch(error){toast('Không cập nhật được',error.message,'error');}
-}
-
-async function refreshAiccStatus() {
-  try { state.aiccStatus = await api('/api/aicc/status'); }
-  catch { state.aiccStatus = null; }
-  renderScenarioInputState();
-}
-
-function bindEvents() {
-  document.addEventListener('click', event => {
-    const nav = event.target.closest('[data-page]'); if (nav) { setPage(nav.dataset.page); return; }
-    const detail = event.target.closest('[data-camera-detail]'); if(detail){openCameraModal(detail.dataset.cameraDetail);return;}
-  });
-  $('#mobileMenu').addEventListener('click',()=>$('#sidebar').classList.toggle('open'));
-  $('#scenarioOriginSelect')?.addEventListener('change', () => {
-    renderScenarioInputState();
-    if (state.scenarioResult?.source_camera_id && state.scenarioResult.source_camera_id !== $('#scenarioOriginSelect').value) {
-      $('#scenarioNotice').innerHTML = '<span class="notice-icon">i</span><span>Clip gần nhất thuộc camera khác điểm đi đang chọn. Hãy phân tích lại video tại điểm A nếu muốn gắn dự báo xu hướng với tuyến này.</span>';
-    }
-    const routes = $('#scenarioFindRoutesBtn'); if (routes) routes.disabled = state.publicDemoMode || !$('#scenarioDestinationSelect').value;
-  });
-  $('#scenarioDestinationSelect')?.addEventListener('change', () => {
-    const routes = $('#scenarioFindRoutesBtn'); if (routes) routes.disabled = state.publicDemoMode || !$('#scenarioOriginSelect').value || !$('#scenarioDestinationSelect').value;
-  });
-  $('#scenarioVideoFile')?.addEventListener('change', () => {
-    const file = $('#scenarioVideoFile').files?.[0];
-    const maxBytes = scenarioUploadLimitBytes();
-    const maxMiB = Number((maxBytes / 1024 / 1024).toFixed(2));
-    renderScenarioInputState();
-    if (!state.scenarioBusy) {
-      const overLimit = file && file.size > maxBytes;
-      $('#scenarioJobStatus').textContent = file
-        ? overLimit
-          ? `${file.name} vượt giới hạn ${maxMiB} MiB.`
-          : `${file.name} · ${(file.size/1024/1024).toFixed(1)} MiB · đã chọn.`
-        : 'Chưa chọn tệp từ máy tính.';
-    }
-  });
-  $('#scenarioVideoFile')?.addEventListener('input', renderScenarioInputState);
-  window.addEventListener('pageshow', renderScenarioInputState);
-  renderScenarioInputState();
-  $('#scenarioAnalyzeUploadBtn')?.addEventListener('click', () => startScenarioReview());
-  $('#scenarioResumeBtn')?.addEventListener('click', () => startScenarioReview());
-  $('#scenarioFindRoutesBtn')?.addEventListener('click', findScenarioRoutes);
-  $('#scenarioExportBtn')?.addEventListener('click', exportScenarioFrames);
-  $('#trafficCameraSelect').addEventListener('change',event=>selectTrafficCamera(event.target.value, false, true));
-  $('#trafficFeedUpload').addEventListener('change',event=>uploadTrafficCameraClip(event.target.files?.[0]));
-  $('#removeCameraFeed').addEventListener('click',removeTrafficCameraClip);
-  $('#refreshBtn').addEventListener('click',()=>loadAll());
-  $('#noticeDismiss').addEventListener('click',()=>{$('#demoNotice').style.display='none';});
-  $('#cameraSearch').addEventListener('input',renderCameraTable); $('#cameraStatusFilter').addEventListener('change',renderCameraTable);
-  $('#alertSearch').addEventListener('input',renderAlertFeed); $('#alertTypeFilter').addEventListener('change',renderAlertFeed);
-  $('#alertFeed').addEventListener('change', event=>{const target=event.target.closest('[data-alert-status]');if(target)updateAlertStatus(target.dataset.alertStatus,target.value);});
-  $('#cameraTableBody').addEventListener('click',event=>{const button=event.target.closest('[data-camera-detail]');if(button)openCameraModal(button.dataset.cameraDetail);});
-  $('#closeCameraModal').addEventListener('click',()=>$('#cameraModal').hidden=true); $('#closeCameraModal2').addEventListener('click',()=>$('#cameraModal').hidden=true);
-  $('#cameraModal').addEventListener('click',event=>{if(event.target===$('#cameraModal'))$('#cameraModal').hidden=true;});
-  $('#cameraExport').addEventListener('click',exportCameraCsv); $('#alertExport').addEventListener('click',exportAlertCsv); $('#exportOverview').addEventListener('click',exportSummary); $('#analyticsExport').addEventListener('click',exportSummary);
-  $$('[data-upload-kind]').forEach(input=>input.addEventListener('change',()=>{const file=input.files?.[0];uploadArtifact(input.dataset.uploadKind,file);input.value='';}));
-  $('#reloadModels').addEventListener('click',reloadModels); $('#saveManifest').addEventListener('click',saveManifest);
-  $('#resetManifest').addEventListener('click',async()=>{try{state.manifest=await api('/api/models/manifest');$('#manifestEditor').value=JSON.stringify(state.manifest,null,2);$('#manifestValidation').innerHTML='<span class="tiny-indicator green-indicator"></span> Đã khôi phục bản đang lưu trên backend';toast('Đã khôi phục','Đang hiển thị manifest đã lưu ở backend.');}catch(e){toast('Lỗi',e.message,'error');}});
-  $('#downloadManifest').addEventListener('click',()=>{const a=document.createElement('a');a.href='/api/models/download-manifest';a.download='manifest.json';a.click();});
-  $('#mapZoomIn').addEventListener('click',()=>state.leafletMap?.zoomIn());
-  $('#mapZoomOut').addEventListener('click',()=>state.leafletMap?.zoomOut());
-  $('#mapReset').addEventListener('click',()=>state.leafletMap?.setView(HANOI_INNER_CITY,11,{animate:true}));
-  $('#mapHanoiFit').addEventListener('click',()=>state.leafletMap?.fitBounds([[20.45,105.10],[21.60,106.10]],{padding:[22,22],maxZoom:10,animate:true}));
-  $$('[data-map-layer]').forEach(button=>button.addEventListener('click',()=>setMapLayer(button.dataset.mapLayer)));
-  $('#manifestEditor').addEventListener('input',()=>{try{JSON.parse($('#manifestEditor').value);$('#manifestValidation').innerHTML='<span class="tiny-indicator green-indicator"></span> JSON hợp lệ · chưa lưu thay đổi';}catch{$('#manifestValidation').innerHTML='<span class="tiny-indicator red-indicator"></span> JSON chưa hợp lệ';}});
-}
-
-if (!window.__weatherTrafficPollerV1) {
-  window.__weatherTrafficPollerV1 = true;
-  window.setInterval(() => {
-    if (document.hidden || state.currentPage !== 'overview') return;
-    void refreshWeatherForecast();
-    void refreshSegmentForecasts(true);
-  }, 45_000);
-}
-$('#weatherRefreshButton')?.addEventListener('click', () => void refreshWeatherForecast(true));
-$('#segmentForecastRefresh')?.addEventListener('click', () => void refreshSegmentForecasts(true));
-try { const savedJob = sessionStorage.getItem('scenario-review-job'); if (/^[a-f0-9]{32}$/.test(savedJob || '')) state.scenarioPendingJobId = savedJob; } catch {}
-updateDate(); bindEvents(); initLeafletMap(); setPage('video'); loadAll({quiet:true});

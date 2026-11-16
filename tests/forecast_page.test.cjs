@@ -1,6 +1,6 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
-const page = require('../static/forecast.js');
+const page = require('../static/app.js');
 
 test('CI levels use the shared three-level scale', () => {
   for (const [ci, key] of [[0, 'free'], [0.2999, 'free'], [0.30, 'busy'], [0.5499, 'busy'], [0.55, 'gridlock'], [1, 'gridlock']]) {
@@ -37,8 +37,26 @@ test('saved sessions are validated and CSV has one row per horizon', () => {
   const session = {contract: page.SESSION_CONTRACT, minute_forecast: {anchors: [{t: 180, observed_ci: 0.4, horizons: [
     {horizon_minutes: 5, target_t: 480, ci: 0.6, lower: 0.4, upper: 0.8, p_gridlock: 0.6, warning: true, actual_ci: 0.7, persistence_ci: 0.4, trend_ci: 0.5, method: 'online_ensemble'},
     {horizon_minutes: 10, target_t: 780, ci: 0.5, lower: 0.3, upper: 0.7, p_gridlock: 0.3, warning: false, actual_ci: null, persistence_ci: 0.4, trend_ci: 0.6, method: 'damped_trend'}]}], observed: []}};
-  assert.equal(page.validateSession(session), session);
+  const checked = page.validateSession(session);
+  assert.equal(checked.cameras.length, 1);
+  assert.equal(checked.cameras[0].minute_forecast, session.minute_forecast);
+  assert.equal(checked.main_camera, 0);
+  // Sessions saved by the previous version (single camera, contract 1.0) still open.
+  assert.equal(page.validateSession({...session, contract: 'hanoiflow-forecast-session/1.0'}).cameras.length, 1);
   const csv = page.forecastCsv(session.minute_forecast.anchors).trim().split('\r\n');
   assert.equal(csv.length, 3);
   assert.match(csv[1], /,1,0\.7,/);
+});
+
+test('multi-camera sessions keep every camera and on-air intervals gate verification', () => {
+  const mf = {anchors: [], observed: []};
+  const session = page.validateSession({contract: page.SESSION_CONTRACT, main_camera: 1, minute_forecast: mf,
+    cameras: [{id: 0, label: 'Camera 1', intervals: [[0, 100]], minute_forecast: mf},
+              {id: 1, label: 'Camera 2', intervals: [[100, 400], [700, 900]], minute_forecast: mf}]});
+  assert.equal(session.cameras.length, 2);
+  assert.equal(session.main_camera, 1);
+  assert.throws(() => page.validateSession({contract: page.SESSION_CONTRACT, cameras: [{id: 0, minute_forecast: {}}]}));
+  assert.equal(page.onAir([[100, 400], [700, 900]], 250), true);
+  assert.equal(page.onAir([[100, 400], [700, 900]], 500), false);
+  assert.equal(page.onAir(null, 500), true);
 });
