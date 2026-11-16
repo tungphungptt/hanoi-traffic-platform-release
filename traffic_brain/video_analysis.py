@@ -18,7 +18,8 @@ from typing import Any, Callable, Iterable, Mapping
 import cv2
 import numpy as np
 
-from traffic_brain.detector import Detector, update_tracks
+from traffic_brain.detector import (CONFIDENCE_THRESHOLD, PERSON_CLASS_ID, VEHICLE_CLASS_IDS, Detector,
+                                    update_tracks)
 from traffic_brain.minute_forecaster import build_minute_forecast, build_observed_series
 from traffic_brain.traffic_levels import BUSY_CI, SEVERE_CI, level_for_ci
 
@@ -332,6 +333,32 @@ def pick_evidence(cameras: Iterable[Mapping[str, Any]], *, limit: int = 24, per_
         key=lambda p: (p["camera"], p["t"]))
 
 
+PRIVACY_MIN_SCORE = 0.12  # lower than the counting threshold: a missed face is worse than an extra blur
+PRIVACY_PADDING = 0.15
+
+
+def blur_private(frame: np.ndarray, detections: Iterable) -> np.ndarray:
+    """Copy of ``frame`` with every detected person and vehicle pixelated beyond recognition.
+
+    Faces (riders, pedestrians) and number plates sit inside those boxes, so the whole box is
+    pixelated into a few coarse cells, which no zoom can undo. The original pixels are never kept.
+    """
+    out = frame.copy()
+    height, width = out.shape[:2]
+    for d in detections:
+        x1, y1, x2, y2 = d.box
+        pad_x, pad_y = (x2 - x1) * PRIVACY_PADDING, (y2 - y1) * PRIVACY_PADDING
+        x1, y1 = max(0, int(x1 - pad_x)), max(0, int(y1 - pad_y))
+        x2, y2 = min(width, int(x2 + pad_x) + 1), min(height, int(y2 + pad_y) + 1)
+        if x2 - x1 < 2 or y2 - y1 < 2:
+            continue
+        region = out[y1:y2, x1:x2]
+        cells_x, cells_y = max(2, (x2 - x1) // 14), max(2, (y2 - y1) // 14)
+        small = cv2.resize(region, (cells_x, cells_y), interpolation=cv2.INTER_AREA)
+        out[y1:y2, x1:x2] = cv2.resize(small, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
+    return out
+
+
 def draw_evidence(frame: np.ndarray, detections: list, pick: Mapping[str, Any]) -> np.ndarray:
     """Frame with the detected vehicles boxed and a short ASCII caption (OpenCV fonts lack Vietnamese)."""
     height, width = frame.shape[:2]
@@ -365,7 +392,9 @@ def capture_evidence(video_path: Path, detector: Detector, cameras: Iterable[Map
             ok, frame = cap.read()
             if not ok:
                 continue
-            image = draw_evidence(frame, detector.detect(frame), pick)
+            found = detector.detect(frame, VEHICLE_CLASS_IDS | {PERSON_CLASS_ID}, PRIVACY_MIN_SCORE)
+            counted = [d for d in found if d.class_id in VEHICLE_CLASS_IDS and d.score >= CONFIDENCE_THRESHOLD]
+            image = draw_evidence(blur_private(frame, found), counted, pick)
             name = f"{len(saved) + 1:02d}.jpg"
             if cv2.imwrite(str(out_dir / name), image, [cv2.IMWRITE_JPEG_QUALITY, EVIDENCE_JPEG_QUALITY]):
                 saved.append({**pick, "file": name})

@@ -16,3 +16,6 @@
 - **Open-Meteo** weather data, CC BY 4.0, attributed on the map page.
 - Python packages in `requirements.txt` keep their own licences (FastAPI MIT, Uvicorn BSD-3,
   NumPy BSD-3, ONNX Runtime MIT, OpenCV Apache-2.0).
+
+- **YOLOX** (optional, not shipped): Megvii, Apache-2.0, https://github.com/Megvii-BaseDetection/YOLOX.
+  `traffic_brain/detector.py` can load its official ONNX exports through `DETECTOR_MODEL`; see `models/README.md`.

@@ -174,3 +174,26 @@ def test_live_intake_needs_a_token_and_serves_forecasts(monkeypatch):
     assert client.post(path, json=big, headers={"X-Live-Token": "thu-nhan"}).status_code == 413
     assert client.delete("/api/live/tdh-216").status_code == 401
     assert client.delete("/api/live/tdh-216", headers={"X-Live-Token": "thu-nhan"}).status_code == 200
+
+
+def test_live_export_is_token_gated_and_needs_a_history_file(monkeypatch, tmp_path):
+    import time
+    from traffic_brain.history import History
+    from traffic_brain.live import LiveStore
+    monkeypatch.setattr(main, "LIVE_TOKEN", "thu-nhan")
+    monkeypatch.setattr(main, "HISTORY", None)
+    assert client.get("/api/live/export").status_code == 401
+    assert client.get("/api/live/export", headers={"X-Live-Token": "thu-nhan"}).status_code == 404
+    history = History(tmp_path / "h.sqlite")
+    monkeypatch.setattr(main, "HISTORY", history)
+    monkeypatch.setattr(main, "LIVE", LiveStore(lambda: ([], 0), history=history))
+    now = time.time()
+    body = {"samples": [{"t": now - 20 + i, "ci": 0.3, "vehicle_count": 5} for i in range(20)]}
+    assert client.post("/api/live/cam-a/samples", json=body, headers={"X-Live-Token": "thu-nhan"}).status_code == 200
+    assert client.get("/api/live/history").json()["samples"] == 20
+    out = client.get("/api/live/export?camera_id=cam-a", headers={"X-Live-Token": "thu-nhan"})
+    assert out.status_code == 200 and out.headers["content-type"].startswith("text/csv")
+    assert len(out.text.strip().splitlines()) == 21
+    assert client.get("/api/live/export?limit=0", headers={"X-Live-Token": "thu-nhan"}).status_code == 422
+    # "export" and "history" are routes, not camera ids.
+    assert client.post("/api/live/export/samples", json=body, headers={"X-Live-Token": "thu-nhan"}).status_code == 422

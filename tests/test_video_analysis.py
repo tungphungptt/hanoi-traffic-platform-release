@@ -109,3 +109,75 @@ def test_evidence_picks_level_changes_peak_and_stay_within_limits():
         times = sorted(p["t"] for p in picks if p["camera"] == cam)
         assert all(b - a >= 60 for a, b in zip(times, times[1:]))
     assert va.pick_evidence([{"id": 0, "series": {"t": np.array([0.0]), "ci": np.array([np.nan])}}]) == []
+
+
+def test_blur_private_destroys_detail_inside_every_box_and_keeps_the_rest():
+    rng = np.random.default_rng(3)
+    frame = rng.integers(0, 255, (180, 320, 3), dtype=np.uint8)
+    boxes = [Detection(3, (40, 50, 100, 130)), Detection(0, (200, 20, 230, 90))]
+    out = va.blur_private(frame, boxes)
+    assert out.shape == frame.shape and not np.shares_memory(out, frame)
+    # Inside the boxes the picture is a few flat cells, not the original pixels.
+    for d in boxes:
+        x1, y1, x2, y2 = (int(v) for v in d.box)
+        inner_before = frame[y1 + 4:y2 - 4, x1 + 4:x2 - 4].astype(float)
+        inner_after = out[y1 + 4:y2 - 4, x1 + 4:x2 - 4].astype(float)
+        assert inner_after.std() < 0.5 * inner_before.std()
+        assert np.abs(inner_after - inner_before).mean() > 20
+    # Far from any box nothing changes.
+    assert np.array_equal(out[150:, 250:], frame[150:, 250:])
+    # Boxes touching the border are clipped, not an error.
+    va.blur_private(frame, [Detection(2, (-20, -20, 30, 30)), Detection(2, (300, 160, 400, 260))])
+
+
+def test_evidence_pictures_never_keep_the_original_pixels_of_people_or_vehicles(tmp_path):
+    import cv2
+
+    class FakeDetector:
+        def detect(self, frame, class_ids=None, min_score=0.25):
+            assert 0 in class_ids and min_score < 0.25  # privacy pass looks for people, with a low bar
+            return [Detection(0, (30, 30, 70, 90), 0.2), Detection(3, (120, 60, 200, 130), 0.9)]
+
+    rng = np.random.default_rng(1)
+    video = tmp_path / "v.avi"
+    writer = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"MJPG"), 2.0, (320, 180))
+    noise = rng.integers(0, 255, (180, 320, 3), dtype=np.uint8)
+    for _ in range(40):
+        writer.write(noise)
+    writer.release()
+    cameras = [{"id": 0, "series": {"t": np.arange(0, 20, 1.0), "ci": np.linspace(0.1, 0.9, 20)}}]
+    saved = va.capture_evidence(video, FakeDetector(), cameras, tmp_path / "ev", limit=3)
+    assert saved
+    image = cv2.imread(str(tmp_path / "ev" / saved[0]["file"]))
+    assert image[40:80, 40:60].astype(float).std() < 40  # the person (score 0.2, below the counting bar) is blurred too
+
+
+def test_yolox_head_is_decoded_to_boxes_in_the_original_frame():
+    from traffic_brain.detector import parse_yolox, yolox_letterbox
+    out = np.zeros((8400, 85), dtype=np.float32)
+    row = 5 * 80 + 10  # stride-8 grid is 80 x 80: cell (x=10, y=5)
+    out[row, :4] = [0.5, 0.5, np.log(4.0), np.log(4.0)]   # centre (10.5, 5.5) * 8, size 4 * 8
+    out[row, 4] = 1.0
+    out[row, 5 + 2] = 0.9                                  # car
+    person = 20 * 80 + 40
+    out[person, :4] = [0.5, 0.5, np.log(4.0), np.log(4.0)]
+    out[person, 4] = 1.0
+    out[person, 5 + 0] = 0.95                              # person: not a vehicle
+    dets = parse_yolox(out, 640, 0.5)
+    assert len(dets) == 1 and dets[0].class_id == 2 and dets[0].score == pytest.approx(0.9)
+    assert dets[0].box == pytest.approx((136, 56, 200, 120))  # (68, 28, 100, 60) / 0.5
+    assert parse_yolox(out, 640, 0.5, frozenset({0}))[0].class_id == 0
+    with pytest.raises(RuntimeError):
+        parse_yolox(out[:100], 640, 0.5)
+    frame = np.full((540, 960, 3), 200, dtype=np.uint8)
+    tensor, ratio = yolox_letterbox(frame, 640)
+    assert tensor.shape == (1, 3, 640, 640) and ratio == pytest.approx(640 / 960)
+    assert tensor[0, 0, 100, 100] == 200 and tensor[0, 0, 639, 100] == 114  # content on top, grey padding below
+
+
+def test_detector_picks_decoder_from_the_model_output_shape():
+    from traffic_brain.detector import MODEL_PATH, Detector
+    pytest.importorskip("onnxruntime")
+    shipped = Detector(MODEL_PATH)
+    shipped.load()
+    assert shipped.kind == "yolov8"

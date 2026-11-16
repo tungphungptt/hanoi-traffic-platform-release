@@ -14,6 +14,7 @@ import time
 from collections import deque
 from typing import Any, Callable, Iterable, Mapping
 
+from traffic_brain.history import History
 from traffic_brain.minute_forecaster import (
     GRID_STEP_SECONDS, HORIZONS_MINUTES, WARMUP_SECONDS, build_minute_forecast,
 )
@@ -27,8 +28,12 @@ MAX_AGE_SECONDS = 900         # a sample older than this is rejected (stale or r
 FUTURE_SLACK_SECONDS = 15
 STALE_SECONDS = 120           # no new sample for this long: the forecast is no longer "now"
 CACHE_SECONDS = 10
+WEATHER_EVERY_SECONDS = 600   # one weather snapshot per camera every 10 minutes
 RECENT_SECONDS = 3600
 FIELDS = ("occupancy_ratio", "vehicle_count", "normalized_speed", "turnover")
+
+
+RESERVED_IDS = frozenset({"export", "history"})  # their own routes under /api/live/
 
 
 class LiveError(ValueError):
@@ -46,18 +51,39 @@ def _number(value: Any, name: str, lo: float, hi: float) -> float:
 class LiveStore:
     def __init__(self, library_loader: Callable[[], tuple[list, int]], *,
                  clock: Callable[[], float] = time.time,
-                 location_ok: Callable[[float, float], bool] | None = None):
+                 location_ok: Callable[[float, float], bool] | None = None,
+                 history: History | None = None,
+                 weather_provider: Callable[[float, float], Mapping[str, Any] | None] | None = None):
+        self._history = history
+        self._weather_provider = weather_provider
         self._library_loader = library_loader
         self._clock = clock
         self._location_ok = location_ok
         self._lock = threading.RLock()
         self._cameras: dict[str, dict[str, Any]] = {}
 
+    def restore(self) -> int:
+        """Reload the last hours of every camera from the history file after a restart."""
+        if self._history is None:
+            return 0
+        restored = 0
+        now = self._clock()
+        for meta in self._history.cameras():
+            rows = self._history.recent(meta["camera_id"], MAX_SAMPLES, now)
+            if not rows:
+                continue
+            with self._lock:
+                self._cameras[meta["camera_id"]] = {
+                    "samples": deque(rows, maxlen=MAX_SAMPLES), "name": meta["name"] or meta["camera_id"],
+                    "lat": meta["lat"], "lng": meta["lng"], "cache": None, "weather_at": -math.inf}
+            restored += len(rows)
+        return restored
+
     # ------------------------------------------------------------ ingest
 
     def observe(self, camera_id: str, samples: Iterable[Mapping[str, Any]], *,
                 name: str | None = None, lat: float | None = None, lng: float | None = None) -> dict[str, Any]:
-        if not isinstance(camera_id, str) or not CAMERA_ID.fullmatch(camera_id):
+        if not isinstance(camera_id, str) or not CAMERA_ID.fullmatch(camera_id) or camera_id in RESERVED_IDS:
             raise LiveError("Mã camera gồm chữ thường, số, '-' hoặc '_' (tối đa 40 ký tự).")
         samples = list(samples)
         if not samples:
@@ -91,22 +117,46 @@ class LiveStore:
             if camera_id not in self._cameras and len(self._cameras) >= MAX_CAMERAS:
                 raise LiveError(f"Tối đa {MAX_CAMERAS} camera.")
             cam = self._cameras.setdefault(camera_id, {
-                "samples": deque(maxlen=MAX_SAMPLES), "name": camera_id, "lat": None, "lng": None, "cache": None})
+                "samples": deque(maxlen=MAX_SAMPLES), "name": camera_id, "lat": None, "lng": None, "cache": None,
+                "weather_at": -math.inf})
             if name:
                 cam["name"] = str(name).strip()[:80] or camera_id
             if lat is not None:
                 cam["lat"], cam["lng"] = lat, lng
             last = cam["samples"][-1]["t"] if cam["samples"] else -math.inf
-            accepted = 0
+            kept = []
             for row in clean:
                 if row["t"] > last:
                     cam["samples"].append(row)
+                    kept.append(row)
                     last = row["t"]
-                    accepted += 1
+            accepted = len(kept)
             if accepted:
                 cam["cache"] = None
-            return {"camera_id": camera_id, "accepted": accepted, "ignored": len(clean) - accepted,
-                    "stored": len(cam["samples"])}
+            result = {"camera_id": camera_id, "accepted": accepted, "ignored": len(clean) - accepted,
+                      "stored": len(cam["samples"])}
+            snapshot_due = (self._weather_provider is not None and cam["lat"] is not None
+                            and now - cam["weather_at"] >= WEATHER_EVERY_SECONDS)
+            if snapshot_due:
+                cam["weather_at"] = now
+            meta = (cam["name"], cam["lat"], cam["lng"])
+        if self._history is not None:
+            self._history.save_camera(camera_id, *meta)
+            self._history.add_samples(camera_id, kept)
+        if snapshot_due:
+            threading.Thread(target=self._snapshot_weather, args=(camera_id, meta[1], meta[2], now), daemon=True).start()
+        return result
+
+    def _snapshot_weather(self, camera_id: str, lat: float, lng: float, t: float) -> None:
+        """Weather next to the measurements, fetched off the request path; a failure just leaves a gap."""
+        if self._history is None or self._weather_provider is None:
+            return
+        try:
+            snapshot = self._weather_provider(lat, lng)
+        except Exception:
+            return
+        if snapshot:
+            self._history.add_weather(camera_id, t, snapshot)
 
     def remove(self, camera_id: str) -> bool:
         with self._lock:

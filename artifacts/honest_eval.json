@@ -1,0 +1,92 @@
+{
+  "note": "thresholds chosen on the other videos only; MIN_PRECISION=0.50 for warning, best F1 for watch",
+  "horizons": {
+    "+5": {
+      "forecasts": 759,
+      "onsets": 52,
+      "onset_videos": 5,
+      "warning": {
+        "caught": 23,
+        "false": 14,
+        "onsets": 52,
+        "recall": 0.442,
+        "precision": 0.622,
+        "thresholds_chosen": [
+          0.24,
+          0.26
+        ],
+        "folds_without_threshold": 0
+      },
+      "watch": {
+        "caught": 23,
+        "false": 3,
+        "onsets": 52,
+        "recall": 0.442,
+        "precision": 0.885,
+        "thresholds_chosen": [
+          0.3,
+          0.36
+        ],
+        "folds_without_threshold": 0
+      }
+    },
+    "+10": {
+      "forecasts": 587,
+      "onsets": 39,
+      "onset_videos": 4,
+      "warning": {
+        "caught": 0,
+        "false": 0,
+        "onsets": 39,
+        "recall": 0.0,
+        "precision": null,
+        "thresholds_chosen": [
+          0.28
+        ],
+        "folds_without_threshold": 1
+      },
+      "watch": {
+        "caught": 18,
+        "false": 91,
+        "onsets": 39,
+        "recall": 0.462,
+        "precision": 0.165,
+        "thresholds_chosen": [
+          0.04,
+          0.08,
+          0.18,
+          0.2
+        ],
+        "folds_without_threshold": 0
+      }
+    },
+    "+15": {
+      "forecasts": 457,
+      "onsets": 28,
+      "onset_videos": 4,
+      "warning": {
+        "caught": 10,
+        "false": 16,
+        "onsets": 28,
+        "recall": 0.357,
+        "precision": 0.385,
+        "thresholds_chosen": [
+          0.2
+        ],
+        "folds_without_threshold": 6
+      },
+      "watch": {
+        "caught": 12,
+        "false": 37,
+        "onsets": 28,
+        "recall": 0.429,
+        "precision": 0.245,
+        "thresholds_chosen": [
+          0.14,
+          0.2
+        ],
+        "folds_without_threshold": 0
+      }
+    }
+  }
+}
