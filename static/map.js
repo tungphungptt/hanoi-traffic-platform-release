@@ -28,7 +28,22 @@ if (typeof module !== 'undefined') module.exports = { fmt, hourLabel, dayLabel, 
 if (typeof document !== 'undefined' && typeof L !== 'undefined') {
   const $ = id => document.getElementById(id);
   const escapeHtml = text => String(text ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  let map, pinLayer, clickMarker;
+
+  /** Base tiles with an automatic switch to the fallback server when the main one refuses requests. */
+  window.hanoiFlowTiles = (target, config) => {
+    const base = L.tileLayer(config.tile_url_template, { maxZoom: 19, attribution: config.attribution }).addTo(target);
+    let loaded = 0, failed = 0;
+    base.on('tileload', () => { loaded += 1; });
+    base.on('tileerror', () => {
+      failed += 1;
+      if (failed === 3 && loaded === 0 && config.fallback_tile_url_template) {
+        target.removeLayer(base);
+        L.tileLayer(config.fallback_tile_url_template, { maxZoom: 19, subdomains: 'abc', attribution: config.fallback_attribution }).addTo(target);
+      }
+    });
+  };
+
+  let map, pinLayer, clickMarker, boundaryLayer, config, started = false;
 
   async function getJson(url) {
     const response = await fetch(url, { cache: 'no-store' });
@@ -38,29 +53,27 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') {
   }
 
   async function init() {
-    const config = await getJson('/api/map/config');
-    map = L.map('map', { zoomControl: true }).setView(config.center, 10);
-    const base = L.tileLayer(config.tile_url_template, { maxZoom: 19, attribution: config.attribution }).addTo(map);
-    let loaded = 0, failed = 0;
-    base.on('tileload', () => { loaded += 1; });
-    base.on('tileerror', () => {
-      failed += 1;
-      if (failed === 3 && loaded === 0 && config.fallback_tile_url_template) {
-        map.removeLayer(base);
-        L.tileLayer(config.fallback_tile_url_template, { maxZoom: 19, subdomains: 'abc', attribution: config.fallback_attribution }).addTo(map);
-      }
-    });
+    if (started) return;
+    started = true;
+    const now = new Date();
+    $('dateToday').textContent = now.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
+    config = await getJson('/api/map/config');
+    map = L.map('map', { zoomControl: false }).setView(config.center, 10);
+    window.hanoiFlowTiles(map, config);
     try {
       const boundary = await getJson(config.boundary_url);
-      const layer = L.geoJSON(boundary, { style: { color: '#2f6b48', weight: 2, fillOpacity: 0.04 }, interactive: false }).addTo(map);
-      map.fitBounds(layer.getBounds(), { padding: [10, 10] });
+      boundaryLayer = L.geoJSON(boundary, { style: { color: '#b52226', weight: 2, fillOpacity: 0.03, fillColor: '#c49a38' }, interactive: false }).addTo(map);
+      map.fitBounds(boundaryLayer.getBounds(), { padding: [10, 10] });
     } catch { /* the map still works without the outline */ }
     pinLayer = L.layerGroup().addTo(map);
-    // Inner districts sit close together: show only their temperature until the user zooms in.
-    const zoomClass = () => document.getElementById('map').classList.toggle('zoomed-out', map.getZoom() < 11);
+    const zoomClass = () => $('map').classList.toggle('zoomed-out', map.getZoom() < 11);
     map.on('zoomend', zoomClass);
     zoomClass();
     map.on('click', e => showPoint(e.latlng.lat, e.latlng.lng, 'Điểm đã chọn'));
+    $('mapZoomIn').addEventListener('click', () => map.zoomIn());
+    $('mapZoomOut').addEventListener('click', () => map.zoomOut());
+    $('mapHanoiFit').addEventListener('click', () => boundaryLayer ? map.fitBounds(boundaryLayer.getBounds(), { padding: [10, 10] }) : map.setView(config.center, 10));
+    $('mapReset').addEventListener('click', () => map.setView(config.center, 13));
     $('refreshBtn').addEventListener('click', () => { loadOverview(); });
     loadOverview();
     showPoint(config.center[0], config.center[1], 'Hoàn Kiếm');
@@ -88,30 +101,39 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') {
 
   async function showPoint(lat, lng, name) {
     if (clickMarker) clickMarker.remove();
-    clickMarker = L.circleMarker([lat, lng], { radius: 7, color: '#2d5f8f', weight: 3, fillOpacity: 0.6 }).addTo(map);
-    $('placeTitle').textContent = name;
-    $('placeMeta').textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    clickMarker = L.circleMarker([lat, lng], { radius: 7, color: '#b52226', weight: 3, fillColor: '#c49a38', fillOpacity: 0.7 }).addTo(map);
+    $('placeKicker').textContent = name.toUpperCase();
+    $('placeMeta').textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)} · Dữ liệu từ Open-Meteo; không thay thế cảnh báo khí tượng chính thức.`;
     const chip = $('weatherChip');
-    chip.textContent = 'Đang tải'; chip.className = 'chip';
+    chip.textContent = 'Đang tải'; chip.className = 'level-chip';
     try {
       const w = await getJson(`/api/weather?latitude=${lat}&longitude=${lng}`);
       const c = w.current;
-      $('now').innerHTML = `<span class="temp">${fmt(c.temperature_c, '°')}</span>
-        <span class="desc">${escapeHtml(c.description)}</span>
-        <span class="facts">Cảm giác ${fmt(c.apparent_temperature_c, '°')} · ẩm ${fmt(c.humidity_pct, '%')} · gió ${fmt(c.wind_kmh, ' km/h')} · mưa ${fmt(c.precipitation_mm, ' mm', 1)}</span>`;
-      $('hours').innerHTML = w.hourly.map(h => `<div class="hour"><span>${hourLabel(h.time)}</span><strong>${fmt(h.temperature_c, '°')}</strong>
-        <span class="rain" title="${escapeHtml(h.description)}">${fmt(h.precipitation_probability_pct, '%')}</span></div>`).join('');
-      $('days').innerHTML = w.daily.map((d, i) => `<div class="day"><strong>${escapeHtml(dayLabel(d.date, i))}</strong>
+      $('nowTemp').textContent = fmt(c.temperature_c, '°C');
+      $('nowDesc').textContent = c.description;
+      $('nowFeels').textContent = fmt(c.apparent_temperature_c, '°C');
+      $('nowHumidity').textContent = fmt(c.humidity_pct, '%');
+      $('nowWind').textContent = fmt(c.wind_kmh, ' km/h');
+      $('nowRain').textContent = fmt(c.precipitation_mm, ' mm', 1);
+      $('hours').innerHTML = w.hourly.map(h => `<div class="weather-hour"><span>${hourLabel(h.time)}</span><strong>${fmt(h.temperature_c, '°')}</strong>
+        <span class="rain" title="${escapeHtml(h.description)}">☂ ${fmt(h.precipitation_probability_pct, '%')}</span></div>`).join('');
+      $('days').innerHTML = w.daily.map((d, i) => `<div class="weather-day"><strong>${escapeHtml(dayLabel(d.date, i))}</strong>
         <span>${escapeHtml(d.description)} · ${fmt(d.min_c, '°')}–${fmt(d.max_c, '°')}</span>
-        <span class="rain">mưa ${fmt(d.precipitation_probability_pct, '%')} · ${fmt(d.precipitation_mm, ' mm', 1)}</span></div>`).join('');
+        <span class="rain">Mưa ${fmt(d.precipitation_probability_pct, '%')} · ${fmt(d.precipitation_mm, ' mm', 1)}</span></div>`).join('');
       chip.textContent = w.stale ? `Dữ liệu cũ ${w.stale_minutes} phút` : 'Đã cập nhật';
-      chip.className = w.stale ? 'chip stale' : 'chip ok';
+      chip.className = w.stale ? 'level-chip busy' : 'level-chip free';
     } catch (error) {
-      $('now').innerHTML = `<span class="muted">${escapeHtml(error.message)}</span>`;
+      $('nowDesc').textContent = error.message;
       $('hours').innerHTML = ''; $('days').innerHTML = '';
-      chip.textContent = 'Lỗi'; chip.className = 'chip bad';
+      chip.textContent = 'Lỗi'; chip.className = 'level-chip gridlock';
     }
   }
 
-  init().catch(error => { $('overviewMeta').textContent = `Không khởi tạo được bản đồ: ${error.message}`; });
+  const onShow = page => {
+    if (page !== 'overview') return;
+    init().then(() => setTimeout(() => map && map.invalidateSize(), 60))
+      .catch(error => { $('overviewMeta').textContent = `Không khởi tạo được bản đồ: ${error.message}`; });
+  };
+  window.hanoiFlow.onPage(onShow);
+  onShow(window.hanoiFlow.page);
 }

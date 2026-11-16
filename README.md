@@ -38,7 +38,16 @@ LIVE) được tách tự động: mỗi camera có chuỗi CI và dự báo ri�
 Trang chủ → **Mở kết quả đã lưu** → chọn file `.json`, rồi chọn video ở mục 1. Video demo Hà Nội không
 có trong dữ liệu học.
 
-## Bản đồ và thời tiết Hà Nội (`/map`)
+## Giao diện
+
+Giữ giao diện "hanoiFlow · Trung tâm điều hành" (đỏ #b52226, vàng #c49a38, quốc kỳ, thanh bên trái) với ba trang:
+**Dự báo & phương án** (video → dự báo → tuyến thay thế), **Bản đồ & thời tiết**, **Đánh giá mô hình**.
+
+**Tuyến thay thế.** Chọn điểm đi/đến (danh sách khu vực hoặc bấm bản đồ), hệ thống lấy tối đa 3 tuyến từ OSRM
+trên OpenStreetMap, xếp nhanh nhất trước. Thời gian là theo mạng đường, chưa tính tắc thời gian thực
+(đổi máy chủ bằng `ROUTING_API_BASE_URL`).
+
+## Bản đồ và thời tiết Hà Nội
 
 Bản đồ OpenStreetMap toàn Hà Nội (ranh giới hành chính OSM), nhiệt độ hiện tại của 17 khu vực từ nội thành
 đến Ba Vì, Sóc Sơn, Mỹ Đức (khu vực đang/sắp mưa tô xanh). Bấm bất kỳ điểm nào trong Hà Nội để xem thời tiết
@@ -98,7 +107,8 @@ app/weather.py, hanoi_scope.py thời tiết Open-Meteo, ranh giới Hà Nội
 traffic_brain/detector.py      YOLOv8n ONNX + bám vết
 traffic_brain/video_analysis.py  CI theo khung hình, tách camera, gọi bộ dự báo
 traffic_brain/minute_forecaster.py  dự báo +5/+10/+15 phút, chấm điểm
-static/                        giao diện: index.html/app.js (dự báo), map.html/map.js (bản đồ, thời tiết)
+static/                        giao diện: index.html, shell.js (điều hướng), app.js (dự báo), map.js (bản đồ, thời tiết), routes.js (tuyến)
+traffic_brain/routing.py       tuyến thay thế OSRM
 models/                        detector.onnx, forecast_library/
 tools/build_forecast_library.py  xây thư viện học, kiểm tra chéo, xuất demo
 tests/                         pytest + node --test
