@@ -12,7 +12,7 @@ Candidates (all predict the change in CI over h minutes from features known at t
   gbm          scikit-learn HistGradientBoosting on CI features        (LightGBM is not installed here)
   gbm+speed    the same plus relative speed, occupancy, count, turnover (each minus the camera's own mean so far)
   nnls+speed   the shipped three formulas plus a "speed" formula, non-negative least squares
-The GRU of the plan needs PyTorch, which is not installed; it is not tried.
+Needs scikit-learn (research only, not in requirements.txt). The GRU of the plan needs PyTorch, which is not installed; it is not tried.
 """
 from __future__ import annotations
 
@@ -26,8 +26,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import numpy as np  # noqa: E402
-from sklearn.ensemble import HistGradientBoostingRegressor  # noqa: E402
-from sklearn.isotonic import IsotonicRegression  # noqa: E402
 
 from traffic_brain import minute_forecaster as mf  # noqa: E402
 
@@ -110,6 +108,7 @@ def fit_predict(kind: str, h: int, train: list[dict], test: dict) -> np.ndarray 
     if not len(Xte):
         return None
     if kind in ("gbm", "gbm+speed"):
+        from sklearn.ensemble import HistGradientBoostingRegressor  # research-only dependency
         use = [names.index(n) for n in ("ci_dev_running", "ci_slope_3m", "ci_dev_10m", "ci")] if kind == "gbm" else list(range(len(names)))
         model = HistGradientBoostingRegressor(max_depth=3, learning_rate=0.05, max_iter=120, l2_regularization=5.0,
                                               min_samples_leaf=80, loss="squared_error", random_state=SEED)
@@ -203,6 +202,7 @@ def brier(p: np.ndarray, y: np.ndarray) -> float:
 
 def calibration(rows: list[dict], target_precision: float = 0.5) -> dict:
     """Nested: the calibrator and the alert threshold for each held-out video come from the other videos only."""
+    from sklearn.isotonic import IsotonicRegression  # research-only dependency
     out = {}
     for h in HORIZONS:
         pool = [r for r in rows if r["h"] == h]

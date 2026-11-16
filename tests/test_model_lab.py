@@ -20,6 +20,7 @@ def test_bootstrap_adopts_only_a_gain_that_holds_across_videos():
 
 
 def test_calibration_is_nested_by_video_and_reports_brier():
+    pytest.importorskip("sklearn")
     rng = np.random.default_rng(1)
     rows = []
     for src in "ABCD":
