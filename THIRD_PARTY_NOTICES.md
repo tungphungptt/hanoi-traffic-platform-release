@@ -11,6 +11,8 @@
 - **Leaflet 1.9.4** (BSD-2-Clause), loaded from unpkg with Subresource Integrity on the map page.
 - **OpenStreetMap**: map tiles from tile.openstreetmap.org (usage policy: https://operations.osmfoundation.org/policies/tiles/)
   (Humanitarian style tiles from OpenStreetMap France as fallback) and the Hanoi boundary (`static/hanoi_boundary.geojson`, relation 1903516), © OpenStreetMap contributors, ODbL.
+- **OSRM** public demo server (router.project-osrm.org) for route alternatives: best-effort, no SLA; run your own for production.
+- **Google Fonts** DM Sans and Manrope (SIL Open Font License).
 - **Open-Meteo** weather data, CC BY 4.0, attributed on the map page.
 - Python packages in `requirements.txt` keep their own licences (FastAPI MIT, Uvicorn BSD-3,
   NumPy BSD-3, ONNX Runtime MIT, OpenCV Apache-2.0).

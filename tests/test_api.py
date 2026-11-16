@@ -79,3 +79,28 @@ def test_map_page_and_weather_endpoints(monkeypatch):
         raise main.weather.WeatherError("offline")
     monkeypatch.setattr(main.weather, "overview", down)
     assert client.get("/api/weather/overview").status_code == 502
+
+
+def test_routes_and_model_report(monkeypatch):
+    config = client.get("/api/map/config").json()
+    assert len(config["areas"]) >= 10
+    assert client.get("/api/routes", params={"from": "10.77,106.70", "to": "21.03,105.85"}).status_code == 422
+    assert client.get("/api/routes", params={"from": "abc", "to": "21.03,105.85"}).status_code == 422
+    fake = [{"distance_m": 5000.0, "duration_seconds": 600.0, "geometry": {"type": "LineString", "coordinates": [[105.85, 21.03], [105.80, 21.04]]}}]
+    monkeypatch.setattr(main.routing, "route_alternatives", lambda a, b: fake)
+    body = client.get("/api/routes", params={"from": "21.0285,105.8542", "to": "21.0362,105.7906"}).json()
+    assert body["routes"] == fake and "thời gian thực" in body["note"]
+    report = client.get("/api/model/report").json()
+    assert {s["horizon_minutes"] for s in report["summary"]} == {5, 10, 15}
+
+
+def test_osrm_payload_is_parsed_fastest_first():
+    payload = {"code": "Ok", "routes": [
+        {"distance": 9000, "duration": 900, "geometry": {"coordinates": [[1, 2], [3, 4]]}},
+        {"distance": 8000, "duration": 700, "geometry": {"coordinates": [[1, 2], [5, 6]]}},
+        {"distance": 1, "duration": 1, "geometry": {"coordinates": [[1, 2]]}}]}
+    routes = main.routing.parse_routes(payload)
+    assert [r["duration_seconds"] for r in routes] == [700, 900]
+    import pytest
+    with pytest.raises(main.routing.RouteError):
+        main.routing.parse_routes({"code": "NoRoute"})

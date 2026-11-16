@@ -60,3 +60,17 @@ test('multi-camera sessions keep every camera and on-air intervals gate verifica
   assert.equal(page.onAir([[100, 400], [700, 900]], 500), false);
   assert.equal(page.onAir(null, 500), true);
 });
+
+test('sidebar pages and route/weather formatting', () => {
+  const shell = require('../static/shell.js');
+  assert.equal(shell.pageFromHash('#overview'), 'overview');
+  assert.equal(shell.pageFromHash('#how'), 'video');
+  assert.equal(shell.pageFromHash('#nope'), 'video');
+  const routes = require('../static/routes.js');
+  assert.equal(routes.fmtDuration(600), '10 phút');
+  assert.equal(routes.fmtDuration(4500), '1 giờ 15 phút');
+  const map = require('../static/map.js');
+  assert.equal(map.hourLabel('2026-11-16T14:00'), '14:00');
+  assert.equal(map.isRainy(61), true);
+  assert.equal(map.isRainy(1), false);
+});
