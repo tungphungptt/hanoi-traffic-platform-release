@@ -146,6 +146,26 @@ tests/                         pytest + node --test
 Kiểm thử: `pip install -r requirements-dev.txt && pytest -q && node --test tests/forecast_page.test.cjs`.
 Giấy phép bên thứ ba: `THIRD_PARTY_NOTICES.md`.
 
+## Đo tốc độ xe (km/h) từ video
+
+Chỉ số tốc độ trong CI là tương đối (pixel); để có km/h phải hiệu chuẩn từng camera bằng 4 điểm trên mặt đường
+mà bạn biết khoảng cách thật (góc một hình chữ nhật giữa hai vạch kẻ và hai đường ngang, đo tại chỗ hoặc bằng
+thước của bản đồ vệ tinh). Công cụ đưa mỗi xe về tọa độ mét trên mặt đường, bám theo bằng bộ theo dõi vận tốc
+không đổi và lấy tốc độ là độ dốc của đường thẳng khớp với vị trí theo thời gian.
+
+```bash
+# cam.json: {"image_points": [[x,y] x4], "world_points_m": [[0,0],[7,0],[7,40],[0,40]]}
+python tools/measure_speed.py clip.mp4 --calib cam.json --preview check.jpg      # xem lưới 5 m phủ lên khung hình
+python tools/measure_speed.py clip.mp4 --calib cam.json --fps 4 --out speeds.json # trung vị/trung bình/p85, tỉ lệ xe đứng yên theo cửa sổ 10 giây
+```
+
+- Dùng `--model yolox_s.onnx` (xem `models/README.md`) để thấy nhiều xe hơn YOLOv8n.
+- Chỉ đo xe nằm trong tứ giác hiệu chuẩn; trung vị trên 120 km/h được cảnh báo là calibration sai.
+- Kiểm thử dùng mặt đường tổng hợp có phối cảnh: 36 km/h đọc lại đúng trong 3%, xe đỗ đọc dưới 4 km/h, xe xa và gần cùng tốc độ cho cùng kết quả.
+  **Chưa kiểm định trên video thật với tốc độ đã biết** (cần một đoạn có xe chạy đo bằng GPS hoặc đồng hồ). Với video phát sóng
+  có chuyển cảnh, chỉ cắt đoạn một camera rồi mới đo, vì mỗi camera một calibration.
+- Chưa nối vào trang web hay vào CI/dự báo: kết quả là file JSON.
+
 ## Dự báo trực tiếp từ camera (trang "Trực tiếp")
 
 Máy chủ không tự mở camera. Một bộ thu nhận chạy ở nơi có quyền đọc luồng hình, đo từng khung bằng đúng bộ đo
