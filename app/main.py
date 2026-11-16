@@ -75,6 +75,72 @@ JOBS: dict[str, dict[str, Any]] = {}
 
 app = FastAPI(title="hanoiFlow", version="9.0.0",
               description="Dự báo ùn tắc +5/+10/+15 phút từ video giao thông, kiểm chứng trên chính video.")
+
+
+class UploadGuard:
+    """Reject a bad upload before Starlette parses (and spools to disk) the multipart body.
+
+    Checked from headers only: upload token (X-Upload-Token), declared size, hourly limit and a
+    busy server. A body that is larger than declared, or has no Content-Length, is cut off once
+    it passes the size limit.
+    """
+
+    def __init__(self, asgi_app):
+        self.app = asgi_app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope["method"] != "POST" or scope["path"] != "/api/analyze":
+            return await self.app(scope, receive, send)
+        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+        limit = MAX_UPLOAD_BYTES + 1024 * 1024  # multipart overhead
+        problem: tuple[int, str] | None = None
+        if UPLOAD_TOKEN and not secrets.compare_digest(headers.get("x-upload-token", "").strip(), UPLOAD_TOKEN):
+            problem = (401, "Sai mã tải lên. Hỏi người quản trị máy chủ để lấy mã.")
+        elif headers.get("content-length", "").isdigit() and int(headers["content-length"]) > limit:
+            problem = (413, f"Video vượt giới hạn {MAX_UPLOAD_BYTES // (1024 * 1024)} MiB.")
+        else:
+            with LOCK:
+                now = _now()
+                _upload_times[:] = [t for t in _upload_times if now - t < 3600]
+                if _busy():
+                    problem = (409, "Máy chủ đang phân tích một video khác. Vui lòng thử lại sau.")
+                elif len(_upload_times) >= UPLOADS_PER_HOUR:
+                    problem = (429, "Đã đạt giới hạn số lượt tải video trong giờ này. Vui lòng thử lại sau.")
+                else:
+                    _upload_times.append(now)
+        if problem:
+            body = json.dumps({"detail": problem[1]}).encode()
+            await send({"type": "http.response.start", "status": problem[0],
+                        "headers": [(b"content-type", b"application/json"),
+                                    (b"content-length", str(len(body)).encode()), (b"connection", b"close")]})
+            return await send({"type": "http.response.body", "body": body})
+        received, cut = 0, False
+
+        async def limited_receive():
+            nonlocal received, cut
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > limit:
+                    cut = True
+                    return {"type": "http.disconnect"}
+            return message
+
+        async def guarded_send(message):
+            if cut and message["type"] == "http.response.start":
+                body = json.dumps({"detail": f"Video vượt giới hạn {MAX_UPLOAD_BYTES // (1024 * 1024)} MiB."}).encode()
+                await send({"type": "http.response.start", "status": 413,
+                            "headers": [(b"content-type", b"application/json"),
+                                        (b"content-length", str(len(body)).encode())]})
+                return await send({"type": "http.response.body", "body": body})
+            if cut:
+                return None
+            return await send(message)
+
+        await self.app(scope, limited_receive, guarded_send)
+
+
+app.add_middleware(UploadGuard)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
@@ -310,16 +376,8 @@ def status() -> dict[str, Any]:
 
 
 @app.post("/api/analyze", status_code=202)
-async def analyze(file: UploadFile = File(...), timing_confirmed: bool = Form(False),
-                  token: str = Form("")) -> dict[str, Any]:
-    if UPLOAD_TOKEN and not secrets.compare_digest(token.strip(), UPLOAD_TOKEN):
-        raise HTTPException(401, "Sai mã tải lên. Hỏi người quản trị máy chủ để lấy mã.")
-    with LOCK:
-        now = _now()
-        _upload_times[:] = [t for t in _upload_times if now - t < 3600]
-        if len(_upload_times) >= UPLOADS_PER_HOUR:
-            raise HTTPException(429, "Đã đạt giới hạn số lượt tải video trong giờ này. Vui lòng thử lại sau.")
-        _upload_times.append(now)
+async def analyze(file: UploadFile = File(...), timing_confirmed: bool = Form(False)) -> dict[str, Any]:
+    # Token, hourly limit, busy state and size are checked by UploadGuard before this body is parsed.
     filename = Path(file.filename or "video.mp4").name
     suffix = Path(filename).suffix.lower()
     if suffix not in SUPPORTED_SUFFIXES:
