@@ -10,7 +10,7 @@
   shared in the "Hanoi Flow" Google Drive folder. No video is redistributed. Research/demo use.
 - **Leaflet 1.9.4** (BSD-2-Clause), loaded from unpkg with Subresource Integrity on the map page.
 - **OpenStreetMap**: map tiles from tile.openstreetmap.org (usage policy: https://operations.osmfoundation.org/policies/tiles/)
-  and the Hanoi boundary (`static/hanoi_boundary.geojson`, relation 1903516), © OpenStreetMap contributors, ODbL.
+  (CARTO basemap tiles as fallback) and the Hanoi boundary (`static/hanoi_boundary.geojson`, relation 1903516), © OpenStreetMap contributors, ODbL.
 - **Open-Meteo** weather data, CC BY 4.0, attributed on the map page.
 - Python packages in `requirements.txt` keep their own licences (FastAPI MIT, Uvicorn BSD-3,
   NumPy BSD-3, ONNX Runtime MIT, OpenCV Apache-2.0).

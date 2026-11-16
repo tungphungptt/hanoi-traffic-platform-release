@@ -17,3 +17,5 @@
 .area-pin.rain { border-color: var(--forecast); color: var(--forecast); }
 .chip.stale { background: var(--busy-soft); color: var(--busy); }
 @media (max-width: 1100px) { .map-page { grid-template-columns: 1fr; } .map { height: 460px; } }
+.zoomed-out .area-pin.inner b { display: none; }
+.area-pin b { font-weight: 600; }
