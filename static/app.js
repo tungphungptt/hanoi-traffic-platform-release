@@ -253,6 +253,7 @@ if (typeof document !== 'undefined') {
     state.file = file || null;
     state.objectUrl = file ? URL.createObjectURL(file) : null;
     player.src = state.objectUrl || '';
+    speedSetup.load(state.objectUrl);
     $('fileName').textContent = file ? `${file.name} · ${(file.size / 1048576).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} MiB` : 'Chọn video từ máy tính';
     renderInputs();
     if (state.session) checkVideoMatchesSession();
@@ -319,6 +320,9 @@ if (typeof document !== 'undefined') {
       const form = new FormData();
       form.append('file', state.file);
       form.append('timing_confirmed', $('realTiming').checked ? 'true' : 'false');
+      const speed = speedSetup.calibration();
+      if (speed.error) { notice(speed.error, 'error'); return; }
+      if (speed.value) form.append('calibration', JSON.stringify(speed.value));
       const job = await upload(form);
       sessionStorage.setItem(JOB_KEY, job.job_id);
       const result = await poll(job.job_id);
@@ -382,6 +386,7 @@ if (typeof document !== 'undefined') {
     $('methodLine').textContent = 'Dự báo lập tại mỗi thời điểm chỉ dùng phần video trước đó. Khoảng trong ngoặc là khoảng tin cậy 80%.';
     renderHighlights();
     renderEvidence();
+    renderSpeed();
     renderMetrics();
     renderLimits();
     scheduleRender();
@@ -650,6 +655,116 @@ if (typeof document !== 'undefined') {
     }));
   }
 
+  function renderSpeed() {
+    const speed = state.session?.speed;
+    const card = $('speedCard');
+    const multi = multiCamera();
+    card.hidden = !speed || (multi && speed.camera_id !== undefined && speed.camera_id !== state.camera);
+    if (card.hidden) return;
+    const cal = speed.calibration || {};
+    $('speedSub').textContent = cal.width_m ? `Mặt đường đã hiệu chuẩn ${cal.width_m} × ${cal.length_m} m${speed.camera_id !== undefined && multi ? ` · camera ${speed.camera_id + 1}` : ''}.` : '';
+    if (state.blind) {
+      $('speedTiles').innerHTML = '<p class="empty">Đang bật “Ẩn tương lai”: tắt chế độ này để xem tốc độ đo được.</p>';
+      $('speedChart').innerHTML = ''; $('speedNote').textContent = '';
+      return;
+    }
+    if (speed.status !== 'ok') {
+      $('speedTiles').innerHTML = `<p class="empty">${escapeHtml(speed.message || 'Không đo được tốc độ.')}</p>`;
+      $('speedChart').innerHTML = ''; $('speedNote').textContent = '';
+      return;
+    }
+    const o = speed.overall || {};
+    const tile = (label, value) => `<div class="speed-tile"><span>${label}</span><strong>${value}</strong></div>`;
+    const kmh = v => (v === null || v === undefined ? '—' : `${num(v, 1)} km/h`);
+    $('speedTiles').innerHTML = tile('Trung vị', kmh(o.median_kmh)) + tile('Trung bình', kmh(o.mean_kmh)) + tile('85% xe chậm hơn', kmh(o.p85_kmh))
+      + tile('Xe đã theo dõi', (o.vehicles || 0).toLocaleString('vi-VN')) + tile('Xe đứng yên', o.stopped_share === null || o.stopped_share === undefined ? '—' : `${Math.round(o.stopped_share * 100)}%`);
+    const duration = Number(state.session?.video?.duration_seconds) || 1;
+    const bursts = (speed.bursts || []);
+    const top = Math.max(60, ...bursts.map(b => b.p85_kmh || 0));
+    $('speedChart').innerHTML = bursts.map(b => {
+      const x = b.t_start / duration * 1000, w = Math.max(10, (b.t_end - b.t_start) / duration * 1000);
+      const h = b.median_kmh === null || b.median_kmh === undefined ? 0 : b.median_kmh / top * 160;
+      return `<g><title>${fmtTime(b.t_start)}–${fmtTime(b.t_end)}: ${b.vehicles} xe, trung vị ${b.median_kmh === null ? '—' : num(b.median_kmh, 1)} km/h</title>`
+        + `<rect data-t="${b.t_start}" x="${x.toFixed(1)}" y="${(172 - h).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(h, 2).toFixed(1)}" fill="${h ? 'var(--brand, #c2410c)' : '#ccc'}" rx="2"></rect></g>`;
+    }).join('') + `<text x="4" y="12" font-size="11" fill="#8a745c">${Math.round(top)} km/h</text>`;
+    $('speedChart').querySelectorAll('rect').forEach(r => r.addEventListener('click', () => {
+      player.pause(); seekTo(Number(r.dataset.t)); scheduleRender();
+      document.querySelector('.player-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+    $('speedNote').textContent = (speed.warning ? `${speed.warning} ` : '') + (speed.note || '')
+      + ` Mỗi cột là một đợt đo ${speed.burst_seconds || 12} giây (trung vị); bấm cột để tua tới.`;
+  }
+
+  /** Picking four road points on a frame of the chosen video, to turn pixels into metres. */
+  const speedSetup = (() => {
+    const canvas = $('speedCanvas'), ctx = canvas.getContext('2d');
+    const video = document.createElement('video');
+    video.muted = true; video.preload = 'auto'; video.playsInline = true;
+    const ui = { points: [], ready: false, time: 0 };
+    const hint = text => { $('speedHint').textContent = text; };
+    const NAMES = ['gần-trái', 'gần-phải', 'xa-phải', 'xa-trái'];
+
+    function draw() {
+      if (!ui.ready) { ctx.fillStyle = '#1b1b1b'; ctx.fillRect(0, 0, canvas.width, canvas.height); return; }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.lineWidth = 2; ctx.strokeStyle = '#ffd400'; ctx.fillStyle = '#ff3b30'; ctx.font = 'bold 14px sans-serif';
+      ctx.beginPath();
+      ui.points.forEach((p, i) => { const x = p.x * canvas.width, y = p.y * canvas.height; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      if (ui.points.length === 4) ctx.closePath();
+      ctx.stroke();
+      ui.points.forEach((p, i) => {
+        const x = p.x * canvas.width, y = p.y * canvas.height;
+        ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.fillText(String(i + 1), x + 8, y - 8); ctx.fillStyle = '#ff3b30';
+      });
+    }
+    function status() {
+      if (!ui.ready) return;
+      hint(ui.points.length < 4 ? `Bấm điểm ${ui.points.length + 1}/4 (${NAMES[ui.points.length]}).` : 'Đã đủ 4 điểm. Nhập bề rộng và chiều dài thật (mét), rồi bấm Phân tích.');
+    }
+    function showFrame(t) {
+      ui.time = t;
+      $('speedTimeText').textContent = fmtTime(t);
+      video.currentTime = t;
+    }
+    video.addEventListener('seeked', () => { ui.ready = true; canvas.height = Math.round(canvas.width * (video.videoHeight || 360) / (video.videoWidth || 640)); draw(); status(); });
+    video.addEventListener('loadedmetadata', () => {
+      const slider = $('speedTime');
+      slider.max = String(Math.max(0, Math.floor(video.duration || 0)));
+      slider.disabled = !(video.duration > 0);
+      showFrame(Math.min(2, Math.floor((video.duration || 0) / 2)));
+      slider.value = String(ui.time);
+    });
+    video.addEventListener('error', () => { ui.ready = false; draw(); hint('Trình duyệt không đọc được khung hình của video này (codec lạ). Bỏ qua đo tốc độ hoặc đổi sang MP4 H.264.'); });
+    canvas.addEventListener('click', event => {
+      if (!ui.ready || ui.points.length >= 4) return;
+      const rect = canvas.getBoundingClientRect();
+      ui.points.push({ x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)), y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)) });
+      draw(); status();
+    });
+    $('speedReset').addEventListener('click', () => { ui.points = []; draw(); status(); });
+    $('speedTime').addEventListener('input', event => { ui.points = []; showFrame(Number(event.target.value)); });
+
+    return {
+      load(url) {
+        ui.points = []; ui.ready = false; $('speedTime').disabled = true; $('speedTime').max = '0';
+        draw();
+        if (!url) { video.removeAttribute('src'); hint('Chọn video trước.'); return; }
+        hint('Đang tải khung hình…');
+        video.src = url;
+      },
+      /** {value} when complete, {} when not used, {error} when started but incomplete or invalid. */
+      calibration() {
+        const width = parseFloat($('speedWidth').value), length = parseFloat($('speedLength').value);
+        const touched = ui.points.length > 0 || $('speedWidth').value !== '' || $('speedLength').value !== '';
+        if (!touched) return {};
+        if (ui.points.length !== 4) return { error: 'Đo tốc độ: cần bấm đủ 4 điểm trên khung hình (hoặc bấm “Xoá điểm” và để trống ô Rộng/Dài để bỏ qua).' };
+        if (!(width >= 1 && width <= 300 && length >= 1 && length <= 300)) return { error: 'Đo tốc độ: bề rộng và chiều dài phải là số từ 1 đến 300 mét.' };
+        return { value: { points: ui.points.map(p => [Number(p.x.toFixed(5)), Number(p.y.toFixed(5))]), width_m: width, length_m: length, time_seconds: ui.time } };
+      },
+    };
+  })();
+
   function renderMetrics() {
     const mf = forecast();
     const metrics = mf.metrics || [];
@@ -742,7 +857,7 @@ if (typeof document !== 'undefined') {
     } catch (error) { notice(error.message, 'error'); }
     e.target.value = '';
   });
-  $('blindMode').addEventListener('change', e => { state.blind = e.target.checked; if (state.session) { renderHighlights(); renderEvidence(); } scheduleRender(); });
+  $('blindMode').addEventListener('change', e => { state.blind = e.target.checked; if (state.session) { renderHighlights(); renderEvidence(); renderSpeed(); } scheduleRender(); });
   $('unlockBtn').addEventListener('click', () => { state.locked = null; scheduleRender(); });
   $('exportJson').addEventListener('click', () => state.session && download(`${baseName()}.hanoiflow.json`, JSON.stringify({ ...state.session, evidence: undefined }), 'application/json'));
   $('exportCsv').addEventListener('click', () => state.session && download(`${baseName()}-du-bao.csv`, forecastCsv(forecast().anchors), 'text/csv'));
