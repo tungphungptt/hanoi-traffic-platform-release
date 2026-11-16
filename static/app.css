@@ -279,3 +279,24 @@ td.bad { color: var(--jam-text); font-weight: 700; }
 .token-field { min-width: 0; }
 .route-forecast { margin-top: 12px; font-size: 11px; color: var(--ink-2); background: var(--blue-soft); border-radius: 9px; padding: 9px 12px; }
 .route-option .warn { color: var(--jam-text); font-weight: 700; }
+
+.evidence-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.evidence-item { display: grid; gap: 6px; text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 7px; background: #fff; font: inherit; cursor: pointer; color: inherit; }
+.evidence-item:hover { border-color: var(--brand); }
+.evidence-item img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: var(--paper, #faf7f0); }
+.evidence-item .cap { font-size: 11px; line-height: 1.35; }
+.evidence-item .cap strong { display: block; font-size: 11.5px; }
+.evidence-item .tag { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+
+.live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.live-card { display: grid; gap: 8px; align-content: start; }
+.live-card.stale { opacity: .72; }
+.live-card h3 { margin: 0; font-size: 14px; }
+.live-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.live-meta { margin: 0; font-size: 11px; color: var(--muted, #8a745c); }
+.live-spark { width: 100%; height: 54px; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.live-horizons { display: grid; gap: 6px; }
+.live-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 11.5px; }
+.live-h-label { font-weight: 800; min-width: 52px; }
+.live-steps { margin: 0 0 10px 18px; padding: 0; font-size: 12.5px; line-height: 1.6; }
+.live-steps code { background: #f4eee3; padding: 1px 5px; border-radius: 5px; font-size: 11.5px; word-break: break-all; }

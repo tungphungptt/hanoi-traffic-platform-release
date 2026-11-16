@@ -24,6 +24,7 @@
       <nav class="side-nav" aria-label="Điều hướng chính">
         <a class="nav-item" href="#video" data-page="video"><span class="nav-icon">⌁</span><span>Dự báo &amp; phương án</span></a>
         <a class="nav-item" href="#overview" data-page="overview"><span class="nav-icon">▦</span><span>Bản đồ &amp; thời tiết</span></a>
+        <a class="nav-item" href="#live" data-page="live"><span class="nav-icon">◉</span><span>Trực tiếp</span></a>
         <a class="nav-item" href="#report" data-page="report"><span class="nav-icon">◈</span><span>Đánh giá mô hình</span></a>
       </nav>
       <div class="sidebar-spacer"></div>
@@ -119,6 +120,11 @@
               </details>
             </section>
 
+            <section class="panel" id="evidenceCard" hidden>
+              <div class="panel-heading"><div><div class="section-kicker">ẢNH MINH CHỨNG</div><h2>Khung hình tại các thời điểm đáng chú ý</h2><p class="panel-subtitle">Mỗi ảnh có khung quanh xe hệ thống nhận diện, giờ trong video và chỉ số CI. Bấm ảnh để tua tới thời điểm đó. Ảnh chỉ giữ khoảng 1 giờ sau khi phân tích và không nằm trong file kết quả tải về.</p></div></div>
+              <div id="evidenceGrid" class="evidence-grid"></div>
+            </section>
+
             <section class="panel" id="metricsCard">
               <div class="panel-heading">
                 <div><div class="section-kicker">ĐỘ TIN CẬY</div><h2>Mô hình có tốt hơn cách đoán đơn giản không?</h2><p class="panel-subtitle" id="metricsSub">So trên mọi thời điểm trong video mà kết quả thực tế đã được quan sát.</p></div>
@@ -201,6 +207,21 @@
           </section>
         </section>
 
+        <!-- ===================== Trực tiếp ===================== -->
+        <section class="page" id="page-live">
+          <div class="page-heading"><div><div class="eyebrow">CAMERA ĐƯỢC CẤP PHÉP</div><h1>Dự báo trực tiếp +5 / +10 / +15 phút</h1><p class="page-subtitle">Mỗi camera có bộ thu nhận riêng đo luồng hình rồi gửi chỉ số CI về đây; dự báo dùng đúng mô hình của phần video. Trang tự làm mới mỗi 15 giây.</p></div></div>
+          <div id="liveGrid" class="live-grid"></div>
+          <section class="panel" id="liveHelp" hidden>
+            <div class="panel-heading"><div><div class="section-kicker">CÁCH KẾT NỐI</div><h2 id="liveHelpTitle">Chưa có camera nào gửi số liệu</h2></div></div>
+            <ol class="live-steps">
+              <li>Đặt biến môi trường <code>LIVE_TOKEN</code> (một chuỗi bí mật) trên máy chủ.</li>
+              <li>Trên máy có quyền đọc luồng camera, chạy: <code>python tools/live_collector.py --source RTSP_URL --camera-id tdh-216 --name "216 Trần Duy Hưng" --lat 21.0075 --lng 105.7993 --server URL_MAY_CHU --token MA_BI_MAT</code></li>
+              <li>Sau khoảng 9 phút số liệu liên tục, thẻ camera sẽ hiện dự báo. Thử không cần camera: dùng một file video làm <code>--source</code> (phát đúng tốc độ gốc).</li>
+            </ol>
+            <p class="panel-subtitle">Chỉ dùng luồng hình bạn được phép đọc. Số liệu giữ trong bộ nhớ máy chủ (tối đa 3 giờ mỗi camera) và mất khi máy chủ khởi động lại.</p>
+          </section>
+        </section>
+
         <!-- ===================== Đánh giá mô hình ===================== -->
         <section class="page" id="page-report">
           <div class="page-heading"><div><div class="eyebrow">GÓC NHÌN DỮ LIỆU</div><h1>Đánh giá mô hình dự báo</h1><p class="page-subtitle">Kiểm tra chéo bỏ-một-video: mỗi video được dự báo chỉ bằng dữ liệu của các video khác, rồi chấm với những gì video đó cho thấy sau đó.</p></div></div>
@@ -219,9 +240,10 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="/static/shell.js?v=9.1"></script>
+  <script src="/static/shell.js?v=9.2"></script>
   <script src="/static/app.js?v=9.1"></script>
   <script src="/static/map.js?v=9.1"></script>
+  <script src="/static/live.js?v=9.2"></script>
   <script src="/static/routes.js?v=9.1"></script>
 </body>
 </html>

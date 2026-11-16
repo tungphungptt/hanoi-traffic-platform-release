@@ -89,3 +89,19 @@ test('route ranking adds the forecast delay only to routes passing the camera', 
   assert.equal(free[0].duration_seconds, 600);         // free-flow forecast: no penalty
   assert.equal(routes.rankRoutes([near, far], null, 0.9)[0].duration_seconds, 600);
 });
+
+test('live page helpers format age, draw the history line and flag warnings', () => {
+  const live = require('../static/live.js');
+  assert.equal(live.liveAge(30), '30 giây trước');
+  assert.equal(live.liveAge(600), '10 phút trước');
+  assert.equal(live.liveSparkline([{ epoch: 1, ci: 0.2 }]), '');
+  assert.match(live.liveSparkline([{ epoch: 1, ci: 0.2 }, { epoch: 2, ci: 0.6 }]), /<path /);
+  const esc = t => String(t);
+  const cam = { camera_id: 'a', name: 'A', status: 'live', level_key: 'busy', observed_ci: 0.4, age_seconds: 5, samples: 700,
+    horizons: [{ horizon_minutes: 5, level_key: 'gridlock', ci: 0.6, lower: 0.5, upper: 0.7, p_gridlock: 0.5, warning: true, watch: false },
+               { horizon_minutes: 10, level_key: 'busy', ci: 0.5, lower: 0.4, upper: 0.6, p_gridlock: 0.25, warning: false, watch: true }], recent: [] };
+  const html = live.liveCard(cam, esc);
+  assert.match(html, /Cảnh báo sắp tắc/); assert.match(html, /Theo dõi/); assert.doesNotMatch(html, /Mất tín hiệu/);
+  assert.match(live.liveCard({ ...cam, status: 'stale' }, esc), /Mất tín hiệu/);
+  assert.match(live.liveCard({ camera_id: 'b', status: 'warming_up', span_seconds: 120, needed_seconds: 540 }, esc), /9 phút/);
+});

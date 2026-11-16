@@ -25,5 +25,8 @@ services:
       # Shared password for video uploads; set its value in the Render dashboard (never in git).
       - key: UPLOAD_TOKEN
         sync: false
+      # Shared secret for tools/live_collector.py; empty = live intake switched off. Set it in the dashboard.
+      - key: LIVE_TOKEN
+        sync: false
       - key: UPLOADS_PER_HOUR
         value: "10"

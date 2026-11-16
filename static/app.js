@@ -381,6 +381,7 @@ if (typeof document !== 'undefined') {
     $('videoMeta').textContent = `${session.filename || 'Video'} · ${fmtTime(v.duration_seconds)}${camText} · ${mf.anchors.length.toLocaleString('vi-VN')} thời điểm dự báo, mỗi ${mf.step_seconds} giây`;
     $('methodLine').textContent = 'Dự báo lập tại mỗi thời điểm chỉ dùng phần video trước đó. Khoảng trong ngoặc là khoảng tin cậy 80%.';
     renderHighlights();
+    renderEvidence();
     renderMetrics();
     renderLimits();
     scheduleRender();
@@ -625,6 +626,30 @@ if (typeof document !== 'undefined') {
     bindMoments($('missList'));
   }
 
+  function renderEvidence() {
+    const frames = (state.session?.evidence || []).filter(f => f.camera === state.camera);
+    $('evidenceCard').hidden = !frames.length;
+    if (!frames.length) { $('evidenceGrid').innerHTML = ''; return; }
+    if (state.blind) {
+      $('evidenceGrid').innerHTML = '<p class="empty">Đang bật “Ẩn tương lai”: tắt chế độ này để xem ảnh minh chứng.</p>';
+      return;
+    }
+    $('evidenceGrid').innerHTML = frames.map((f, i) => `<button class="evidence-item" type="button" data-t="${f.t}" title="Tua tới ${fmtTime(f.t)}">
+      <img src="${escapeHtml(f.url)}" alt="Khung hình lúc ${fmtTime(f.t)}" loading="lazy">
+      <span class="cap"><strong><span class="tag" style="background:${LEVEL_COLOR[f.level_key] || '#999'}"></span>${fmtTime(f.t)} · CI ${num(f.ci)}</strong>${escapeHtml(f.reason_label || '')}</span></button>`).join('');
+    $('evidenceGrid').querySelectorAll('img').forEach(img => img.addEventListener('error', () => {
+      const item = img.closest('.evidence-item');
+      if (item) item.hidden = true;
+      if (!$('evidenceGrid').querySelector('.evidence-item:not([hidden])')) $('evidenceCard').hidden = true;
+    }));
+    $('evidenceGrid').querySelectorAll('.evidence-item').forEach(button => button.addEventListener('click', () => {
+      player.pause();
+      seekTo(Number(button.dataset.t));
+      scheduleRender();
+      document.querySelector('.player-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+  }
+
   function renderMetrics() {
     const mf = forecast();
     const metrics = mf.metrics || [];
@@ -717,9 +742,9 @@ if (typeof document !== 'undefined') {
     } catch (error) { notice(error.message, 'error'); }
     e.target.value = '';
   });
-  $('blindMode').addEventListener('change', e => { state.blind = e.target.checked; if (state.session) renderHighlights(); scheduleRender(); });
+  $('blindMode').addEventListener('change', e => { state.blind = e.target.checked; if (state.session) { renderHighlights(); renderEvidence(); } scheduleRender(); });
   $('unlockBtn').addEventListener('click', () => { state.locked = null; scheduleRender(); });
-  $('exportJson').addEventListener('click', () => state.session && download(`${baseName()}.hanoiflow.json`, JSON.stringify(state.session), 'application/json'));
+  $('exportJson').addEventListener('click', () => state.session && download(`${baseName()}.hanoiflow.json`, JSON.stringify({ ...state.session, evidence: undefined }), 'application/json'));
   $('exportCsv').addEventListener('click', () => state.session && download(`${baseName()}-du-bao.csv`, forecastCsv(forecast().anchors), 'text/csv'));
   chart.addEventListener('click', seekFromChart);
   ['timeupdate', 'seeked', 'loadedmetadata'].forEach(name => player.addEventListener(name, scheduleRender));

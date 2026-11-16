@@ -21,7 +21,7 @@ from typing import Any
 
 import cv2
 import numpy as np
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
@@ -29,14 +29,17 @@ from starlette.concurrency import run_in_threadpool
 from app import weather
 from app.hanoi_scope import is_hanoi_coordinate
 from traffic_brain import routing
+from traffic_brain.live import LiveError, LiveStore
 from traffic_brain.detector import Detector
 from traffic_brain.minute_forecaster import record_to_series, series_record, video_key
-from traffic_brain.video_analysis import VideoAnalysisError, analyze_video, result_payload
+from traffic_brain.video_analysis import VideoAnalysisError, analyze_video, capture_evidence, result_payload
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = ROOT / "static"
 DATA_DIR = ROOT / "data"
 UPLOAD_DIR = DATA_DIR / "uploads"
+EVIDENCE_DIR = DATA_DIR / "evidence"
+shutil.rmtree(EVIDENCE_DIR, ignore_errors=True)  # leftovers of jobs from before a restart
 BUNDLED_LIBRARY_DIR = ROOT / "models" / "forecast_library"
 LOCAL_LIBRARY_DIR = DATA_DIR / "forecast_library"
 logger = logging.getLogger("hanoiflow")
@@ -64,6 +67,8 @@ LOCAL_LIBRARY_MAX = 50
 JOB_RETENTION_SECONDS = 3600
 # Optional shared password for uploads on a public deployment (set UPLOAD_TOKEN on Render).
 UPLOAD_TOKEN = os.getenv("UPLOAD_TOKEN", "").strip()
+LIVE_TOKEN = os.getenv("LIVE_TOKEN", "").strip()  # empty: live intake is switched off
+LIVE_BODY_LIMIT = 256 * 1024
 UPLOADS_PER_HOUR = _env_int("UPLOADS_PER_HOUR", 20, 1, 1000)
 _upload_times: list[float] = []
 DISK_RESERVE_BYTES = 64 * 1024 * 1024
@@ -77,37 +82,56 @@ app = FastAPI(title="hanoiFlow", version="9.0.0",
               description="Dự báo ùn tắc +5/+10/+15 phút từ video giao thông, kiểm chứng trên chính video.")
 
 
-class UploadGuard:
-    """Reject a bad upload before Starlette parses (and spools to disk) the multipart body.
+class RequestGuard:
+    """Reject a bad request before Starlette parses (and spools) its body.
 
-    Checked from headers only: upload token (X-Upload-Token), declared size, hourly limit and a
-    busy server. A body that is larger than declared, or has no Content-Length, is cut off once
-    it passes the size limit.
+    * ``POST /api/analyze``: upload token (X-Upload-Token), declared size, hourly limit, busy server.
+    * ``POST /api/live/<id>/samples``: live token (X-Live-Token) and a small body limit.
+
+    Only headers are read for the checks; a body larger than allowed (also without Content-Length)
+    is cut off once it passes the limit.
     """
 
     def __init__(self, asgi_app):
         self.app = asgi_app
 
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or scope["method"] != "POST" or scope["path"] != "/api/analyze":
-            return await self.app(scope, receive, send)
-        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
-        limit = MAX_UPLOAD_BYTES + 1024 * 1024  # multipart overhead
-        problem: tuple[int, str] | None = None
-        if UPLOAD_TOKEN and not secrets.compare_digest(headers.get("x-upload-token", "").strip(), UPLOAD_TOKEN):
-            problem = (401, "Sai mã tải lên. Hỏi người quản trị máy chủ để lấy mã.")
-        elif headers.get("content-length", "").isdigit() and int(headers["content-length"]) > limit:
-            problem = (413, f"Video vượt giới hạn {MAX_UPLOAD_BYTES // (1024 * 1024)} MiB.")
-        else:
+    @staticmethod
+    def _check(path: str, headers: dict[str, str]) -> tuple[int, str | None, tuple[int, str] | None]:
+        """Returns (body limit, unit label, problem)."""
+        if path == "/api/analyze":
+            limit = MAX_UPLOAD_BYTES + 1024 * 1024  # multipart overhead
+            too_big = (413, f"Video vượt giới hạn {MAX_UPLOAD_BYTES // (1024 * 1024)} MiB.")
+            if UPLOAD_TOKEN and not secrets.compare_digest(headers.get("x-upload-token", "").strip(), UPLOAD_TOKEN):
+                return limit, too_big[1], (401, "Sai mã tải lên. Hỏi người quản trị máy chủ để lấy mã.")
+            if headers.get("content-length", "").isdigit() and int(headers["content-length"]) > limit:
+                return limit, too_big[1], too_big
             with LOCK:
                 now = _now()
                 _upload_times[:] = [t for t in _upload_times if now - t < 3600]
                 if _busy():
-                    problem = (409, "Máy chủ đang phân tích một video khác. Vui lòng thử lại sau.")
-                elif len(_upload_times) >= UPLOADS_PER_HOUR:
-                    problem = (429, "Đã đạt giới hạn số lượt tải video trong giờ này. Vui lòng thử lại sau.")
-                else:
-                    _upload_times.append(now)
+                    return limit, too_big[1], (409, "Máy chủ đang phân tích một video khác. Vui lòng thử lại sau.")
+                if len(_upload_times) >= UPLOADS_PER_HOUR:
+                    return limit, too_big[1], (429, "Đã đạt giới hạn số lượt tải video trong giờ này. Vui lòng thử lại sau.")
+                _upload_times.append(now)
+            return limit, too_big[1], None
+        too_big = (413, "Gói số liệu quá lớn.")
+        if not LIVE_TOKEN:
+            return LIVE_BODY_LIMIT, too_big[1], (503, "Máy chủ chưa bật nhận số liệu trực tiếp (LIVE_TOKEN).")
+        if not secrets.compare_digest(headers.get("x-live-token", "").strip(), LIVE_TOKEN):
+            return LIVE_BODY_LIMIT, too_big[1], (401, "Sai mã thu nhận trực tiếp.")
+        if headers.get("content-length", "").isdigit() and int(headers["content-length"]) > LIVE_BODY_LIMIT:
+            return LIVE_BODY_LIMIT, too_big[1], too_big
+        return LIVE_BODY_LIMIT, too_big[1], None
+
+    async def __call__(self, scope, receive, send):
+        path = scope.get("path", "")
+        guarded = scope["type"] == "http" and scope["method"] in ("POST", "DELETE") and (
+            (scope["method"] == "POST" and path == "/api/analyze")
+            or (path.startswith("/api/live/") and (path.endswith("/samples") or scope["method"] == "DELETE")))
+        if not guarded:
+            return await self.app(scope, receive, send)
+        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+        limit, too_big_message, problem = self._check(path, headers)
         if problem:
             body = json.dumps({"detail": problem[1]}).encode()
             await send({"type": "http.response.start", "status": problem[0],
@@ -128,7 +152,7 @@ class UploadGuard:
 
         async def guarded_send(message):
             if cut and message["type"] == "http.response.start":
-                body = json.dumps({"detail": f"Video vượt giới hạn {MAX_UPLOAD_BYTES // (1024 * 1024)} MiB."}).encode()
+                body = json.dumps({"detail": too_big_message}).encode()
                 await send({"type": "http.response.start", "status": 413,
                             "headers": [(b"content-type", b"application/json"),
                                         (b"content-length", str(len(body)).encode())]})
@@ -140,7 +164,7 @@ class UploadGuard:
         await self.app(scope, limited_receive, guarded_send)
 
 
-app.add_middleware(UploadGuard)
+app.add_middleware(RequestGuard)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
@@ -207,6 +231,7 @@ def _prune_jobs() -> None:
     for job_id, job in list(JOBS.items()):
         if job["status"] in {"succeeded", "failed"} and _now() - job.get("finished", _now()) > JOB_RETENTION_SECONDS:
             JOBS.pop(job_id, None)
+            shutil.rmtree(EVIDENCE_DIR / job_id, ignore_errors=True)
 
 
 def _run_job(job_id: str, path: Path, filename: str, timing_confirmed: bool) -> None:
@@ -227,6 +252,13 @@ def _run_job(job_id: str, path: Path, filename: str, timing_confirmed: bool) -> 
         except OSError:
             logger.warning("Could not save the CI series to the local library", exc_info=True)
         result = result_payload(analysis, filename)
+        try:
+            frames = capture_evidence(path, detector, analysis["cameras"], EVIDENCE_DIR / job_id)
+            result["evidence"] = [{**{k: v for k, v in f.items() if k != "file"},
+                                   "url": f"/api/jobs/{job_id}/evidence/{f['file']}"} for f in frames]
+        except Exception:
+            logger.warning("Could not capture evidence frames", exc_info=True)
+            result["evidence"] = []
         with LOCK:
             JOBS[job_id].update(status="succeeded", progress_percent=100, result=result)
     except VideoAnalysisError as exc:
@@ -353,6 +385,40 @@ def demo() -> dict[str, Any]:
             "segments": segments, "session": session}
 
 
+LIVE = LiveStore(lambda: load_library(None), location_ok=is_hanoi_coordinate)
+
+
+@app.post("/api/live/{camera_id}/samples")
+def live_samples(camera_id: str, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Collector intake: 1 Hz CI measurements of one camera (authenticated by X-Live-Token)."""
+    try:
+        return LIVE.observe(camera_id, body.get("samples") or [], name=body.get("name"),
+                            lat=body.get("lat"), lng=body.get("lng"))
+    except LiveError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.delete("/api/live/{camera_id}")
+def live_remove(camera_id: str) -> dict[str, Any]:
+    if not LIVE.remove(camera_id):
+        raise HTTPException(404, "Không có camera này.")
+    return {"removed": camera_id}
+
+
+@app.get("/api/live")
+def live_list() -> dict[str, Any]:
+    cameras = [LIVE.forecast(cid) for cid in LIVE.camera_ids()]
+    return {"enabled": bool(LIVE_TOKEN), "cameras": [c for c in cameras if c]}
+
+
+@app.get("/api/live/{camera_id}")
+def live_camera(camera_id: str) -> dict[str, Any]:
+    found = LIVE.forecast(camera_id)
+    if found is None:
+        raise HTTPException(404, "Chưa có số liệu từ camera này.")
+    return found
+
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     return {"status": "ok"}
@@ -372,6 +438,7 @@ def status() -> dict[str, Any]:
         "max_duration_seconds": MAX_VIDEO_SECONDS,
         "library_videos": library_videos,
         "token_required": bool(UPLOAD_TOKEN),
+        "live_enabled": bool(LIVE_TOKEN),
     }
 
 
@@ -417,6 +484,16 @@ async def analyze(file: UploadFile = File(...), timing_confirmed: bool = Form(Fa
         await file.close()
         if path is not None:
             path.unlink(missing_ok=True)
+
+
+@app.get("/api/jobs/{job_id}/evidence/{name}")
+def evidence_frame(job_id: str, name: str) -> FileResponse:
+    if not re.fullmatch(r"[a-f0-9]{32}", job_id) or not re.fullmatch(r"\d{2}\.jpg", name):
+        raise HTTPException(404, "Không tìm thấy ảnh.")
+    path = EVIDENCE_DIR / job_id / name
+    if not path.is_file():
+        raise HTTPException(404, "Ảnh không còn (tác vụ đã hết hạn).")
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
 
 
 @app.get("/api/jobs/{job_id}")
