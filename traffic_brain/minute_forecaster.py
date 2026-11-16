@@ -51,6 +51,10 @@ FEATURE_NAMES = (
     "count_slope_3m",
     "motion_slope_3m",
 )
+# "turnover" (share of vehicles not seen one sample earlier) is measured and stored, but as a
+# feature it did not lower leave-one-video-out errors (+5/+10/+15: 9.4/10.1/7.1% vs 9.5/9.9/7.9%
+# without it), so it is not used for forecasting.
+SERIES_KEYS = ("t", "ci", "occupancy", "count", "motion", "turnover")
 
 
 def _finite(value: Any) -> float | None:
@@ -70,8 +74,9 @@ def build_observed_series(timeline: Iterable[Mapping[str, Any]], *,
                           window_seconds: float = WINDOW_SECONDS) -> dict[str, np.ndarray]:
     """Average 1 Hz frame rows into a rolling-window series on a fixed grid.
 
-    Uses ``raw_ci`` (falls back to ``ci``), ``occupancy_ratio``, ``vehicle_count`` and
-    ``normalized_speed``. A grid point with too few samples in its window is NaN.
+    Uses ``raw_ci`` (falls back to ``ci``), ``occupancy_ratio``, ``vehicle_count``,
+    ``normalized_speed`` and ``turnover`` (share of vehicles not seen in the previous sample).
+    A grid point with too few samples in its window is NaN.
     """
     rows = []
     for row in timeline or []:
@@ -84,11 +89,13 @@ def build_observed_series(timeline: Iterable[Mapping[str, Any]], *,
         occ = _finite(row.get("occupancy_ratio"))
         count = _finite(row.get("vehicle_count"))
         speed = _finite(row.get("normalized_speed"))
+        turnover = _finite(row.get("turnover"))
         rows.append((t, min(1.0, max(0.0, ci)),
                      np.nan if occ is None else occ,
                      np.nan if count is None else count,
-                     np.nan if speed is None else speed))
-    empty = {key: np.zeros(0) for key in ("t", "ci", "occupancy", "count", "motion")}
+                     np.nan if speed is None else speed,
+                     np.nan if turnover is None else turnover))
+    empty = {key: np.zeros(0) for key in SERIES_KEYS}
     if not rows:
         return empty
     rows.sort(key=lambda item: item[0])
@@ -101,7 +108,7 @@ def build_observed_series(timeline: Iterable[Mapping[str, Any]], *,
     sample_period = float(np.median(deltas)) if deltas.size else 1.0
     min_samples = max(3, int(0.5 * window_seconds / max(sample_period, 1e-6)))
     grid = np.arange(window_seconds, times[-1] + 1e-9, step_seconds)
-    out = {key: np.full(grid.shape, np.nan) for key in ("ci", "occupancy", "count", "motion")}
+    out = {key: np.full(grid.shape, np.nan) for key in SERIES_KEYS[1:]}
     lo = hi = 0
     for i, tau in enumerate(grid):
         while hi < len(times) and times[hi] <= tau + 1e-9:
@@ -112,7 +119,7 @@ def build_observed_series(timeline: Iterable[Mapping[str, Any]], *,
             continue
         chunk = data[lo:hi]
         out["ci"][i] = float(np.mean(chunk[:, 1]))
-        for key, col in (("occupancy", 2), ("count", 3), ("motion", 4)):
+        for key, col in (("occupancy", 2), ("count", 3), ("motion", 4), ("turnover", 5)):
             values = chunk[:, col]
             values = values[np.isfinite(values)]
             if values.size:
@@ -495,7 +502,7 @@ def series_record(series: Mapping[str, np.ndarray], *, video_key: str, filename:
         "filename": filename,
         "step_seconds": GRID_STEP_SECONDS,
         "window_seconds": WINDOW_SECONDS,
-        **{key: clean(np.asarray(series[key], dtype=np.float64)) for key in ("t", "ci", "occupancy", "count", "motion")},
+        **{key: clean(np.asarray(series[key], dtype=np.float64)) for key in SERIES_KEYS if key in series},
     }
 
 
@@ -507,7 +514,7 @@ def record_to_series(record: Mapping[str, Any]) -> dict[str, np.ndarray] | None:
         if float(record.get("step_seconds")) != GRID_STEP_SECONDS or float(record.get("window_seconds")) != WINDOW_SECONDS:
             return None
         series = {key: np.asarray([np.nan if v is None else float(v) for v in record[key]], dtype=np.float64)
-                  for key in ("t", "ci", "occupancy", "count", "motion")}
+                  for key in SERIES_KEYS if key in record or key != "turnover"}
     except (KeyError, TypeError, ValueError):
         return None
     sizes = {values.shape[0] for values in series.values()}

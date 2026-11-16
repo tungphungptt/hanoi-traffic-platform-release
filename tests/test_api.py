@@ -104,3 +104,22 @@ def test_osrm_payload_is_parsed_fastest_first():
     import pytest
     with pytest.raises(main.routing.RouteError):
         main.routing.parse_routes({"code": "NoRoute"})
+
+
+def test_upload_token_and_hourly_limit(monkeypatch):
+    monkeypatch.setattr(main, "UPLOAD_TOKEN", "bi-mat")
+    assert client.get("/api/status").json()["token_required"] is True
+    assert client.post("/api/analyze", files={"file": ("a.mp4", b"x")}, data={"token": "sai"}).status_code == 401
+    monkeypatch.setattr(main, "UPLOAD_TOKEN", "")
+    monkeypatch.setattr(main, "UPLOADS_PER_HOUR", 1)
+    monkeypatch.setattr(main, "_upload_times", [main._now()])
+    assert client.post("/api/analyze", files={"file": ("a.mp4", b"x")}).status_code == 429
+
+
+def test_demo_endpoint_lists_consecutive_segments():
+    demo = client.get("/api/demo").json()
+    starts = [s["start"] for s in demo["segments"]]
+    assert starts == sorted(starts) and starts[0] == 0
+    total = demo["segments"][-1]["start"] + demo["segments"][-1]["duration"]
+    assert abs(total - demo["session"]["video"]["duration_seconds"]) < 5
+    assert demo["session"]["contract"].startswith("hanoiflow-forecast-session/")

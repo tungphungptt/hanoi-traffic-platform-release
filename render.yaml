@@ -22,3 +22,8 @@ services:
         value: "false"
       - key: FORECAST_BUNDLED_LIBRARY
         value: "true"
+      # Shared password for video uploads; set its value in the Render dashboard (never in git).
+      - key: UPLOAD_TOKEN
+        sync: false
+      - key: UPLOADS_PER_HOUR
+        value: "10"

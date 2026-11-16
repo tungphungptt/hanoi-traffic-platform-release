@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import shutil
 import tempfile
 import threading
@@ -61,6 +62,10 @@ BUNDLED_LIBRARY_ENABLED = _env_flag("FORECAST_BUNDLED_LIBRARY", True)
 LOCAL_LIBRARY_ENABLED = _env_flag("FORECAST_LIBRARY_ENABLED", True)
 LOCAL_LIBRARY_MAX = 50
 JOB_RETENTION_SECONDS = 3600
+# Optional shared password for uploads on a public deployment (set UPLOAD_TOKEN on Render).
+UPLOAD_TOKEN = os.getenv("UPLOAD_TOKEN", "").strip()
+UPLOADS_PER_HOUR = _env_int("UPLOADS_PER_HOUR", 20, 1, 1000)
+_upload_times: list[float] = []
 DISK_RESERVE_BYTES = 64 * 1024 * 1024
 
 detector = Detector()
@@ -265,6 +270,23 @@ def model_report() -> dict[str, Any]:
         raise HTTPException(404, "Chưa có báo cáo đánh giá mô hình.") from exc
 
 
+@app.get("/api/demo")
+def demo() -> dict[str, Any]:
+    """Saved analysis of a held-out Hanoi recording, played from its source segments."""
+    try:
+        config = json.loads((ROOT / "artifacts" / "demo.json").read_text(encoding="utf-8"))
+        session = json.loads((ROOT / "artifacts" / config["session_file"]).read_text(encoding="utf-8"))
+    except (OSError, ValueError, KeyError) as exc:
+        raise HTTPException(404, "Chưa cấu hình demo.") from exc
+    start, segments = 0.0, []
+    for seg in config["segments"]:
+        segments.append({"name": seg["name"], "start": start, "duration": seg["duration"],
+                         "download_url": f"https://drive.google.com/file/d/{seg['drive_id']}/view"})
+        start += float(seg["duration"])
+    return {"title": config["title"], "note": config["note"], "source": config.get("source"),
+            "segments": segments, "session": session}
+
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     return {"status": "ok"}
@@ -283,11 +305,21 @@ def status() -> dict[str, Any]:
         "upload_limit_mib": MAX_UPLOAD_BYTES // (1024 * 1024),
         "max_duration_seconds": MAX_VIDEO_SECONDS,
         "library_videos": library_videos,
+        "token_required": bool(UPLOAD_TOKEN),
     }
 
 
 @app.post("/api/analyze", status_code=202)
-async def analyze(file: UploadFile = File(...), timing_confirmed: bool = Form(False)) -> dict[str, Any]:
+async def analyze(file: UploadFile = File(...), timing_confirmed: bool = Form(False),
+                  token: str = Form("")) -> dict[str, Any]:
+    if UPLOAD_TOKEN and not secrets.compare_digest(token.strip(), UPLOAD_TOKEN):
+        raise HTTPException(401, "Sai mã tải lên. Hỏi người quản trị máy chủ để lấy mã.")
+    with LOCK:
+        now = _now()
+        _upload_times[:] = [t for t in _upload_times if now - t < 3600]
+        if len(_upload_times) >= UPLOADS_PER_HOUR:
+            raise HTTPException(429, "Đã đạt giới hạn số lượt tải video trong giờ này. Vui lòng thử lại sau.")
+        _upload_times.append(now)
     filename = Path(file.filename or "video.mp4").name
     suffix = Path(filename).suffix.lower()
     if suffix not in SUPPORTED_SUFFIXES:

@@ -110,6 +110,36 @@ if (typeof document !== 'undefined') {
     pendingRender: false,
   };
   const player = $('player');
+  // A demo video can be a list of consecutive segments streamed from their source; the
+  // forecast timeline is then segment.start + the segment's own playback time.
+  const clip = { segments: null, index: 0 };
+  const hasVideo = () => Boolean(clip.segments || player.getAttribute('src'));
+  // Without any video the chart still works: clicking it moves a virtual playhead.
+  let virtualT = 0;
+  function videoTime() {
+    if (!hasVideo()) return virtualT;
+    return clip.segments ? clip.segments[clip.index].start + (player.currentTime || 0) : (player.currentTime || 0);
+  }
+  function loadSegment(k, offset, play) {
+    clip.index = k;
+    player.src = clip.segments[k].url;
+    player.addEventListener('loadedmetadata', () => {
+      player.currentTime = Math.max(0, offset);
+      if (play) player.play().catch(() => {});
+    }, { once: true });
+  }
+  function seekTo(t) {
+    if (!hasVideo()) { virtualT = Math.max(0, t); scheduleRender(); return; }
+    if (!clip.segments) { player.currentTime = t; return; }
+    const segs = clip.segments;
+    let k = segs.findIndex(s => t < s.start + s.duration);
+    if (k < 0) k = segs.length - 1;
+    if (k === clip.index && player.readyState > 0) player.currentTime = Math.max(0, t - segs[k].start);
+    else loadSegment(k, t - segs[k].start, !player.paused);
+  }
+  player.addEventListener('ended', () => {
+    if (clip.segments && clip.index < clip.segments.length - 1) loadSegment(clip.index + 1, 0, true);
+  });
   const chart = $('ciChart');
 
   const camera = () => state.session?.cameras.find(c => c.id === state.camera) || state.session?.cameras[0];
@@ -159,6 +189,7 @@ if (typeof document !== 'undefined') {
       const minutes = Math.floor((status.max_duration_seconds || 0) / 60);
       const lib = status.library_videos ? ` Mô hình đã học từ ${status.library_videos} video.` : '';
       $('limitText').textContent = `Tối đa ${Number(status.upload_limit_mib || 0).toLocaleString('vi-VN')} MiB và ${minutes} phút mỗi video.${lib} Cần tối thiểu khoảng 9 phút để có dự báo +5 phút, 25–30 phút để kiểm chứng đủ +15 phút.`;
+      $('tokenField').hidden = !status.token_required;
       const chip = $('serverChip');
       const pill = chip.closest('.system-pill');
       if (status.ready) { chip.textContent = status.busy ? 'Máy chủ đang phân tích một video' : 'Sẵn sàng phân tích video'; pill?.classList.remove('bad'); }
@@ -176,9 +207,50 @@ if (typeof document !== 'undefined') {
     $('analyzeBtn').disabled = !ready;
   }
 
-  function setVideoFile(file) {
-    state.file = file || null;
+  function releaseUrls() {
     if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+    state.objectUrl = null;
+    (clip.segments || []).forEach(s => s.url.startsWith('blob:') && URL.revokeObjectURL(s.url));
+    clip.segments = null;
+  }
+
+  function mediaDuration(url) {
+    return new Promise((resolve, reject) => {
+      const probe = document.createElement('video');
+      probe.preload = 'metadata';
+      probe.onloadedmetadata = () => resolve(probe.duration);
+      probe.onerror = () => reject(new Error('Không đọc được một file video.'));
+      probe.src = url;
+    });
+  }
+
+  /** Several consecutive parts (for example traffic_016…021_cam1.mp4) played as one timeline. */
+  async function setVideoParts(files) {
+    releaseUrls();
+    state.file = null;
+    const sorted = [...files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    const segments = [];
+    let start = 0;
+    for (const file of sorted) {
+      const url = URL.createObjectURL(file);
+      const dur = await mediaDuration(url);
+      segments.push({ name: file.name, url, start, duration: dur });
+      start += dur;
+    }
+    clip.segments = segments;
+    loadSegment(0, 0, false);
+    $('fileName').textContent = `${segments.length} phần nối tiếp · ${fmtTime(start)} (${sorted[0].name} … ${sorted[sorted.length - 1].name})`;
+    renderInputs();
+    const expected = Number(state.session?.video?.duration_seconds || 0);
+    if (state.session && expected && Math.abs(start - expected) > 5) {
+      notice(`Các phần đã chọn dài ${fmtTime(start)}, khác video đã phân tích (${fmtTime(expected)}). Hãy chọn đúng và đủ các phần.`, 'error');
+    } else if (state.session) notice('');
+    else notice('Nhiều phần video chỉ dùng để xem cùng kết quả đã lưu. Để phân tích, hãy chọn một file video duy nhất.');
+  }
+
+  function setVideoFile(file) {
+    releaseUrls();
+    state.file = file || null;
     state.objectUrl = file ? URL.createObjectURL(file) : null;
     player.src = state.objectUrl || '';
     $('fileName').textContent = file ? `${file.name} · ${(file.size / 1048576).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} MiB` : 'Chọn video từ máy tính';
@@ -200,7 +272,8 @@ if (typeof document !== 'undefined') {
         let payload = {};
         try { payload = JSON.parse(xhr.responseText || '{}'); } catch {}
         if (xhr.status !== 202) {
-          const msg = xhr.status === 409 ? 'Máy chủ đang phân tích một video khác. Vui lòng thử lại sau.'
+          const msg = xhr.status === 401 || xhr.status === 429 ? (payload.detail || `HTTP ${xhr.status}`)
+            : xhr.status === 409 ? 'Máy chủ đang phân tích một video khác. Vui lòng thử lại sau.'
             : xhr.status === 413 ? (payload.detail || 'Video vượt giới hạn dung lượng hoặc thời lượng.')
             : (typeof payload.detail === 'string' ? payload.detail : `Không tải được video (HTTP ${xhr.status}).`);
           reject(new Error(msg));
@@ -244,6 +317,7 @@ if (typeof document !== 'undefined') {
       const form = new FormData();
       form.append('file', state.file);
       form.append('timing_confirmed', $('realTiming').checked ? 'true' : 'false');
+      form.append('token', $('uploadToken').value || '');
       const job = await upload(form);
       sessionStorage.setItem(JOB_KEY, job.job_id);
       const result = await poll(job.job_id);
@@ -321,7 +395,8 @@ if (typeof document !== 'undefined') {
 
   function checkVideoMatchesSession() {
     if (!state.session) return;
-    if (!player.src) { notice('Chọn file video gốc ở mục 1 để phát và kiểm chứng.'); return; }
+    if (clip.segments) return;
+    if (!hasVideo()) { notice('Chọn file video gốc ở mục 1 để phát và kiểm chứng.'); return; }
     const expected = Number(state.session.video?.duration_seconds || 0);
     player.addEventListener('loadedmetadata', () => {
       if (expected && Math.abs(player.duration - expected) > 3) {
@@ -347,7 +422,7 @@ if (typeof document !== 'undefined') {
 
   function render() {
     if (!forecast()?.available) return;
-    const t = player.currentTime || 0;
+    const t = videoTime();
     const anchor = currentAnchor(t);
     renderPanel(anchor, t);
     renderChart(anchor, t);
@@ -434,7 +509,7 @@ if (typeof document !== 'undefined') {
     const item = anchor.horizons[Number(button.dataset.seekIndex)];
     state.locked = anchor;
     player.pause();
-    player.currentTime = item.target_t;
+    seekTo(item.target_t);
     scheduleRender();
   });
 
@@ -504,7 +579,7 @@ if (typeof document !== 'undefined') {
     const padL = Number(chart.dataset.padL || 44), padR = Number(chart.dataset.padR || 14);
     const ratio = Math.max(0, Math.min(1, (px - padL) / (width - padL - padR)));
     state.locked = null;
-    player.currentTime = ratio * duration();
+    seekTo(ratio * duration());
     scheduleRender();
   }
 
@@ -527,8 +602,8 @@ if (typeof document !== 'undefined') {
         const anchors = forecast().anchors;
         state.locked = lastAtOrBefore(anchors, Number(button.dataset.at));
         player.pause();
-        player.currentTime = Number(button.dataset.target || button.dataset.at);
-        if (!player.src) notice('Chọn file video gốc ở mục 1 để xem hình ảnh.');
+        seekTo(Number(button.dataset.target || button.dataset.at));
+        if (!hasVideo()) notice('Chọn file video gốc ở mục 1 để xem hình ảnh.');
         scheduleRender();
         document.querySelector('.player-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
@@ -593,7 +668,38 @@ if (typeof document !== 'undefined') {
   }
 
   // Wire up events.
-  $('videoFile').addEventListener('change', e => setVideoFile(e.target.files?.[0]));
+  async function openDemo() {
+    try {
+      $('demoBtn').disabled = true;
+      setProgress(null, 'Đang mở demo…');
+      const demo = await getJson('/api/demo', 30000);
+      const hadParts = Boolean(clip.segments);
+      loadSession(validateSession(demo.session));
+      const parts = demo.segments.map(s => s.name).join(', ');
+      if (!hadParts) {
+        notice(`${demo.note} Để xem hình ảnh: tải ${demo.segments.length} file (${parts}) từ thư mục Drive, rồi chọn cả ${demo.segments.length} file cùng lúc ở mục 1.`);
+        $('demoSource').href = demo.source; $('demoSource').hidden = false;
+      }
+    } catch (error) {
+      notice(`Không mở được demo: ${error.message}`, 'error');
+    } finally {
+      $('demoBtn').disabled = false; renderInputs();
+    }
+  }
+  $('demoBtn').addEventListener('click', openDemo);
+  // Lets the route planner use the forecast shown at the current playback time.
+  if (window.hanoiFlow) {
+    window.hanoiFlow.forecastNow = () => {
+      if (!forecast()?.available) return null;
+      const anchor = currentAnchor(videoTime());
+      return anchor ? { camera: camera()?.label || 'Camera', t: anchor.t, observed_ci: anchor.observed_ci, horizons: anchor.horizons } : null;
+    };
+  }
+  $('videoFile').addEventListener('change', e => {
+    const files = e.target.files || [];
+    if (files.length > 1) setVideoParts(files).catch(error => notice(error.message, 'error'));
+    else setVideoFile(files[0]);
+  });
   $('analyzeBtn').addEventListener('click', analyze);
   $('resultFile').addEventListener('change', async e => {
     const file = e.target.files?.[0];
@@ -612,7 +718,7 @@ if (typeof document !== 'undefined') {
   ['timeupdate', 'seeked', 'loadedmetadata'].forEach(name => player.addEventListener(name, scheduleRender));
   player.addEventListener('play', () => {
     // Playing from before a locked forecast's anchor means the user is starting over.
-    if (state.locked && player.currentTime < state.locked.t) state.locked = null;
+    if (state.locked && videoTime() < state.locked.t) state.locked = null;
   });
   window.addEventListener('resize', scheduleRender);
 
