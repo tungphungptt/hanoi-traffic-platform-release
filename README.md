@@ -126,6 +126,7 @@ phân tích, nên demo luôn chạy nhanh trên Render.
 | `LIVE_TOKEN` | (trống) | Nếu đặt: bật nhận số liệu trực tiếp từ bộ thu nhận (`tools/live_collector.py`); để trống thì tắt |
 | `LIVE_DB` | (trống) | Đường dẫn file SQLite lưu bền số liệu trực tiếp kèm thời tiết (xem mục "Lưu số liệu có dấu thời gian"); để trống thì chỉ giữ trong bộ nhớ |
 | `UPLOAD_TOKEN` | (trống) | Nếu đặt: phải nhập mã này mới tải video lên được (dùng cho bản công khai) |
+| `SPEED_MAX_FRAMES` | 1500 | Số lần nhận diện tối đa dành cho đo tốc độ mỗi video (mỗi đợt 12 giây dùng 49 lần) |
 | `UPLOADS_PER_HOUR` | 20 | Số lượt tải video tối đa mỗi giờ cho toàn máy chủ |
 
 ## Cấu trúc
@@ -164,7 +165,14 @@ python tools/measure_speed.py clip.mp4 --calib cam.json --fps 4 --out speeds.jso
 - Kiểm thử dùng mặt đường tổng hợp có phối cảnh: 36 km/h đọc lại đúng trong 3%, xe đỗ đọc dưới 4 km/h, xe xa và gần cùng tốc độ cho cùng kết quả.
   **Chưa kiểm định trên video thật với tốc độ đã biết** (cần một đoạn có xe chạy đo bằng GPS hoặc đồng hồ). Với video phát sóng
   có chuyển cảnh, chỉ cắt đoạn một camera rồi mới đo, vì mỗi camera một calibration.
-- Chưa nối vào trang web hay vào CI/dự báo: kết quả là file JSON.
+- Chưa đưa vào chỉ số CI hay dự báo: tốc độ là một kết quả riêng.
+
+**Trên trang web:** ở mục 01, mở "Đo tốc độ xe (km/h)", kéo thanh để chọn khung hình, bấm 4 góc hình chữ nhật trên mặt
+đường (gần-trái, gần-phải, xa-phải, xa-trái), nhập bề rộng và chiều dài thật rồi bấm Phân tích. Kết quả có thẻ
+"Tốc độ xe": trung vị, trung bình, p85, số xe theo dõi, tỉ lệ xe đứng yên và biểu đồ theo từng đợt đo (bấm cột để tua
+tới). Máy chủ không đo hết cả video mà đo các đợt 12 giây rải đều (mỗi 2 phút), tối đa `SPEED_MAX_FRAMES` (mặc định
+1500) lần nhận diện; với video nhiều camera chỉ đo lúc camera ở khung hình bạn chọn đang lên sóng. Bỏ trống mọi ô thì
+không đo. Tốc độ nằm trong file kết quả `.json` tải về.
 
 ## Dự báo trực tiếp từ camera (trang "Trực tiếp")
 
