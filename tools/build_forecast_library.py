@@ -62,9 +62,26 @@ def records_for(path: Path, analysis: dict, source_note: str) -> list[dict]:
     return out
 
 
+def bootstrap_skill(per_source: dict, horizon: int, rounds: int = 2000, seed: int = 7) -> list[float] | None:
+    """95% interval of the improvement over persistence, resampling whole videos."""
+    groups = [v[horizon] for v in per_source.values() if v[horizon][0] > 0]
+    if len(groups) < 2:
+        return None
+    rng = np.random.default_rng(seed)
+    data = np.asarray(groups, dtype=np.float64)  # rows: (n, sum model err, sum persistence err)
+    skills = []
+    for _ in range(rounds):
+        pick = data[rng.integers(0, len(data), len(data))]
+        if pick[:, 2].sum() > 0:
+            skills.append(1 - pick[:, 1].sum() / pick[:, 2].sum())
+    lo, hi = np.percentile(skills, [2.5, 97.5])
+    return [round(float(lo), 4), round(float(hi), 4)]
+
+
 def leave_one_video_out(records: list[dict]) -> dict:
     totals = {h: {"n": 0, "model": 0.0, "persistence": 0.0, "trend": 0.0} for h in mf.HORIZONS_MINUTES}
     per_record = []
+    per_source: dict = {}
     series = [mf.record_to_series(r) for r in records]
     for i, record in enumerate(records):
         own = set(record["source_video_keys"])
@@ -72,8 +89,13 @@ def leave_one_video_out(records: list[dict]) -> dict:
         metrics = mf.evaluate_anchors(mf.forecast_series(series[i], library=library))
         per_record.append({"video_key": record["video_key"], "filename": record["filename"],
                            "camera": record.get("camera"), "metrics": metrics})
+        source = per_source.setdefault(tuple(sorted(own)), {h: [0, 0.0, 0.0] for h in mf.HORIZONS_MINUTES})
         for m in metrics:
             if m.get("evaluated"):
+                g = source[m["horizon_minutes"]]
+                g[0] += m["evaluated"]
+                g[1] += m["mae_model"] * m["evaluated"]
+                g[2] += m["mae_persistence"] * m["evaluated"]
                 t = totals[m["horizon_minutes"]]
                 t["n"] += m["evaluated"]
                 for name in ("model", "persistence", "trend"):
@@ -86,7 +108,8 @@ def leave_one_video_out(records: list[dict]) -> dict:
         model, persistence, trend = (t[k] / t["n"] for k in ("model", "persistence", "trend"))
         summary.append({"horizon_minutes": h, "evaluated": t["n"], "mae_model": round(model, 4),
                         "mae_persistence": round(persistence, 4), "mae_trend": round(trend, 4),
-                        "skill_vs_persistence": round(1 - model / persistence, 4) if persistence else None})
+                        "skill_vs_persistence": round(1 - model / persistence, 4) if persistence else None,
+                        "skill_ci95": bootstrap_skill(per_source, h), "videos": sum(1 for v in per_source.values() if v[h][0])})
     return {"summary": summary, "records": per_record}
 
 
