@@ -7,5 +7,6 @@ COPY app ./app
 COPY traffic_brain ./traffic_brain
 COPY static ./static
 COPY models ./models
+COPY artifacts ./artifacts
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

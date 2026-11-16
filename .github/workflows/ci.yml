@@ -25,5 +25,5 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: python -m pytest -q
       - run: node --check static/app.js
-      - run: node --check static/map.js
+      - run: node --check static/map.js && node --check static/shell.js && node --check static/routes.js
       - run: node --test tests/forecast_page.test.cjs

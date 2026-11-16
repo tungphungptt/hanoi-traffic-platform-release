@@ -8,7 +8,7 @@
 const SEVERE_CI = 0.55;
 const BUSY_CI = 0.30;
 const LEVEL_LABEL = { free: 'Thông thoáng', busy: 'Đông đúc', gridlock: 'Tắc nghẽn nghiêm trọng' };
-const LEVEL_COLOR = { free: '#3f8f5a', busy: '#c4892a', gridlock: '#b5443a' };
+const LEVEL_COLOR = { free: '#78a984', busy: '#d3a052', gridlock: '#a94d43' };
 const SESSION_CONTRACT = 'hanoiflow-forecast-session/1.1';
 const ACCEPTED_CONTRACTS = [SESSION_CONTRACT, 'hanoiflow-forecast-session/1.0'];
 const JOB_KEY = 'hanoiflow-forecast-job';
@@ -160,12 +160,13 @@ if (typeof document !== 'undefined') {
       const lib = status.library_videos ? ` Mô hình đã học từ ${status.library_videos} video.` : '';
       $('limitText').textContent = `Tối đa ${Number(status.upload_limit_mib || 0).toLocaleString('vi-VN')} MiB và ${minutes} phút mỗi video.${lib} Cần tối thiểu khoảng 9 phút để có dự báo +5 phút, 25–30 phút để kiểm chứng đủ +15 phút.`;
       const chip = $('serverChip');
-      if (status.ready) { chip.textContent = status.busy ? 'Đang bận' : 'Sẵn sàng'; chip.className = 'chip ok'; }
-      else { chip.textContent = 'Chưa sẵn sàng'; chip.className = 'chip bad'; notice(status.message || 'Máy chủ chưa sẵn sàng.', 'error'); }
+      const pill = chip.closest('.system-pill');
+      if (status.ready) { chip.textContent = status.busy ? 'Máy chủ đang phân tích một video' : 'Sẵn sàng phân tích video'; pill?.classList.remove('bad'); }
+      else { chip.textContent = 'Chưa sẵn sàng'; pill?.classList.add('bad'); notice(status.message || 'Máy chủ chưa sẵn sàng.', 'error'); }
     } catch (error) {
       $('limitText').textContent = 'Không đọc được cấu hình máy chủ.';
-      $('serverChip').textContent = 'Mất kết nối';
-      $('serverChip').className = 'chip bad';
+      $('serverChip').textContent = 'Mất kết nối máy chủ';
+      $('serverChip').closest('.system-pill')?.classList.add('bad');
     }
     renderInputs();
   }
@@ -408,7 +409,7 @@ if (typeof document !== 'undefined') {
           ? '<div class="verify">Lúc đó camera này không lên sóng; chưa kiểm chứng được.</div>'
           : '<div class="verify">Video kết thúc trước thời điểm này; chưa kiểm chứng được.</div>';
       } else if (!revealed) {
-        verify = `<button class="btn small ghost" type="button" data-seek-index="${index}">Tua tới ${fmtTime(item.target_t)} để kiểm chứng</button>`;
+        verify = `<button class="btn small btn-outline" type="button" data-seek-index="${index}">Tua tới ${fmtTime(item.target_t)} để kiểm chứng</button>`;
       } else {
         const sameLevel = levelKey(item.ci) === levelKey(item.actual_ci);
         const warnOk = item.warning ? item.actual_ci >= SEVERE_CI : true;
@@ -452,16 +453,16 @@ if (typeof document !== 'undefined') {
     parts.push(band(0, BUSY_CI, LEVEL_COLOR.free), band(BUSY_CI, SEVERE_CI, LEVEL_COLOR.busy), band(SEVERE_CI, 1, LEVEL_COLOR.gridlock));
     if (multiCamera()) {
       for (const [a, b] of camera().intervals || []) {
-        parts.push(`<rect x="${x(a)}" y="${padT}" width="${Math.max(1, x(b) - x(a))}" height="${height - padT - padB}" fill="#2d5f8f" opacity=".07"><title>${escapeHtml(camera().label)} lên sóng ${fmtTime(a)}–${fmtTime(b)}</title></rect>`);
+        parts.push(`<rect x="${x(a)}" y="${padT}" width="${Math.max(1, x(b) - x(a))}" height="${height - padT - padB}" fill="#597e9b" opacity=".07"><title>${escapeHtml(camera().label)} lên sóng ${fmtTime(a)}–${fmtTime(b)}</title></rect>`);
       }
     }
     for (const tick of [0, BUSY_CI, SEVERE_CI, 1]) {
-      parts.push(`<line x1="${padL}" x2="${width - padR}" y1="${y(tick)}" y2="${y(tick)}" stroke="#d9dfd8" stroke-dasharray="${tick === 0 || tick === 1 ? '' : '4 4'}"/>`);
-      parts.push(`<text x="${padL - 8}" y="${y(tick) + 4}" text-anchor="end" font-size="11" fill="#6f7d76">${num(tick, tick === 0 || tick === 1 ? 0 : 2)}</text>`);
+      parts.push(`<line x1="${padL}" x2="${width - padR}" y1="${y(tick)}" y2="${y(tick)}" stroke="#ece2d4" stroke-dasharray="${tick === 0 || tick === 1 ? '' : '4 4'}"/>`);
+      parts.push(`<text x="${padL - 8}" y="${y(tick) + 4}" text-anchor="end" font-size="11" fill="#817467">${num(tick, tick === 0 || tick === 1 ? 0 : 2)}</text>`);
     }
     const stepMin = dur > 3600 ? 10 : 5;
     for (let s = 0; s <= dur; s += stepMin * 60) {
-      parts.push(`<text x="${x(s)}" y="${height - 8}" text-anchor="middle" font-size="11" fill="#6f7d76">${fmtTime(s)}</text>`);
+      parts.push(`<text x="${x(s)}" y="${height - 8}" text-anchor="middle" font-size="11" fill="#817467">${fmtTime(s)}</text>`);
     }
     // Observed CI line, cut at the playhead in blind mode.
     const limit = state.blind ? t : dur;
@@ -472,24 +473,24 @@ if (typeof document !== 'undefined') {
       d += `${open ? 'L' : 'M'}${x(point.t).toFixed(1)},${y(point.ci).toFixed(1)}`;
       open = true;
     }
-    parts.push(`<path d="${d}" fill="none" stroke="#3d4d46" stroke-width="2" stroke-linejoin="round"/>`);
+    parts.push(`<path d="${d}" fill="none" stroke="#55463d" stroke-width="2" stroke-linejoin="round"/>`);
     // Correct congestion warnings that have already happened on screen.
     for (const hit of mf.highlights?.hits || []) {
       if (state.blind && hit.target_t > t) continue;
       parts.push(`<path d="M${x(hit.t)},${y(1) + 2} l6,10 l-12,0 z" fill="${LEVEL_COLOR.gridlock}"><title>Lúc ${fmtTime(hit.t)} cảnh báo +${hit.horizon_minutes} phút sẽ tắc: đúng</title></path>`);
     }
     if (anchor) {
-      parts.push(`<line x1="${x(anchor.t)}" x2="${x(anchor.t)}" y1="${padT}" y2="${height - padB}" stroke="#2d5f8f" stroke-width="1" stroke-dasharray="3 3"/>`);
+      parts.push(`<line x1="${x(anchor.t)}" x2="${x(anchor.t)}" y1="${padT}" y2="${height - padB}" stroke="#597e9b" stroke-width="1" stroke-dasharray="3 3"/>`);
       for (const item of anchor.horizons) {
-        parts.push(`<line x1="${x(anchor.t)}" y1="${y(anchor.observed_ci)}" x2="${x(item.target_t)}" y2="${y(item.ci)}" stroke="#2d5f8f" stroke-width="1.5" stroke-dasharray="5 4"/>`);
-        parts.push(`<line x1="${x(item.target_t)}" x2="${x(item.target_t)}" y1="${y(item.upper)}" y2="${y(item.lower)}" stroke="#2d5f8f" stroke-width="2" opacity=".45"/>`);
-        parts.push(`<circle cx="${x(item.target_t)}" cy="${y(item.ci)}" r="5" fill="#2d5f8f"><title>+${item.horizon_minutes} phút: CI dự báo ${num(item.ci)}</title></circle>`);
+        parts.push(`<line x1="${x(anchor.t)}" y1="${y(anchor.observed_ci)}" x2="${x(item.target_t)}" y2="${y(item.ci)}" stroke="#597e9b" stroke-width="1.5" stroke-dasharray="5 4"/>`);
+        parts.push(`<line x1="${x(item.target_t)}" x2="${x(item.target_t)}" y1="${y(item.upper)}" y2="${y(item.lower)}" stroke="#597e9b" stroke-width="2" opacity=".45"/>`);
+        parts.push(`<circle cx="${x(item.target_t)}" cy="${y(item.ci)}" r="5" fill="#597e9b"><title>+${item.horizon_minutes} phút: CI dự báo ${num(item.ci)}</title></circle>`);
         if (item.actual_ci !== null && item.actual_ci !== undefined && isRevealed(item, t, state.blind)) {
-          parts.push(`<circle cx="${x(item.target_t)}" cy="${y(item.actual_ci)}" r="6" fill="#fff" stroke="#1f2d28" stroke-width="2"><title>Thực tế: CI ${num(item.actual_ci)}</title></circle>`);
+          parts.push(`<circle cx="${x(item.target_t)}" cy="${y(item.actual_ci)}" r="6" fill="#fff" stroke="#332b26" stroke-width="2"><title>Thực tế: CI ${num(item.actual_ci)}</title></circle>`);
         }
       }
     }
-    parts.push(`<line x1="${x(t)}" x2="${x(t)}" y1="${padT}" y2="${height - padB}" stroke="#1f2d28" stroke-width="2"/>`);
+    parts.push(`<line x1="${x(t)}" x2="${x(t)}" y1="${padT}" y2="${height - padB}" stroke="#332b26" stroke-width="2"/>`);
     chart.innerHTML = parts.join('');
     chart.dataset.padL = padL; chart.dataset.padR = padR; chart.dataset.width = width;
   }
@@ -516,8 +517,8 @@ if (typeof document !== 'undefined') {
       ? `Kết quả: tua tới ${fmtTime(record.target_t)} để xem.`
       : `Thực tế lúc ${fmtTime(record.target_t)}: ${LEVEL_LABEL[levelKey(record.actual_ci)]} (CI ${num(record.actual_ci)}).`;
     return `<div class="moment"><div><p>${lead} ${said}</p><p class="muted">${outcome}</p></div>
-      <div class="actions"><button class="btn small ghost" type="button" data-at="${record.t}">Xem lúc dự báo</button>
-      <button class="btn small primary" type="button" data-at="${record.t}" data-target="${record.target_t}">Tua tới ${fmtTime(record.target_t)}</button></div></div>`;
+      <div class="actions"><button class="btn small btn-outline" type="button" data-at="${record.t}">Xem lúc dự báo</button>
+      <button class="btn small btn-primary" type="button" data-at="${record.t}" data-target="${record.target_t}">Tua tới ${fmtTime(record.target_t)}</button></div></div>`;
   }
 
   function bindMoments(container) {

@@ -20,12 +20,14 @@ from typing import Any
 
 import cv2
 import numpy as np
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
 from app import weather
+from app.hanoi_scope import is_hanoi_coordinate
+from traffic_brain import routing
 from traffic_brain.detector import Detector
 from traffic_brain.minute_forecaster import record_to_series, series_record, video_key
 from traffic_brain.video_analysis import VideoAnalysisError, analyze_video, result_payload
@@ -191,8 +193,8 @@ def home() -> FileResponse:
 
 
 @app.get("/map", include_in_schema=False)
-def map_page() -> FileResponse:
-    return FileResponse(STATIC_DIR / "map.html", headers={"Cache-Control": "no-store"})
+def map_page() -> RedirectResponse:
+    return RedirectResponse("/#overview")
 
 
 @app.get("/api/map/config")
@@ -205,6 +207,7 @@ def map_config() -> dict[str, Any]:
         attribution = os.getenv("MAP_ATTRIBUTION", "").strip()[:300]
     return {"tile_url_template": tiles, "attribution": attribution, "center": [21.0285, 105.8542],
             "boundary_url": "/static/hanoi_boundary.geojson",
+            "areas": [{"name": n, "latitude": lat, "longitude": lon} for n, lat, lon in weather.AREAS],
             # Used by the page when the main tile server refuses requests (OSM blocks some clients).
             "fallback_tile_url_template": "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
             "fallback_attribution": '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> · nền HOT, OpenStreetMap France'}
@@ -228,6 +231,38 @@ def weather_overview() -> dict[str, Any]:
         return weather.overview()
     except weather.WeatherError as exc:
         raise HTTPException(502, str(exc)) from exc
+
+
+def _point(text: str, name: str) -> tuple[float, float]:
+    try:
+        lat, lon = (float(v) for v in text.split(","))
+    except ValueError as exc:
+        raise HTTPException(422, f"{name} phải có dạng 'vĩ độ,kinh độ'.") from exc
+    if not is_hanoi_coordinate(lat, lon):
+        raise HTTPException(422, f"{name} nằm ngoài ranh giới Hà Nội.")
+    return lat, lon
+
+
+@app.get("/api/routes")
+def routes(from_: str = Query(..., alias="from"), to: str = Query(...)) -> dict[str, Any]:
+    """Up to three driving routes between two points in Hanoi, fastest first (OSRM, no live traffic)."""
+    origin, destination = _point(from_, "Điểm đi"), _point(to, "Điểm đến")
+    try:
+        found = routing.route_alternatives(origin, destination)
+    except routing.RouteError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    return {"routes": found, "source": "OSRM · OpenStreetMap",
+            "note": "Thời gian theo mạng đường OSRM/OpenStreetMap, chưa tính tắc đường thời gian thực."}
+
+
+@app.get("/api/model/report")
+def model_report() -> dict[str, Any]:
+    """Leave-one-video-out evaluation of the shipped training library (tools/build_forecast_library.py)."""
+    path = ROOT / "artifacts" / "forecast_library_report.json"
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise HTTPException(404, "Chưa có báo cáo đánh giá mô hình.") from exc
 
 
 @app.get("/api/health")
