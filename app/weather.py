@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import threading
 import time
@@ -65,10 +66,17 @@ def _num(value: Any) -> float | None:
     return round(number, 1) if math.isfinite(number) else None
 
 
-def _fetch(params: dict[str, Any], timeout: float = 8.0) -> Any:
+def _fetch(params: dict[str, Any], timeout: float = 15.0) -> Any:
+    """One retry: the first call from a freshly started (cold) server is sometimes slow or refused."""
     request = Request(f"{API_URL}?{urlencode(params)}", headers={"User-Agent": "hanoiFlow/9 (weather)", "Accept": "application/json"})
-    with urlopen(request, timeout=timeout) as response:
-        return json.loads(response.read(4 * 1024 * 1024).decode("utf-8"))
+    for attempt in (1, 2):
+        try:
+            with urlopen(request, timeout=timeout) as response:
+                return json.loads(response.read(4 * 1024 * 1024).decode("utf-8"))
+        except Exception:
+            if attempt == 2:
+                raise
+            time.sleep(1.5)
 
 
 class _Cache:
@@ -85,6 +93,7 @@ class _Cache:
         try:
             value = load()
         except Exception as exc:
+            logging.getLogger("hanoiflow.weather").warning("Open-Meteo request failed: %r", exc)
             if hit and now - hit[0] <= STALE_SECONDS:
                 return {**hit[1], "stale": True, "stale_minutes": int((now - hit[0]) // 60)}
             raise WeatherError("Không lấy được dữ liệu từ Open-Meteo; thử lại sau.") from exc

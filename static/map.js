@@ -96,10 +96,11 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') {
       $('attribution').textContent = data.attribution;
     } catch (error) {
       $('overviewMeta').textContent = `Không tải được thời tiết các khu vực: ${error.message}`;
+      if (!loadOverview.retried) { loadOverview.retried = true; setTimeout(loadOverview, 5000); }
     }
   }
 
-  async function showPoint(lat, lng, name) {
+  async function showPoint(lat, lng, name, retry = false) {
     if (clickMarker) clickMarker.remove();
     clickMarker = L.circleMarker([lat, lng], { radius: 7, color: '#b52226', weight: 3, fillColor: '#c49a38', fillOpacity: 0.7 }).addTo(map);
     $('placeKicker').textContent = name.toUpperCase();
@@ -126,6 +127,7 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') {
       $('nowDesc').textContent = error.message;
       $('hours').innerHTML = ''; $('days').innerHTML = '';
       chip.textContent = 'Lỗi'; chip.className = 'level-chip gridlock';
+      if (!retry) setTimeout(() => showPoint(lat, lng, name, true), 5000);
     }
   }
 
