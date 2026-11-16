@@ -262,6 +262,8 @@ if (typeof document !== 'undefined') {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/analyze');
+      const token = ($('uploadToken') && $('uploadToken').value || '').trim();
+      if (token) xhr.setRequestHeader('X-Upload-Token', token);
       xhr.timeout = 60 * 60 * 1000;
       xhr.upload.onprogress = e => {
         const p = e.lengthComputable ? Math.floor(e.loaded / e.total * 100) : null;
@@ -317,7 +319,6 @@ if (typeof document !== 'undefined') {
       const form = new FormData();
       form.append('file', state.file);
       form.append('timing_confirmed', $('realTiming').checked ? 'true' : 'false');
-      form.append('token', $('uploadToken').value || '');
       const job = await upload(form);
       sessionStorage.setItem(JOB_KEY, job.job_id);
       const result = await poll(job.job_id);

@@ -109,11 +109,32 @@ def test_osrm_payload_is_parsed_fastest_first():
 def test_upload_token_and_hourly_limit(monkeypatch):
     monkeypatch.setattr(main, "UPLOAD_TOKEN", "bi-mat")
     assert client.get("/api/status").json()["token_required"] is True
-    assert client.post("/api/analyze", files={"file": ("a.mp4", b"x")}, data={"token": "sai"}).status_code == 401
+    assert client.post("/api/analyze", files={"file": ("a.mp4", b"x")}).status_code == 401
+    assert client.post("/api/analyze", files={"file": ("a.mp4", b"x")}, headers={"X-Upload-Token": "sai"}).status_code == 401
     monkeypatch.setattr(main, "UPLOAD_TOKEN", "")
     monkeypatch.setattr(main, "UPLOADS_PER_HOUR", 1)
     monkeypatch.setattr(main, "_upload_times", [main._now()])
     assert client.post("/api/analyze", files={"file": ("a.mp4", b"x")}).status_code == 429
+
+
+def test_upload_guard_rejects_before_the_body_is_parsed(monkeypatch):
+    """Bad token / oversize / busy answers come from the headers alone, nothing is spooled."""
+    parsed = []
+    real = main.analyze
+    monkeypatch.setattr(main, "UPLOAD_TOKEN", "bi-mat")
+    r = client.post("/api/analyze", content=b"x" * 10, headers={"content-type": "multipart/form-data; boundary=b"})
+    assert r.status_code == 401 and not parsed
+    monkeypatch.setattr(main, "UPLOAD_TOKEN", "")
+    monkeypatch.setattr(main, "MAX_UPLOAD_BYTES", 1024)
+    assert client.post("/api/analyze", content=b"x" * (2 * 1024 * 1024),
+                       headers={"content-type": "multipart/form-data; boundary=b"}).status_code == 413
+    # No Content-Length (chunked): cut off once past the limit.
+    def chunks():
+        for _ in range(8):
+            yield b"x" * (512 * 1024)
+    r = client.post("/api/analyze", content=chunks(), headers={"content-type": "multipart/form-data; boundary=b"})
+    assert r.status_code == 413
+    assert real is main.analyze
 
 
 def test_demo_endpoint_lists_consecutive_segments():

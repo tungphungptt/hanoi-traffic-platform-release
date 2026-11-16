@@ -139,3 +139,13 @@ tests/                         pytest + node --test
 
 Kiểm thử: `pip install -r requirements-dev.txt && pytest -q && node --test tests/forecast_page.test.cjs`.
 Giấy phép bên thứ ba: `THIRD_PARTY_NOTICES.md`.
+
+## Camera trực tiếp và quyền dữ liệu
+
+Bản này chỉ đọc video bạn tải lên; chưa nối vào luồng camera trực tiếp. Việc Hà Nội có hệ thống camera tập
+trung (Quyết định 319/QĐ-UBND ngày 17/01/2025) không có nghĩa ứng dụng bên thứ ba được lấy luồng hình
+hay API: cần xin tài liệu giao diện, điều kiện sử dụng và quyền truy cập từ chủ nguồn dữ liệu. Muốn dự
+báo trực tiếp cần thêm một bộ thu nhận có xác thực (kết nối luồng được cấp phép, chạy bộ nhận diện, gửi CI
+theo thời gian) rồi đưa chuỗi CI vào `forecast_series`; bộ thu nhận đó chưa có trong dự án. Mã tải lên
+(`UPLOAD_TOKEN`) gửi qua tiêu đề `X-Upload-Token`, được kiểm tra cùng giới hạn dung lượng và lượt tải
+trước khi máy chủ nhận video.
