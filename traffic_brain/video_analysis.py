@@ -152,6 +152,7 @@ def analyze_video(video_path: Path, detector: Detector, *, max_duration_seconds:
     signatures: list[np.ndarray | None] = []
     tracks: dict = {}
     next_id = 1
+    prev_sig: np.ndarray | None = None
     sample = 0
     index = 0
     last_pct = -1
@@ -165,6 +166,12 @@ def analyze_video(video_path: Path, detector: Detector, *, max_duration_seconds:
                 if not ok:
                     break
                 t = index / fps
+                sig, banner = frame_signature(frame)
+                # A camera cut: vehicles of the previous shot are not the same vehicles.
+                cut = prev_sig is None or float(np.dot(sig, prev_sig) / sig.size) < SCENE_SIMILARITY
+                prev_sig = sig
+                if cut:
+                    tracks = {}
                 detections = detector.detect(frame)
                 tracks, next_id, moves = update_tracks(detections, tracks, next_id, sample)
                 speeds = [d * sample_rate / e for d, e in moves if e > 0]
@@ -172,7 +179,6 @@ def analyze_video(video_path: Path, detector: Detector, *, max_duration_seconds:
                 normalized_speed = float(np.median(speeds)) / diagonal if len(speeds) >= 2 else None
                 area = max(1, frame.shape[0] * frame.shape[1])
                 occupancy = min(1.0, sum(max(0.0, (d.box[2] - d.box[0]) * (d.box[3] - d.box[1])) for d in detections) / area)
-                sig, banner = frame_signature(frame)
                 signatures.append(None if banner else sig)
                 timeline.append({
                     "timestamp_seconds": round(t, 3),
@@ -180,6 +186,9 @@ def analyze_video(video_path: Path, detector: Detector, *, max_duration_seconds:
                     "vehicle_count": len(detections),
                     "occupancy_ratio": round(occupancy, 5),
                     "normalized_speed": None if normalized_speed is None else round(normalized_speed, 5),
+                    # Share of vehicles that were not near a vehicle of the previous sample: high when
+                    # traffic moves through the frame, low when the same vehicles stand still.
+                    "turnover": round((len(detections) - len(moves)) / len(detections), 4) if detections and not cut else None,
                 })
                 sample += 1
             index += 1

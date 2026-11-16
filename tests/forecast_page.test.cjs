@@ -74,3 +74,18 @@ test('sidebar pages and route/weather formatting', () => {
   assert.equal(map.isRainy(61), true);
   assert.equal(map.isRainy(1), false);
 });
+
+test('route ranking adds the forecast delay only to routes passing the camera', () => {
+  const routes = require('../static/routes.js');
+  const camera = [105.80, 21.00];
+  const near = { duration_seconds: 600, geometry: { coordinates: [[105.79, 21.00], [105.81, 21.00]] } };
+  const far = { duration_seconds: 700, geometry: { coordinates: [[105.79, 21.05], [105.81, 21.05]] } };
+  assert.ok(routes.distanceToLine(camera, near.geometry.coordinates) < 1);
+  assert.ok(routes.distanceToLine(camera, far.geometry.coordinates) > 5000);
+  const jam = routes.rankRoutes([near, far], camera, 0.7);
+  assert.equal(jam[0].duration_seconds, 700);          // detour wins: 600 × (1 + 0.35 × 0.7) = 747 s
+  assert.equal(jam[1].passes, true);
+  const free = routes.rankRoutes([near, far], camera, 0.1);
+  assert.equal(free[0].duration_seconds, 600);         // free-flow forecast: no penalty
+  assert.equal(routes.rankRoutes([near, far], null, 0.9)[0].duration_seconds, 600);
+});

@@ -1,0 +1,38 @@
+{
+  "title": "Hà Nội · Hồ Tùng Mậu → Trần Duy Hưng (28 phút 50 giây)",
+  "session_file": "demo_hanoi_tdh_htm.hanoiflow.json",
+  "note": "Đã mở kết quả phân tích sẵn của bản ghi camera giao thông FM90 / Hà Nội LIVE (phần traffic_016–021_cam1 trong thư mục Drive \"Hanoi Flow\"); đoạn này không có trong dữ liệu học của mô hình. Bấm lên biểu đồ để xem dự báo ở từng thời điểm.",
+  "source": "https://drive.google.com/drive/folders/1v1rTbO5wLfjyKq8xwCMybMRETTF7-isd",
+  "segments": [
+    {
+      "name": "traffic_016_cam1.mp4",
+      "drive_id": "1ofA4wNBbvnq_9XLYuQVF75UKOroVLDjI",
+      "duration": 295.0
+    },
+    {
+      "name": "traffic_017_cam1.mp4",
+      "drive_id": "1bkU_OK-FO_mrgs_m9SoP7XzvvOsBgkDl",
+      "duration": 301.0
+    },
+    {
+      "name": "traffic_018_cam1.mp4",
+      "drive_id": "1GsxOtnCtJOJNYiTXrTVZ-5dzJRHiLAEQ",
+      "duration": 300.0
+    },
+    {
+      "name": "traffic_019_cam1.mp4",
+      "drive_id": "1NHmiA5GGW_Ua9s8pHD-jC12rh15LUTc6",
+      "duration": 304.0
+    },
+    {
+      "name": "traffic_020_cam1.mp4",
+      "drive_id": "1KQL8OnULl1H1iH1LxklfK1L7AdLPSWhg",
+      "duration": 298.0
+    },
+    {
+      "name": "traffic_021_cam1.mp4",
+      "drive_id": "1zP4dbj2sbafirIS9NbmTlDbTkWEiThGk",
+      "duration": 232.0
+    }
+  ]
+}

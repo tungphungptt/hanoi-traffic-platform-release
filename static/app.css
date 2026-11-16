@@ -274,3 +274,7 @@ td.bad { color: var(--jam-text); font-weight: 700; }
   .city-map { height: 440px; }
   .system-pill span:last-child { display: none; }
 }
+.field input { border: 1px solid var(--line-2); border-radius: 9px; background: #fff; color: var(--ink-2); padding: 9px 10px; font-size: 12px; }
+.token-field { min-width: 0; }
+.route-forecast { margin-top: 12px; font-size: 11px; color: var(--ink-2); background: var(--blue-soft); border-radius: 9px; padding: 9px 12px; }
+.route-option .warn { color: var(--jam-text); font-weight: 700; }

@@ -40,7 +40,8 @@ if (typeof document !== 'undefined') {
       const pct = v => (v === null || v === undefined ? '—' : `${v >= 0 ? '+' : '−'}${Math.abs(v * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}%`);
       $('reportSummary').innerHTML = report.summary.map(s => `<article class="metric-card"><span class="metric-label">Dự báo +${s.horizon_minutes} phút · so với giữ nguyên</span>
         <strong class="metric-value${s.skill_vs_persistence > 0 ? '' : ' neutral'}">${s.evaluated ? pct(s.skill_vs_persistence) : '—'}</strong>
-        <span class="metric-foot">${s.evaluated ? `${s.evaluated} lần kiểm chứng · sai số ${s.mae_model.toFixed(3)} so với ${s.mae_persistence.toFixed(3)}` : 'chưa kiểm chứng được'}</span></article>`).join('');
+        <span class="metric-foot">${s.evaluated ? `${s.evaluated} lần kiểm chứng trên ${s.videos ?? '?'} video · sai số ${s.mae_model.toFixed(3)} so với ${s.mae_persistence.toFixed(3)}` : 'chưa kiểm chứng được'}</span>
+        ${s.skill_ci95 ? `<span class="metric-foot">Khoảng tin cậy 95%: ${pct(s.skill_ci95[0])} đến ${pct(s.skill_ci95[1])}</span>` : ''}</article>`).join('');
       $('reportRows').innerHTML = report.records.map(r => {
         const cells = [5, 10, 15].map(h => {
           const m = (r.metrics || []).find(x => x.horizon_minutes === h) || {};

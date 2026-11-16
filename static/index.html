@@ -50,13 +50,15 @@
             <div class="panel-heading"><div><div class="section-kicker">01 · NGUỒN VIDEO</div><h2 id="uploadTitle">Tải video để bắt đầu phân tích</h2><p class="panel-subtitle" id="limitText">Đang kiểm tra cấu hình máy chủ…</p></div></div>
             <div class="upload-grid">
               <label class="file-drop" for="videoFile">
-                <input id="videoFile" type="file" accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm,.mp4,.mov,.avi,.mkv,.mpeg,.mpg,.webm" />
+                <input id="videoFile" type="file" multiple accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm,.mp4,.mov,.avi,.mkv,.mpeg,.mpg,.webm" />
                 <strong id="fileName">Chọn video từ máy tính</strong>
-                <small>Video quay liên tục dài 20–60 phút. Bản ghi chương trình chuyển qua nhiều camera cũng được: hệ thống tự tách từng camera.</small>
+                <small>Video quay liên tục dài 20–60 phút. Bản ghi chương trình chuyển qua nhiều camera cũng được: hệ thống tự tách từng camera. Có thể chọn nhiều phần nối tiếp (vd. traffic_016…021) để xem cùng kết quả đã lưu.</small>
               </label>
               <div class="upload-options">
                 <label class="timing-consent"><input id="realTiming" type="checkbox" checked /><span><strong>Video quay liên tục theo thời gian thực</strong><small>Không tua nhanh, không ghép đoạn. Khi đó “5 phút” trên video là 5 phút ngoài đời.</small></span></label>
+                <div class="field token-field" id="tokenField" hidden><label for="uploadToken">Mã tải lên (máy chủ công khai yêu cầu)</label><input id="uploadToken" type="password" autocomplete="off" /></div>
                 <div class="actions">
+                  <button class="btn btn-primary" id="demoBtn" type="button">▶ Xem demo Hà Nội</button>
                   <button class="btn btn-primary" id="analyzeBtn" type="button" disabled>Phân tích và dự báo</button>
                   <label class="btn btn-outline" for="resultFile">Mở kết quả đã lưu<input id="resultFile" type="file" accept="application/json,.json" hidden /></label>
                 </div>
@@ -67,6 +69,7 @@
               <small id="progressText">Đang chuẩn bị…</small>
             </div>
             <p class="notice" id="uploadNotice" hidden></p>
+            <a class="text-link" id="demoSource" href="#" target="_blank" rel="noopener" hidden>Mở thư mục Drive chứa video demo ↗</a>
           </section>
 
           <section id="workspace" hidden>
@@ -140,9 +143,11 @@
             <div class="route-controls">
               <div class="field"><label for="routeFrom">Điểm đi</label><select id="routeFrom"></select></div>
               <div class="field"><label for="routeTo">Điểm đến</label><select id="routeTo"></select></div>
+              <div class="field"><label for="routeCamera">Vị trí camera của video (để dùng dự báo)</label><select id="routeCamera"></select></div>
               <button class="btn btn-primary" id="routeBtn" type="button">Tìm các tuyến thay thế</button>
             </div>
-            <div class="route-disclaimer">Thời gian tuyến lấy từ dịch vụ chỉ đường OSRM trên dữ liệu OpenStreetMap: là thời gian theo mạng đường, <strong>không tính tắc đường thời gian thực</strong>. Dùng cùng dự báo ở trên để tự cân nhắc.</div>
+            <div class="route-forecast" id="routeForecast">Chưa có dự báo: mở một kết quả ở mục 01–02 và chọn vị trí camera để hệ thống tránh đoạn được dự báo tắc.</div>
+            <div class="route-disclaimer">Thời gian tuyến lấy từ OSRM trên dữ liệu OpenStreetMap (thời gian theo mạng đường). Nếu tuyến đi qua vị trí camera (trong 300 m) mà dự báo ở mục 02 cho thấy sắp đông/tắc, thời gian được cộng thêm theo CI dự báo: <em>thời gian × (1 + 0,35 × CI dự báo +10 phút)</em> — quy tắc tham khảo, không phải đo tắc thời gian thực.</div>
             <div class="route-layout">
               <div id="routeList" class="route-list"><div class="empty">Chưa có phương án tuyến.</div></div>
               <div id="routeMap" class="route-map" role="region" aria-label="Bản đồ các tuyến thay thế"></div>

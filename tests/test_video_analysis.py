@@ -61,3 +61,33 @@ def test_tracker_reports_motion_of_matched_vehicles_only():
     assert moves == [] and next_id == 2
     tracks, next_id, moves = update_tracks([Detection(2, (3, 4, 13, 14)), Detection(3, (500, 500, 510, 510))], tracks, next_id, 1)
     assert moves == [(5.0, 1)] and next_id == 3 and len(tracks) == 2
+
+
+def test_whole_pipeline_runs_on_a_real_video_file(tmp_path):
+    """End to end with the shipped ONNX detector: a synthetic 4-minute street scene at 2 fps."""
+    import cv2
+    pytest.importorskip("onnxruntime")
+    from traffic_brain.detector import Detector
+    path = tmp_path / "scene.avi"
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), 2.0, (320, 180))
+    rng = np.random.default_rng(0)
+    background = rng.integers(60, 120, (180, 320, 3), dtype=np.uint8)
+    for i in range(480):
+        frame = background.copy()
+        cv2.rectangle(frame, (10 + i % 200, 80), (60 + i % 200, 110), (30, 30, 200), -1)
+        writer.write(frame)
+    writer.release()
+    progress = []
+    result = va.analyze_video(path, Detector(), max_duration_seconds=600, timing_confirmed=True,
+                              progress=lambda p, d, t: progress.append(p))
+    assert result["mode"] == "single_camera" and len(result["cameras"]) == 1
+    assert result["video"]["duration_seconds"] == pytest.approx(240, abs=1)
+    assert len(result["timeline"]) == pytest.approx(240, abs=2)  # 1 sample per second
+    assert all(0 <= row["raw_ci"] <= 1 for row in result["timeline"])
+    assert progress and progress[-1] >= 99
+    forecast = result["cameras"][0]["minute_forecast"]
+    assert forecast["available"] is False and forecast["reason"] == "video_too_short"
+    payload = va.result_payload(result, "scene.avi")
+    assert payload["minute_forecast"] is forecast and "series" not in payload["cameras"][0]
+    with pytest.raises(va.VideoAnalysisError):
+        va.analyze_video(path, Detector(), max_duration_seconds=60)

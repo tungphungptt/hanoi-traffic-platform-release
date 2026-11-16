@@ -28,7 +28,14 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 LIVE) được tách tự động: mỗi camera có chuỗi CI và dự báo riêng (chọn ở hàng "Camera trong video"),
 đứt quãng khi camera không lên sóng; cảnh trường quay/băng rôn bị bỏ qua.
 
-### Demo có sẵn
+### Demo một chạm
+
+Bấm **▶ Xem demo Hà Nội**: kết quả phân tích sẵn của bản ghi Hồ Tùng Mậu → Trần Duy Hưng (28 phút 50 giây, không có
+trong dữ liệu học) mở ngay, kể cả trên Render; biểu đồ bấm được để xem dự báo ở mọi thời điểm. Muốn xem hình:
+tải 6 file `traffic_016_cam1.mp4` … `traffic_021_cam1.mp4` từ thư mục Drive (link hiện trên trang) rồi chọn
+**cả 6 file cùng lúc** ở mục 1 — trang tự nối chúng thành một dòng thời gian (không cần ghép video).
+
+### Demo có sẵn (file)
 
 | Kết quả đã lưu | Video cần mở kèm |
 | --- | --- |
@@ -43,9 +50,11 @@ có trong dữ liệu học.
 Giữ giao diện "hanoiFlow · Trung tâm điều hành" (đỏ #b52226, vàng #c49a38, quốc kỳ, thanh bên trái) với ba trang:
 **Dự báo & phương án** (video → dự báo → tuyến thay thế), **Bản đồ & thời tiết**, **Đánh giá mô hình**.
 
-**Tuyến thay thế.** Chọn điểm đi/đến (danh sách khu vực hoặc bấm bản đồ), hệ thống lấy tối đa 3 tuyến từ OSRM
-trên OpenStreetMap, xếp nhanh nhất trước. Thời gian là theo mạng đường, chưa tính tắc thời gian thực
-(đổi máy chủ bằng `ROUTING_API_BASE_URL`).
+**Tuyến thay thế dùng dự báo.** Chọn điểm đi/đến (danh sách khu vực hoặc bấm bản đồ), hệ thống lấy tối đa 3 tuyến
+từ OSRM trên OpenStreetMap. Chọn thêm vị trí camera của video (danh sách vị trí gần đúng của các camera Hà Nội hoặc
+bấm bản đồ): tuyến nào đi qua camera trong 300 m mà dự báo +10 phút ở thời điểm đang xem cho CI ≥ 0,30 thì thời gian
+được nhân `1 + 0,35 × CI dự báo`, rồi xếp lại. Đây là quy tắc tham khảo, không phải đo tắc thời gian thực
+(đổi máy chủ chỉ đường bằng `ROUTING_API_BASE_URL`).
 
 ## Bản đồ và thời tiết Hà Nội
 
@@ -63,17 +72,26 @@ liệu cũ (tối đa 3 giờ) và ghi rõ.
    về mức thường gặp của đoạn đường, xu hướng giảm chấn, hồi quy ridge, tình huống tương tự) được trộn theo
    nghịch đảo sai số gần đây của chính chúng. Ridge và tình huống tương tự học từ phần video trước t và từ
    thư viện huấn luyện. Cảnh báo tắc khi xác suất CI ≥ 0,55 từ 40% trở lên (cố định trước khi chấm).
-3. **Học** (`models/forecast_library/`): chuỗi CI của 3 video AIC21 và 8 chuỗi camera Hà Nội (không lưu
+3. **Học** (`models/forecast_library/`): chuỗi CI của 3 video AIC21 và 19 chuỗi camera Hà Nội (không lưu
    hình ảnh). Video đã phân tích trên máy bạn cũng được lưu thành chuỗi số vào `data/forecast_library/`
    để lần sau học thêm. Một video không bao giờ học từ chính nó.
 
-Kiểm tra chéo bỏ-một-video (mỗi video được dự báo chỉ bằng dữ liệu của video khác), sai số so với "giữ
-nguyên mức hiện tại": **tốt hơn 12,7% ở +5 phút, 12,8% ở +10 phút, 11,9% ở +15 phút**. Riêng camera Hà
-Nội: +9,3% (+5), +23,7% (+10), +15 phút chưa kiểm được trên các bản ghi học. Chi tiết và giới hạn:
-`models/forecast_library/README.md`.
+Kiểm tra chéo bỏ-một-video trên 7 video (3 AIC21 + 4 bản ghi Hà Nội dài 80–109 phút, toàn bộ thư mục Drive
+"Hanoi Flow" trừ phần giữ lại làm demo), so với "giữ nguyên mức hiện tại": **tốt hơn 9,5% ở +5 phút, 9,9% ở
++10 phút, 7,9% ở +15 phút** (851 / 640 / 486 lần kiểm chứng; khoảng tin cậy 95% đều dương). Riêng camera Hà
+Nội: +9,0% / +9,7% / +6,6% trên 587 / 436 / 342 lần. Chi tiết: `models/forecast_library/README.md` và trang
+**Đánh giá mô hình**.
 
 **Giới hạn.** "Thực tế" dùng để chấm là CI thị giác do chính hệ thống đo, không phải nhãn chuyên gia; số
 lần kiểm chứng trên Hà Nội còn ít; mô hình chưa được kiểm định trên luồng camera trực tiếp.
+
+**Kiểm chứng CI bằng nhãn của người** (để không chỉ "tự chấm mình"):
+
+```bash
+python tools/label_frames.py sample video1.mp4 video2.mp4 --per-video 60 --out labels/   # tạo labels/label.html
+# mở label.html, gán nhãn (phím 1/2/3), bấm "Lưu nhãn" -> labels_<tên>.json
+python tools/label_frames.py score labels/frames.json labels_an.json labels_binh.json     # độ khớp, kappa
+```
 
 Học thêm từ video mới:
 
@@ -98,6 +116,8 @@ phân tích, nên demo luôn chạy nhanh trên Render.
 | `FORECAST_LIBRARY_ENABLED` | true | Lưu chuỗi CI của video đã phân tích để học thêm |
 | `FORECAST_BUNDLED_LIBRARY` | true | Dùng thư viện học đi kèm |
 | `MAP_TILE_URL_TEMPLATE`, `MAP_ATTRIBUTION` | OpenStreetMap | Nguồn ảnh nền bản đồ (HTTPS, có `{z}/{x}/{y}`) |
+| `UPLOAD_TOKEN` | (trống) | Nếu đặt: phải nhập mã này mới tải video lên được (dùng cho bản công khai) |
+| `UPLOADS_PER_HOUR` | 20 | Số lượt tải video tối đa mỗi giờ cho toàn máy chủ |
 
 ## Cấu trúc
 
