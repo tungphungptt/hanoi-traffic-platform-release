@@ -1,0 +1,142 @@
+{
+  "rule": "adopt only if the 95% interval of the MAE gain over the shipped model is above 0",
+  "models": {
+    "gbm": {
+      "+5": {
+        "forecasts": 851,
+        "videos": 7,
+        "gain_vs_shipped": -0.1276,
+        "ci95": [
+          -0.2796,
+          -0.0484
+        ],
+        "adopt": false
+      },
+      "+10": {
+        "forecasts": 640,
+        "videos": 7,
+        "gain_vs_shipped": -0.1973,
+        "ci95": [
+          -0.3679,
+          -0.0596
+        ],
+        "adopt": false
+      },
+      "+15": {
+        "forecasts": 486,
+        "videos": 7,
+        "gain_vs_shipped": -0.0115,
+        "ci95": [
+          -0.1143,
+          0.078
+        ],
+        "adopt": false
+      }
+    },
+    "gbm+speed": {
+      "+5": {
+        "forecasts": 851,
+        "videos": 7,
+        "gain_vs_shipped": -0.1822,
+        "ci95": [
+          -0.3871,
+          -0.0982
+        ],
+        "adopt": false
+      },
+      "+10": {
+        "forecasts": 640,
+        "videos": 7,
+        "gain_vs_shipped": -0.179,
+        "ci95": [
+          -0.3739,
+          -0.0587
+        ],
+        "adopt": false
+      },
+      "+15": {
+        "forecasts": 486,
+        "videos": 7,
+        "gain_vs_shipped": -0.0162,
+        "ci95": [
+          -0.1425,
+          0.0933
+        ],
+        "adopt": false
+      }
+    },
+    "nnls+speed": {
+      "+5": {
+        "forecasts": 851,
+        "videos": 7,
+        "gain_vs_shipped": -0.0064,
+        "ci95": [
+          -0.0174,
+          0.0034
+        ],
+        "adopt": false
+      },
+      "+10": {
+        "forecasts": 640,
+        "videos": 7,
+        "gain_vs_shipped": 0.0045,
+        "ci95": [
+          -0.0045,
+          0.0139
+        ],
+        "adopt": false
+      },
+      "+15": {
+        "forecasts": 486,
+        "videos": 7,
+        "gain_vs_shipped": 0.0066,
+        "ci95": [
+          -0.003,
+          0.0207
+        ],
+        "adopt": false
+      }
+    }
+  },
+  "calibration": {
+    "+5": {
+      "forecasts": 759,
+      "onsets": 52,
+      "base_rate": 0.0685,
+      "brier_raw": 0.04865,
+      "brier_calibrated": 0.04703,
+      "brier_constant": 0.06382,
+      "alerts_at_precision_0.50": {
+        "caught": 4,
+        "false": 3,
+        "onsets": 52
+      }
+    },
+    "+10": {
+      "forecasts": 587,
+      "onsets": 39,
+      "base_rate": 0.0664,
+      "brier_raw": 0.05679,
+      "brier_calibrated": 0.06007,
+      "brier_constant": 0.06203,
+      "alerts_at_precision_0.50": {
+        "caught": 0,
+        "false": 0,
+        "onsets": 39
+      }
+    },
+    "+15": {
+      "forecasts": 457,
+      "onsets": 28,
+      "base_rate": 0.0613,
+      "brier_raw": 0.04969,
+      "brier_calibrated": 0.06028,
+      "brier_constant": 0.05752,
+      "alerts_at_precision_0.50": {
+        "caught": 10,
+        "false": 33,
+        "onsets": 28
+      }
+    }
+  }
+}

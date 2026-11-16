@@ -85,3 +85,37 @@ is stored but not used.
 
 The ground truth is the same visual CI the system measures, not expert labels; use
 `tools/label_frames.py` to check the CI against people's labels.
+
+## Heavier models, relative speed and calibrated probabilities (`tools/model_lab.py`)
+
+Leave-one-video-out on the same 22 series. Rule fixed before running: a candidate replaces the shipped
+formulas only if the 95% interval of its MAE gain (bootstrap over whole videos) is above zero. Result in
+`artifacts/model_lab.json`.
+
+| Candidate | +5 min | +10 min | +15 min | Adopted |
+| --- | --- | --- | --- | --- |
+| Gradient boosting on CI features (scikit-learn; LightGBM is not installed) | −13% [−28, −5] | −20% [−37, −6] | −1% [−11, +8] | no |
+| Gradient boosting + relative speed, occupancy, count, turnover | −18% [−39, −10] | −18% [−37, −6] | −2% [−14, +9] | no |
+| Shipped three formulas + a relative-speed formula | −0.6% [−1.7, +0.3] | +0.5% [−0.5, +1.4] | +0.7% [−0.3, +2.1] | no |
+
+Boosting trained on a handful of videos is clearly worse than three formulas with fitted weights, and relative
+speed adds nothing the CI does not already hold. The shipped weights fitted on the library alone match the
+shipped model within 1%, so the loss is not caused by the shipped model's per-video adaptation. A GRU was not
+tried: PyTorch is not installed and the boosting result gives no reason to expect a recurrent net to do better
+on 7 videos.
+
+Probability calibration (isotonic, calibrator and alert threshold chosen from the other videos only, alert level
+= lowest probability whose precision on those videos reaches 50%):
+
+| Horizon | Brier: shipped p | Brier: calibrated | Brier: constant base rate | Onsets caught at 50% precision |
+| --- | --- | --- | --- | --- |
+| +5 min | 0.0487 | 0.0470 | 0.0638 | 4 / 52 (3 false) |
+| +10 min | 0.0568 | 0.0601 | 0.0620 | 0 / 39 |
+| +15 min | 0.0497 | 0.0603 | 0.0575 | 10 / 28 (33 false) |
+
+Calibration helps a little at +5 and hurts at +10/+15; the alert level it picks catches far fewer onsets at +5
+than the shipped 40% rule (23 / 52). Nothing was changed: the shipped probabilities and thresholds stay.
+
+Not tested, because no dated data exists yet: time of week and rain. `tools/context_lab.py` does that on the
+CSV from `GET /api/live/export` (leave-one-day-out, at least 14 days, same adoption rule); its tests show it
+finds a built-in rush-hour pattern and a rain-onset effect and does not invent one in flat data.

@@ -181,6 +181,9 @@ python tools/replay_video.py part000.mp4 part001.mp4 --camera-id demo-tdh --db l
 
 Video ghi sẵn không có ngày thật nên bản phát lại **không** có thời tiết; nó chỉ kiểm tra đường ống lưu trữ và dự báo.
 
+Khi đã có ít nhất 14 ngày số liệu thật, kiểm tra xem giờ-trong-tuần và mưa có cải thiện dự báo không:
+`python tools/context_lab.py live_export.csv` (bỏ qua từng ngày, chỉ nhận nếu khoảng tin cậy 95% của mức cải thiện nằm trên 0).
+
 **Quyền dữ liệu.** Việc Hà Nội có hệ thống camera tập trung (Quyết định 319/QĐ-UBND ngày 17/01/2025) không có
 nghĩa ứng dụng bên thứ ba được lấy luồng hình hay API: cần xin tài liệu giao diện, điều kiện sử dụng và quyền
 truy cập từ chủ nguồn dữ liệu. Mã tải lên (`UPLOAD_TOKEN`) gửi qua tiêu đề `X-Upload-Token`; cả hai mã được
