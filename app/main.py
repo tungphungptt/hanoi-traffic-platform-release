@@ -25,6 +25,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
+from app import weather
 from traffic_brain.detector import Detector
 from traffic_brain.minute_forecaster import record_to_series, series_record, video_key
 from traffic_brain.video_analysis import VideoAnalysisError, analyze_video, result_payload
@@ -187,6 +188,43 @@ def _check_video(path: Path) -> None:
 @app.get("/", include_in_schema=False)
 def home() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/map", include_in_schema=False)
+def map_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "map.html", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/map/config")
+def map_config() -> dict[str, Any]:
+    tiles = os.getenv("MAP_TILE_URL_TEMPLATE", "").strip()
+    if not (tiles.startswith("https://") and all(p in tiles for p in ("{z}", "{x}", "{y}"))):
+        tiles = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
+    else:
+        attribution = os.getenv("MAP_ATTRIBUTION", "").strip()[:300]
+    return {"tile_url_template": tiles, "attribution": attribution, "center": [21.0285, 105.8542],
+            "boundary_url": "/static/hanoi_boundary.geojson"}
+
+
+@app.get("/api/weather")
+def weather_point(latitude: float = 21.0285, longitude: float = 105.8542) -> dict[str, Any]:
+    """Now, next 24 hours and 3 days at one point in Hanoi."""
+    try:
+        return weather.forecast(latitude, longitude)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except weather.WeatherError as exc:
+        raise HTTPException(502, str(exc)) from exc
+
+
+@app.get("/api/weather/overview")
+def weather_overview() -> dict[str, Any]:
+    """Current weather at one point per area across Hanoi."""
+    try:
+        return weather.overview()
+    except weather.WeatherError as exc:
+        raise HTTPException(502, str(exc)) from exc
 
 
 @app.get("/api/health")

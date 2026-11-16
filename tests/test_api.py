@@ -64,3 +64,18 @@ def test_library_skips_records_cut_from_the_uploaded_video():
         sharing = sum(1 for p in files if source in {json.loads(p.read_text(encoding="utf-8"))["video_key"],
                                                      *(json.loads(p.read_text(encoding="utf-8")).get("source_video_keys") or [])})
         assert len(main.load_library(source)[0]) == len(files) - sharing
+
+
+def test_map_page_and_weather_endpoints(monkeypatch):
+    assert "leaflet" in client.get("/map").text
+    config = client.get("/api/map/config").json()
+    assert config["tile_url_template"].startswith("https://") and config["boundary_url"].endswith(".geojson")
+    assert client.get(config["boundary_url"]).status_code == 200
+    assert client.get("/api/weather", params={"latitude": 10.77, "longitude": 106.70}).status_code == 422
+    monkeypatch.setattr(main.weather, "forecast", lambda lat, lon: {"current": {"temperature_c": 24}})
+    assert client.get("/api/weather").json()["current"]["temperature_c"] == 24
+
+    def down():
+        raise main.weather.WeatherError("offline")
+    monkeypatch.setattr(main.weather, "overview", down)
+    assert client.get("/api/weather/overview").status_code == 502

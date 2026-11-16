@@ -38,6 +38,13 @@ LIVE) được tách tự động: mỗi camera có chuỗi CI và dự báo ri�
 Trang chủ → **Mở kết quả đã lưu** → chọn file `.json`, rồi chọn video ở mục 1. Video demo Hà Nội không
 có trong dữ liệu học.
 
+## Bản đồ và thời tiết Hà Nội (`/map`)
+
+Bản đồ OpenStreetMap toàn Hà Nội (ranh giới hành chính OSM), nhiệt độ hiện tại của 17 khu vực từ nội thành
+đến Ba Vì, Sóc Sơn, Mỹ Đức (khu vực đang/sắp mưa tô xanh). Bấm bất kỳ điểm nào trong Hà Nội để xem thời tiết
+hiện tại, 24 giờ tới và 3 ngày tới tại điểm đó. Nguồn: Open-Meteo, cache 10 phút; mất kết nối thì hiện dữ
+liệu cũ (tối đa 3 giờ) và ghi rõ.
+
 ## Cách hoạt động
 
 1. **Đo** (`traffic_brain/video_analysis.py`): 1 khung hình/giây, YOLOv8n ONNX nhận diện ô tô, xe máy, buýt,
@@ -65,6 +72,14 @@ Học thêm từ video mới:
 python tools/build_forecast_library.py video1.mp4 video2.mp4 --source-note "nguồn video"
 ```
 
+## Đưa lên Render
+
+Repo có `render.yaml` (Blueprint). Render → **New → Blueprint** → chọn repo, hoặc nếu service
+`hanoi-traffic-platform` đã có thì Render tự deploy mỗi lần push lên `main`. Gói free chỉ có CPU chia sẻ
+và 512 MB RAM: phân tích 30 phút video mất lâu hơn máy cá nhân nhiều lần, nên `render.yaml` giới hạn 500 MiB
+/ 40 phút và tắt việc học từ video người khác tải lên. Mở **kết quả đã lưu** (`.json`) thì không cần máy chủ
+phân tích, nên demo luôn chạy nhanh trên Render.
+
 ## Cấu hình (biến môi trường)
 
 | Biến | Mặc định | Ý nghĩa |
@@ -73,15 +88,17 @@ python tools/build_forecast_library.py video1.mp4 video2.mp4 --source-note "ngu�
 | `MAX_VIDEO_MINUTES` | 90 | Thời lượng video tối đa |
 | `FORECAST_LIBRARY_ENABLED` | true | Lưu chuỗi CI của video đã phân tích để học thêm |
 | `FORECAST_BUNDLED_LIBRARY` | true | Dùng thư viện học đi kèm |
+| `MAP_TILE_URL_TEMPLATE`, `MAP_ATTRIBUTION` | OpenStreetMap | Nguồn ảnh nền bản đồ (HTTPS, có `{z}/{x}/{y}`) |
 
 ## Cấu trúc
 
 ```
-app/main.py                    API (upload → job → kết quả) và trang web
+app/main.py                    API (upload → job → kết quả, bản đồ, thời tiết) và trang web
+app/weather.py, hanoi_scope.py thời tiết Open-Meteo, ranh giới Hà Nội
 traffic_brain/detector.py      YOLOv8n ONNX + bám vết
 traffic_brain/video_analysis.py  CI theo khung hình, tách camera, gọi bộ dự báo
 traffic_brain/minute_forecaster.py  dự báo +5/+10/+15 phút, chấm điểm
-static/                        giao diện (index.html, app.js, app.css)
+static/                        giao diện: index.html/app.js (dự báo), map.html/map.js (bản đồ, thời tiết)
 models/                        detector.onnx, forecast_library/
 tools/build_forecast_library.py  xây thư viện học, kiểm tra chéo, xuất demo
 tests/                         pytest + node --test
