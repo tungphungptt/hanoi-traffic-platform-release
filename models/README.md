@@ -27,6 +27,16 @@ sit on real vehicles (more distant cars, more motorbikes); none of the models se
 motorbikes, so CI stays understated there whatever the detector. YOLOX-m finds more but adds unconfirmed
 boxes (precision 0.75).
 
+Same frames through the whole CI pipeline (`FrameMeter`, 1 frame/s, two cameras, 268 samples), YOLOv8n vs YOLOX-s:
+
+| Camera part | Vehicles/frame | Mean CI | Share of time CI ≥ 0.30 (busy) | Share CI ≥ 0.55 (gridlock) |
+| --- | --- | --- | --- | --- |
+| cam2_004 | 8.3 → 16.9 | 0.55 → 0.77 | 99% → 99% | 42% → 99% |
+| cam3_006 | 2.7 → 10.8 | 0.19 → 0.51 | 24% → 96% | 1% → 34% |
+
+The two CI series correlate only 0.56–0.65. So the current thresholds mean something different with
+every detector, and with YOLOX-s unchanged they would call most of the day busy or gridlocked.
+
 Using another detector (not the default, nothing is switched yet):
 
 ```bash
