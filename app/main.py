@@ -21,7 +21,7 @@ from typing import Any
 
 import cv2
 import numpy as np
-from fastapi import Body, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
@@ -29,6 +29,7 @@ from starlette.concurrency import run_in_threadpool
 from app import weather
 from app.hanoi_scope import is_hanoi_coordinate
 from traffic_brain import routing
+from traffic_brain.history import History
 from traffic_brain.live import LiveError, LiveStore
 from traffic_brain.detector import Detector
 from traffic_brain.minute_forecaster import record_to_series, series_record, video_key
@@ -125,9 +126,11 @@ class RequestGuard:
 
     async def __call__(self, scope, receive, send):
         path = scope.get("path", "")
-        guarded = scope["type"] == "http" and scope["method"] in ("POST", "DELETE") and (
-            (scope["method"] == "POST" and path == "/api/analyze")
-            or (path.startswith("/api/live/") and (path.endswith("/samples") or scope["method"] == "DELETE")))
+        guarded = scope["type"] == "http" and (
+            (scope["method"] == "GET" and path == "/api/live/export")
+            or (scope["method"] in ("POST", "DELETE") and (
+                (scope["method"] == "POST" and path == "/api/analyze")
+                or (path.startswith("/api/live/") and (path.endswith("/samples") or scope["method"] == "DELETE")))))
         if not guarded:
             return await self.app(scope, receive, send)
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
@@ -385,7 +388,18 @@ def demo() -> dict[str, Any]:
             "segments": segments, "session": session}
 
 
-LIVE = LiveStore(lambda: load_library(None), location_ok=is_hanoi_coordinate)
+def _weather_now(lat: float, lng: float) -> dict[str, Any] | None:
+    try:
+        return weather.forecast(lat, lng).get("current")
+    except (weather.WeatherError, ValueError):
+        return None
+
+
+LIVE_DB = os.getenv("LIVE_DB", "").strip()  # empty: measurements stay in memory only
+HISTORY = History(LIVE_DB) if LIVE_DB else None
+LIVE = LiveStore(lambda: load_library(None), location_ok=is_hanoi_coordinate, history=HISTORY,
+                 weather_provider=_weather_now)
+LIVE.restore()
 
 
 @app.post("/api/live/{camera_id}/samples")
@@ -396,6 +410,22 @@ def live_samples(camera_id: str, body: dict[str, Any] = Body(...)) -> dict[str, 
                             lat=body.get("lat"), lng=body.get("lng"))
     except LiveError as exc:
         raise HTTPException(422, str(exc)) from exc
+
+
+@app.get("/api/live/export")
+def live_export(camera_id: str | None = None, since: float | None = None, until: float | None = None,
+               limit: int = Query(100_000, ge=1, le=200_000)) -> Response:
+    """CSV of the stored measurements with the weather snapshot at the time (authenticated by X-Live-Token)."""
+    if HISTORY is None:
+        raise HTTPException(404, "Chưa bật lưu trữ (LIVE_DB).")
+    return Response(HISTORY.export_csv(camera_id, since, until, limit), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="hanoiflow_live.csv"'})
+
+
+@app.get("/api/live/history")
+def live_history() -> dict[str, Any]:
+    """How much has been stored so far (public counts only)."""
+    return HISTORY.counts() if HISTORY else {"enabled": False}
 
 
 @app.delete("/api/live/{camera_id}")
