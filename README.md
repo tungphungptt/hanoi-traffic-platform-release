@@ -73,7 +73,11 @@ liệu cũ (tối đa 3 giờ) và ghi rõ.
    hướng 3 phút (giảm dần). Trọng số học bằng bình phương tối thiểu (không âm) trên thư viện huấn luyện và
    phần video đã xem xong trước t. Cảnh báo tắc khi xác suất CI ≥ 0,55 từ 40% trở lên (cố định trước khi
    chấm); mức "theo dõi" khi từ 20% đến dưới 40%.
-3. **Học** (`models/forecast_library/`): chuỗi CI của 3 video AIC21 và 19 chuỗi camera Hà Nội (không lưu
+3. **Ảnh minh chứng**: sau khi phân tích, hệ thống chụp lại khoảng 8 khung hình mỗi camera tại các thời điểm
+   đổi mức, đông nhất, thông thoáng nhất và các mốc định kỳ, vẽ khung quanh xe nhận diện kèm giờ và CI. Ảnh giữ
+   khoảng 1 giờ trên máy chủ và không nằm trong file kết quả tải về. Bộ nhận diện YOLOv8n còn bỏ sót nhiều xe máy
+   khi đường rất đông (ảnh minh chứng cho thấy rõ điều này), nên CI có thể thấp hơn thực tế.
+4. **Học** (`models/forecast_library/`): chuỗi CI của 3 video AIC21 và 19 chuỗi camera Hà Nội (không lưu
    hình ảnh). Video đã phân tích trên máy bạn cũng được lưu thành chuỗi số vào `data/forecast_library/`
    để lần sau học thêm. Một video không bao giờ học từ chính nó.
 
@@ -119,6 +123,7 @@ phân tích, nên demo luôn chạy nhanh trên Render.
 | `FORECAST_LIBRARY_ENABLED` | true | Lưu chuỗi CI của video đã phân tích để học thêm |
 | `FORECAST_BUNDLED_LIBRARY` | true | Dùng thư viện học đi kèm |
 | `MAP_TILE_URL_TEMPLATE`, `MAP_ATTRIBUTION` | OpenStreetMap | Nguồn ảnh nền bản đồ (HTTPS, có `{z}/{x}/{y}`) |
+| `LIVE_TOKEN` | (trống) | Nếu đặt: bật nhận số liệu trực tiếp từ bộ thu nhận (`tools/live_collector.py`); để trống thì tắt |
 | `UPLOAD_TOKEN` | (trống) | Nếu đặt: phải nhập mã này mới tải video lên được (dùng cho bản công khai) |
 | `UPLOADS_PER_HOUR` | 20 | Số lượt tải video tối đa mỗi giờ cho toàn máy chủ |
 
@@ -140,12 +145,25 @@ tests/                         pytest + node --test
 Kiểm thử: `pip install -r requirements-dev.txt && pytest -q && node --test tests/forecast_page.test.cjs`.
 Giấy phép bên thứ ba: `THIRD_PARTY_NOTICES.md`.
 
-## Camera trực tiếp và quyền dữ liệu
+## Dự báo trực tiếp từ camera (trang "Trực tiếp")
 
-Bản này chỉ đọc video bạn tải lên; chưa nối vào luồng camera trực tiếp. Việc Hà Nội có hệ thống camera tập
-trung (Quyết định 319/QĐ-UBND ngày 17/01/2025) không có nghĩa ứng dụng bên thứ ba được lấy luồng hình
-hay API: cần xin tài liệu giao diện, điều kiện sử dụng và quyền truy cập từ chủ nguồn dữ liệu. Muốn dự
-báo trực tiếp cần thêm một bộ thu nhận có xác thực (kết nối luồng được cấp phép, chạy bộ nhận diện, gửi CI
-theo thời gian) rồi đưa chuỗi CI vào `forecast_series`; bộ thu nhận đó chưa có trong dự án. Mã tải lên
-(`UPLOAD_TOKEN`) gửi qua tiêu đề `X-Upload-Token`, được kiểm tra cùng giới hạn dung lượng và lượt tải
-trước khi máy chủ nhận video.
+Máy chủ không tự mở camera. Một bộ thu nhận chạy ở nơi có quyền đọc luồng hình, đo từng khung bằng đúng bộ đo
+của phần video (`FrameMeter`) và gửi chỉ số CI mỗi giây về máy chủ; máy chủ chạy bộ dự báo +5/+10/+15 phút
+trên chuỗi đó và trang **Trực tiếp** hiện kết quả, tự làm mới mỗi 15 giây.
+
+```bash
+# trên máy chủ: đặt LIVE_TOKEN (chuỗi bí mật); trên Render khai báo trong dashboard
+python tools/live_collector.py --source rtsp://... --camera-id tdh-216 --name "216 Trần Duy Hưng" \
+    --lat 21.0075 --lng 105.7993 --server https://hanoi-traffic-platform.onrender.com --token MA_BI_MAT
+```
+
+- `--source` có thể là URL RTSP/HLS, số thứ tự webcam hoặc một file video (phát đúng tốc độ gốc, dùng để thử).
+- Cần khoảng 9 phút số liệu liên tục mới có dự báo +5 phút. Nếu mất tín hiệu quá 2 phút, thẻ camera báo "Mất tín hiệu".
+- Số liệu giữ trong bộ nhớ (tối đa 3 giờ và 64 camera), mất khi khởi động lại; mẫu cũ hơn 15 phút hoặc ở tương lai bị từ chối.
+- API: `POST /api/live/<id>/samples` và `DELETE /api/live/<id>` cần tiêu đề `X-Live-Token`; `GET /api/live`, `GET /api/live/<id>` công khai.
+- Chưa kiểm định trên luồng camera thật: các con số +18% ở trên chỉ đo trên video đã ghi.
+
+**Quyền dữ liệu.** Việc Hà Nội có hệ thống camera tập trung (Quyết định 319/QĐ-UBND ngày 17/01/2025) không có
+nghĩa ứng dụng bên thứ ba được lấy luồng hình hay API: cần xin tài liệu giao diện, điều kiện sử dụng và quyền
+truy cập từ chủ nguồn dữ liệu. Mã tải lên (`UPLOAD_TOKEN`) gửi qua tiêu đề `X-Upload-Token`; cả hai mã được
+kiểm tra cùng giới hạn dung lượng và lượt tải trước khi máy chủ nhận nội dung.

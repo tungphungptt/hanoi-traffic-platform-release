@@ -89,5 +89,23 @@ def test_whole_pipeline_runs_on_a_real_video_file(tmp_path):
     assert forecast["available"] is False and forecast["reason"] == "video_too_short"
     payload = va.result_payload(result, "scene.avi")
     assert payload["minute_forecast"] is forecast and "series" not in payload["cameras"][0]
+    frames = va.capture_evidence(path, Detector(), result["cameras"], tmp_path / "evidence")
+    assert 2 <= len(frames) <= 8
+    for f in frames:
+        image = cv2.imread(str(tmp_path / "evidence" / f["file"]))
+        assert image is not None and image.shape[1] <= va.EVIDENCE_WIDTH and f["reason_label"]
     with pytest.raises(va.VideoAnalysisError):
         va.analyze_video(path, Detector(), max_duration_seconds=60)
+
+
+def test_evidence_picks_level_changes_peak_and_stay_within_limits():
+    t = np.arange(0, 1800, 15.0)
+    ci = np.clip(0.2 + 0.5 * np.sin(t / 300) ** 2, 0, 1)
+    cams = [{"id": 0, "series": {"t": t, "ci": ci}}, {"id": 1, "series": {"t": t, "ci": np.full_like(t, 0.1)}}]
+    picks = va.pick_evidence(cams, limit=10, per_camera=6)
+    assert len(picks) <= 10 and {p["camera"] for p in picks} == {0, 1}
+    assert any(p["reason"] == "up_gridlock" for p in picks if p["camera"] == 0)
+    for cam in (0, 1):
+        times = sorted(p["t"] for p in picks if p["camera"] == cam)
+        assert all(b - a >= 60 for a, b in zip(times, times[1:]))
+    assert va.pick_evidence([{"id": 0, "series": {"t": np.array([0.0]), "ci": np.array([np.nan])}}]) == []

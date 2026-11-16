@@ -144,3 +144,33 @@ def test_demo_endpoint_lists_consecutive_segments():
     total = demo["segments"][-1]["start"] + demo["segments"][-1]["duration"]
     assert abs(total - demo["session"]["video"]["duration_seconds"]) < 5
     assert demo["session"]["contract"].startswith("hanoiflow-forecast-session/")
+
+
+def test_live_intake_needs_a_token_and_serves_forecasts(monkeypatch):
+    import time
+    from traffic_brain.live import LiveStore
+    monkeypatch.setattr(main, "LIVE", LiveStore(lambda: ([], 0), location_ok=main.is_hanoi_coordinate))
+    now = time.time()
+    body = {"name": "Thử", "lat": 21.0285, "lng": 105.8542,
+            "samples": [{"t": now - 100 + i, "ci": 0.3, "vehicle_count": 5} for i in range(100)]}
+    path = "/api/live/tdh-216/samples"
+    monkeypatch.setattr(main, "LIVE_TOKEN", "")
+    assert client.post(path, json=body).status_code == 503
+    assert client.get("/api/live").json() == {"enabled": False, "cameras": []}
+    monkeypatch.setattr(main, "LIVE_TOKEN", "thu-nhan")
+    assert client.get("/api/status").json()["live_enabled"] is True
+    assert client.post(path, json=body).status_code == 401
+    assert client.post(path, json=body, headers={"X-Live-Token": "sai"}).status_code == 401
+    ok = client.post(path, json=body, headers={"X-Live-Token": "thu-nhan"})
+    assert ok.status_code == 200 and ok.json()["accepted"] == 100
+    listing = client.get("/api/live").json()
+    assert listing["enabled"] and [c["camera_id"] for c in listing["cameras"]] == ["tdh-216"]
+    one = client.get("/api/live/tdh-216").json()
+    assert one["status"] == "warming_up" and one["name"] == "Thử"
+    assert client.get("/api/live/khong-co").status_code == 404
+    outside = {**body, "lat": 10.0, "lng": 105.0}
+    assert client.post(path, json=outside, headers={"X-Live-Token": "thu-nhan"}).status_code == 422
+    big = {"samples": [{"t": now, "ci": 0.3, "pad": "x" * 100}] * 4000}
+    assert client.post(path, json=big, headers={"X-Live-Token": "thu-nhan"}).status_code == 413
+    assert client.delete("/api/live/tdh-216").status_code == 401
+    assert client.delete("/api/live/tdh-216", headers={"X-Live-Token": "thu-nhan"}).status_code == 200

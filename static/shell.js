@@ -1,7 +1,7 @@
 /* hanoiFlow — sidebar navigation (one page per hash), mobile menu, and the model report page. */
 'use strict';
 
-const PAGES = { video: 'Dự báo & phương án', overview: 'Bản đồ & thời tiết', report: 'Đánh giá mô hình' };
+const PAGES = { video: 'Dự báo & phương án', overview: 'Bản đồ & thời tiết', live: 'Trực tiếp', report: 'Đánh giá mô hình' };
 
 function pageFromHash(hash) {
   const key = String(hash || '').replace(/^#/, '');
