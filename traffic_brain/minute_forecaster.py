@@ -4,12 +4,12 @@ The video is first turned into an observed congestion series: the explainable vi
 CI from ``video_review`` averaged over a rolling 60 s window, sampled every 15 s.
 At every anchor time t the forecaster may only use observations up to t:
 
-* features are computed from the series up to t (level, short/long trend, change of
-  occupancy, vehicle count and motion);
-* the model for horizon h is a ridge regression of the future change
-  ``CI(tau + h) - CI(tau)`` fitted only on pairs whose target time ``tau + h <= t``,
-  i.e. on the part of the same video that has already been watched;
-* until enough such pairs exist the forecaster falls back to a damped trend.
+* the forecast for horizon h is CI(t) plus a weighted sum of three fixed formulas of the
+  series up to t: pull toward the camera's mean so far, pull toward its last 10 minutes,
+  and the damped 3-minute trend;
+* the weights are non-negative least squares on pairs ``(formulas at tau, CI(tau + h) -
+  CI(tau))`` from other videos and from this video with ``tau + h <= t``;
+* until enough such pairs exist fixed default weights are used.
 
 Because every forecast is made before its target is seen, the rest of the video can be
 used to check it. The backtest compares the model with persistence (no change) and a
@@ -30,30 +30,25 @@ WINDOW_SECONDS = 60.0
 WARMUP_SECONDS = 180.0
 HORIZONS_MINUTES = (5, 10, 15)
 MIN_TRAIN_PAIRS = 12
-RIDGE_LAMBDA = 8.0
 MAX_DELTA = 0.6
 DEFAULT_SIGMA = 0.12
 SIGMA_FLOOR = 0.03
 Z_80 = 1.2816
 # Fixed before any evaluation: warn when the forecast gives at least a 40% chance of CI >= 0.55.
 WARNING_PROBABILITY = 0.40
-METHOD_ENSEMBLE = "online_ensemble"
-METHOD_DAMPED = "damped_trend"
-# Only relative features: absolute CI levels differ between cameras, so learning from
-# other videos must rely on how the current state deviates from this road's own level.
+# Softer "watch" flag for 10-15 min ahead, where 40% is almost never reached. Set after the
+# leave-one-video-out check of 2026-11-16 (precision there about 30-40% at +10/+15 against a
+# ~7% base rate), so treat those numbers as optimistic until checked on new videos.
+WATCH_PROBABILITY = 0.20
+# Relative features only: absolute CI levels differ between cameras, so learning from other
+# videos must rely on how the current state deviates from this road's own level. Occupancy,
+# count, motion and turnover slopes were tried as ridge-regression inputs and added nothing
+# over these three (see models/forecast_library/README.md); they are stored, not used.
 FEATURE_NAMES = (
     "ci_dev_running",
-    "ci_dev_5m",
     "ci_slope_3m",
-    "ci_slope_10m",
     "ci_dev_10m",
-    "occupancy_slope_3m",
-    "count_slope_3m",
-    "motion_slope_3m",
 )
-# "turnover" (share of vehicles not seen one sample earlier) is measured and stored, but as a
-# feature it did not lower leave-one-video-out errors (+5/+10/+15: 9.4/10.1/7.1% vs 9.5/9.9/7.9%
-# without it), so it is not used for forecasting.
 SERIES_KEYS = ("t", "ci", "occupancy", "count", "motion", "turnover")
 
 
@@ -164,63 +159,45 @@ def compute_features(series: Mapping[str, np.ndarray], *,
     n = ci.shape[0]
     per_min = int(round(60.0 / step_seconds))
     features = np.full((n, len(FEATURE_NAMES)), np.nan)
-    # Scale count and motion like the visual rule (20 vehicles, 0.045 diagonal/s) so
-    # slopes are on the same order as CI slopes.
-    count = series["count"] / 20.0
-    motion = series["motion"] / 0.045
     running = _running_mean(ci)
     for i in range(n):
         if not math.isfinite(ci[i]):
             continue
         mean_10m = _window_mean(ci, i, 10 * per_min)
-        mean_5m = _window_mean(ci, i, 5 * per_min)
         features[i] = (
             ci[i] - running[i],
-            ci[i] - mean_5m if math.isfinite(mean_5m) else 0.0,
             _slope_per_minute(ci, i, 3 * per_min, step_seconds),
-            _slope_per_minute(ci, i, 10 * per_min, step_seconds),
             ci[i] - mean_10m if math.isfinite(mean_10m) else 0.0,
-            _slope_per_minute(series["occupancy"], i, 3 * per_min, step_seconds),
-            _slope_per_minute(count, i, 3 * per_min, step_seconds),
-            _slope_per_minute(motion, i, 3 * per_min, step_seconds),
         )
     return features
-
-
-def _fit_ridge(x: np.ndarray, y: np.ndarray, lam: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
-    mean = x.mean(axis=0)
-    scale = x.std(axis=0)
-    scale[scale < 1e-6] = 1.0
-    z = (x - mean) / scale
-    design = np.hstack([z, np.ones((z.shape[0], 1))])
-    gram = design.T @ design + lam * np.eye(design.shape[1])
-    weights = np.linalg.solve(gram, design.T @ y)
-    residual = y - design @ weights
-    dof = max(1, y.shape[0] - design.shape[1])
-    sigma = float(math.sqrt(float(residual @ residual) / dof))
-    return weights, mean, scale, sigma
-
-
-def _ridge_predict(weights: np.ndarray, mean: np.ndarray, scale: np.ndarray, row: np.ndarray) -> float:
-    z = (row - mean) / scale
-    return float(np.dot(z, weights[:-1]) + weights[-1])
 
 
 def _level(ci: float) -> str:
     return level_for_ci(ci)[0]
 
 
-COMPONENTS = ("persistence", "reversion", "trend", "ridge", "analog")
-DEFAULT_WEIGHTS = {"persistence": 0.5, "reversion": 0.5}
+# The forecast for horizon h is CI(t) + sum_c w_c * component_c. Every component is a fixed
+# formula of the series up to t (nothing is fitted inside it), so their weights can be
+# learned by least squares on (component values, observed change) pairs from other videos
+# and from the already-watched part of this video, at every anchor, at little cost.
+COMPONENTS = ("reversion", "recent_mean", "trend")
 # Traffic at a fixed camera fluctuates around the road's typical level (signal cycles,
-# platoons). The reversion component pulls the forecast back toward that level.
+# platoons). "reversion" pulls toward the camera's mean so far, "recent_mean" toward the
+# last 10 minutes, "trend" carries the 3-minute slope forward (damped).
 REVERSION_TAU_MINUTES = 5.0
+TREND_DAMPING = 0.85
+# Used only while fewer than MIN_TRAIN_PAIRS pairs exist (no library, start of a video).
+# Least-squares weights on all 22 shipped camera series (2026-11-16).
+DEFAULT_WEIGHTS = {
+    5: {"reversion": 0.42, "recent_mean": 0.70, "trend": 0.04},
+    10: {"reversion": 0.31, "recent_mean": 0.53, "trend": 0.0},
+    15: {"reversion": 0.38, "recent_mean": 0.32, "trend": 0.0},
+}
+WEIGHT_RIDGE = 1.0  # small pull of the weights toward 0 (= keep the current level)
 MIN_SCORED_ERRORS = 8
 ERROR_MEMORY = 40
-ANALOG_NEIGHBOURS = 5
-
-
-TREND_DAMPING = 0.85
+METHOD_BLEND = "level_blend"
+METHOD_DEFAULT = "default_weights"
 
 
 def _damped_minutes(h: int, phi: float | None = None) -> float:
@@ -229,15 +206,37 @@ def _damped_minutes(h: int, phi: float | None = None) -> float:
     return phi * (1.0 - phi ** h) / (1.0 - phi)
 
 
-def _analog_delta(x: np.ndarray, deltas: np.ndarray, row: np.ndarray) -> float:
-    """Average future change of the most similar past situations (nearest neighbours)."""
-    scale = x.std(axis=0)
-    scale[scale < 1e-6] = 1.0
-    distance = np.sqrt((((x - row) / scale) ** 2).sum(axis=1))
-    k = min(ANALOG_NEIGHBOURS, deltas.shape[0])
-    nearest = np.argpartition(distance, k - 1)[:k]
-    weights = 1.0 / (distance[nearest] + 0.25)
-    return float(np.dot(weights, deltas[nearest]) / weights.sum())
+def _component_matrix(features: np.ndarray, h: int) -> np.ndarray:
+    """Rows of (reversion, recent_mean, trend) predicted changes for horizon h."""
+    dev_running = features[:, FEATURE_NAMES.index("ci_dev_running")]
+    dev_10m = features[:, FEATURE_NAMES.index("ci_dev_10m")]
+    slope = features[:, FEATURE_NAMES.index("ci_slope_3m")]
+    return np.column_stack([
+        -dev_running * (1.0 - math.exp(-h / REVERSION_TAU_MINUTES)),
+        -dev_10m,
+        slope * _damped_minutes(h),
+    ])
+
+
+def _nonnegative_weights(gram: np.ndarray, rhs: np.ndarray, lam: float = WEIGHT_RIDGE) -> np.ndarray:
+    """argmin ||y - A w||^2 + lam ||w||^2 with w >= 0, from A'A and A'y (all subsets)."""
+    m = gram.shape[0]
+    best, best_loss = np.zeros(m), 0.0
+    for mask in range(1, 2 ** m):
+        idx = [c for c in range(m) if mask >> c & 1]
+        sub = gram[np.ix_(idx, idx)] + lam * np.eye(len(idx))
+        try:
+            w = np.linalg.solve(sub, rhs[idx])
+        except np.linalg.LinAlgError:
+            continue
+        if np.any(w < 0):
+            continue
+        loss = float(w @ sub @ w - 2.0 * w @ rhs[idx])
+        if loss < best_loss:
+            best = np.zeros(m)
+            best[idx] = w
+            best_loss = loss
+    return best
 
 
 def forecast_series(series: Mapping[str, np.ndarray], *,
@@ -245,19 +244,12 @@ def forecast_series(series: Mapping[str, np.ndarray], *,
                     step_seconds: float = GRID_STEP_SECONDS,
                     warmup_seconds: float = WARMUP_SECONDS,
                     min_train_pairs: int = MIN_TRAIN_PAIRS,
-                    ridge_lambda: float = RIDGE_LAMBDA,
                     library: Iterable[Mapping[str, np.ndarray]] = ()) -> list[dict[str, Any]]:
     """Make causal forecasts at every anchor and attach the later-observed outcome.
 
-    Each horizon combines five simple forecasters - persistence, reversion to the road's
-    running mean, damped trend, ridge regression and nearest-neighbour analogs - weighted
-    by the inverse of their own
-    recent errors. An error only counts once its target time has been observed, so
-    the weights at time t depend on nothing after t.
-
-    ``library`` holds observed series from *other* videos. Their (feature, future change)
-    pairs are fully in the past relative to this video, so they may train the ridge and
-    analog components from the first anchor on.
+    ``library`` holds observed series from *other* videos; their pairs are entirely in the
+    past relative to this video. Pairs from this video join once their target time has
+    been observed, so the forecast at time t depends on nothing after t.
     """
     times = series["t"]
     ci = series["ci"]
@@ -268,25 +260,28 @@ def forecast_series(series: Mapping[str, np.ndarray], *,
     horizons = [int(h) for h in horizons_minutes]
     steps_per_min = int(round(60.0 / step_seconds))
     slope_col = FEATURE_NAMES.index("ci_slope_3m")
-    dev_col = FEATURE_NAMES.index("ci_dev_running")
-    # Per horizon: grid index -> {component: delta} and final delta, kept to score later.
-    library_pairs: dict[int, tuple[np.ndarray, np.ndarray]] = {}
     library_series = [item for item in library if item.get("t") is not None and np.asarray(item["t"]).size]
+    library_features = [compute_features(other, step_seconds=step_seconds) for other in library_series]
+    # Sufficient statistics per horizon: A'A, A'y, y'y, n for the library and this video.
+    stats: dict[int, dict[str, Any]] = {}
     for h in horizons:
         k = h * steps_per_min
-        xs, ds = [], []
-        for other in library_series:
+        gram, rhs, yy, n = np.zeros((3, 3)), np.zeros(3), 0.0, 0
+        for other, other_features in zip(library_series, library_features):
             other_ci = np.asarray(other["ci"], dtype=np.float64)
-            other_features = compute_features(other, step_seconds=step_seconds)
-            other_valid = np.all(np.isfinite(other_features), axis=1)
-            for j in range(0, other_ci.shape[0] - k):
-                if other_valid[j] and math.isfinite(other_ci[j + k]):
-                    xs.append(other_features[j])
-                    ds.append(other_ci[j + k] - other_ci[j])
-        library_pairs[h] = (np.asarray(xs, dtype=np.float64).reshape(-1, len(FEATURE_NAMES)),
-                            np.asarray(ds, dtype=np.float64))
-    history: dict[int, dict[int, dict[str, float]]] = {h: {} for h in horizons}
-    final_history: dict[int, dict[int, float]] = {h: {} for h in horizons}
+            if other_ci.shape[0] <= k:
+                continue
+            a = _component_matrix(other_features[:-k], h)
+            y = other_ci[k:] - other_ci[:-k]
+            keep = np.all(np.isfinite(a), axis=1) & np.isfinite(y)
+            a, y = a[keep], y[keep]
+            gram += a.T @ a
+            rhs += a.T @ y
+            yy += float(y @ y)
+            n += int(y.shape[0])
+        stats[h] = {"gram": gram, "rhs": rhs, "yy": yy, "n": n, "library_n": n, "next": 0,
+                    "components": _component_matrix(features, h)}
+    history: dict[int, dict[int, float]] = {h: {} for h in horizons}
     anchors: list[dict[str, Any]] = []
     # A camera that comes on air mid-video (broadcast recordings) needs its own warm-up.
     observed_so_far = np.cumsum(np.isfinite(ci))
@@ -304,52 +299,36 @@ def forecast_series(series: Mapping[str, np.ndarray], *,
         }
         for h in horizons:
             k = h * steps_per_min
-            last_train = i - k
-            pairs = [j for j in range(0, last_train + 1)
-                     if valid[j] and math.isfinite(ci[j + k])] if last_train >= 0 else []
-            past_deltas = np.asarray([ci[j + k] - ci[j] for j in pairs], dtype=np.float64)
-            components = {
-                "persistence": 0.0,
-                "trend": slope_3m * _damped_minutes(h),
-                "reversion": -float(features[i, dev_col]) * (1.0 - math.exp(-h / REVERSION_TAU_MINUTES)),
-            }
-            lib_x, lib_d = library_pairs[h]
-            train_x = np.vstack([lib_x, features[pairs]]) if pairs else lib_x
-            train_d = np.concatenate([lib_d, past_deltas])
-            if train_d.shape[0] >= min_train_pairs:
-                weights, mean, scale, _ = _fit_ridge(train_x, train_d, ridge_lambda)
-                components["ridge"] = _ridge_predict(weights, mean, scale, features[i])
-                components["analog"] = _analog_delta(train_x, train_d, features[i])
-            components = {name: max(-MAX_DELTA, min(MAX_DELTA, value)) for name, value in components.items()}
-
-            # Score each component on past anchors whose target is already observed.
-            scored = sorted(j for j in history[h] if j + k <= i and math.isfinite(ci[j + k]))[-ERROR_MEMORY:]
-            errors: dict[str, list[float]] = {name: [] for name in COMPONENTS}
-            final_errors: list[float] = []
-            for j in scored:
-                truth = ci[j + k] - ci[j]
-                for name, value in history[h][j].items():
-                    errors[name].append(abs(value - truth))
-                final_errors.append(final_history[h][j] - truth)
-            usable = {name: errors[name] for name in components if len(errors[name]) >= MIN_SCORED_ERRORS}
-            if len(usable) >= 2:
-                raw = {name: 1.0 / (float(np.mean(errs)) ** 2 + 1e-4) for name, errs in usable.items()}
-                method = METHOD_ENSEMBLE
+            s = stats[h]
+            comps = s["components"]
+            # Add this video's pairs whose target time is now observed (j + k <= i).
+            while s["next"] + k <= i:
+                j = s["next"]
+                s["next"] += 1
+                if valid[j] and math.isfinite(ci[j + k]):
+                    a, y = comps[j], ci[j + k] - ci[j]
+                    s["gram"] += np.outer(a, a)
+                    s["rhs"] += a * y
+                    s["yy"] += y * y
+                    s["n"] += 1
+            if s["n"] >= min_train_pairs:
+                w = _nonnegative_weights(s["gram"], s["rhs"])
+                method = METHOD_BLEND
+                resid = (s["yy"] - 2.0 * float(w @ s["rhs"]) + float(w @ s["gram"] @ w)) / s["n"]
+                fit_sigma = math.sqrt(max(resid, 0.0))
             else:
-                raw = {name: weight for name, weight in DEFAULT_WEIGHTS.items() if name in components}
-                method = METHOD_DAMPED
-            total = sum(raw.values())
-            blend = {name: value / total for name, value in raw.items()}
-            delta = sum(blend[name] * components[name] for name in blend)
-            history[h][i] = components
-            final_history[h][i] = delta
-
+                w = np.asarray([DEFAULT_WEIGHTS.get(h, DEFAULT_WEIGHTS[15])[c] for c in COMPONENTS])
+                method = METHOD_DEFAULT
+                fit_sigma = DEFAULT_SIGMA
+            delta = max(-MAX_DELTA, min(MAX_DELTA, float(w @ comps[i])))
+            history[h][i] = delta
+            # Spread from this video's own scored errors once there are enough of them.
+            scored = sorted(j for j in history[h] if j + k <= i and math.isfinite(ci[j + k]))[-ERROR_MEMORY:]
+            final_errors = [history[h][j] - (ci[j + k] - ci[j]) for j in scored]
             if len(final_errors) >= MIN_SCORED_ERRORS:
                 sigma = float(np.sqrt(np.mean(np.square(final_errors))))
-            elif train_d.size >= 5:
-                sigma = float(train_d.std())
             else:
-                sigma = DEFAULT_SIGMA
+                sigma = fit_sigma
             sigma = max(SIGMA_FLOOR, sigma)
             predicted = min(1.0, max(0.0, ci_now + delta))
             trend = min(1.0, max(0.0, ci_now + slope_3m * h))
@@ -364,11 +343,12 @@ def forecast_series(series: Mapping[str, np.ndarray], *,
                 "upper": min(1.0, predicted + Z_80 * sigma),
                 "p_gridlock": p_gridlock,
                 "warning": p_gridlock >= WARNING_PROBABILITY,
+                "watch": WATCH_PROBABILITY <= p_gridlock < WARNING_PROBABILITY,
                 "level_key": _level(predicted),
                 "method": method,
-                "weights": {name: round(value, 3) for name, value in blend.items()},
-                "train_pairs": int(train_d.shape[0]),
-                "library_pairs": int(lib_d.shape[0]),
+                "weights": {name: round(float(v), 3) for name, v in zip(COMPONENTS, w)},
+                "train_pairs": int(s["n"]),
+                "library_pairs": int(s["library_n"]),
                 "persistence_ci": ci_now,
                 "trend_ci": trend,
                 "actual_ci": actual,
@@ -400,7 +380,8 @@ def evaluate_anchors(anchors: list[dict[str, Any]],
             for item in anchor["horizons"]:
                 if item["horizon_minutes"] == h and item["actual_ci"] is not None:
                     rows.append((anchor["observed_ci"], item["ci"], item["trend_ci"], item["actual_ci"],
-                                 item["method"], bool(item.get("warning"))))
+                                 item["method"], bool(item.get("warning")),
+                                 item.get("p_gridlock", 0.0) >= WATCH_PROBABILITY))
         if not rows:
             metrics.append({"horizon_minutes": h, "evaluated": 0})
             continue
@@ -414,10 +395,11 @@ def evaluate_anchors(anchors: list[dict[str, Any]],
         level = np.vectorize(_level)
         not_jammed = [(r[5], r[3]) for r in rows if r[0] < SEVERE_CI]
         not_jammed_trend = [(r[2] >= SEVERE_CI, r[3]) for r in rows if r[0] < SEVERE_CI]
+        not_jammed_watch = [(r[6], r[3]) for r in rows if r[0] < SEVERE_CI]
         metrics.append({
             "horizon_minutes": h,
             "evaluated": len(rows),
-            "trained_anchors": sum(1 for r in rows if r[4] == METHOD_ENSEMBLE),
+            "trained_anchors": sum(1 for r in rows if r[4] == METHOD_BLEND),
             "mae_model": mae_model,
             "mae_persistence": mae_persist,
             "mae_trend": mae_trend,
@@ -427,6 +409,7 @@ def evaluate_anchors(anchors: list[dict[str, Any]],
             "level_accuracy_persistence": float(np.mean(level(cur) == level(act))),
             "onset_model": _onset_scores(not_jammed),
             "onset_trend": _onset_scores(not_jammed_trend),
+            "onset_watch": _onset_scores(not_jammed_watch),
             "actual_onsets": sum(1 for _, a in not_jammed if a >= SEVERE_CI),
         })
     return metrics
@@ -443,8 +426,8 @@ def _spread(items: list[dict[str, Any]], min_gap_seconds: float, limit: int) -> 
 
 
 def select_highlights(anchors: list[dict[str, Any]], *, limit: int = 8) -> dict[str, list[dict[str, Any]]]:
-    """Pick moments worth replaying: correct congestion warnings, misses, false alarms."""
-    hits, misses, false_alarms = [], [], []
+    """Pick moments worth replaying: correct warnings, correct watch flags, misses, false alarms."""
+    hits, watch_hits, misses, false_alarms = [], [], [], []
     for anchor in anchors:
         if anchor["observed_ci"] >= SEVERE_CI:
             continue
@@ -457,18 +440,23 @@ def select_highlights(anchors: list[dict[str, Any]], *, limit: int = 8) -> dict[
                       "predicted_ci": item["ci"], "actual_ci": actual,
                       "p_gridlock": item["p_gridlock"]}
             warned = bool(item.get("warning"))
+            watched = bool(item.get("watch"))
             if warned and actual >= SEVERE_CI:
                 hits.append(record)
+            elif watched and actual >= SEVERE_CI:
+                watch_hits.append(record)
             elif not warned and actual >= SEVERE_CI:
                 misses.append(record)
             elif warned and actual < SEVERE_CI:
                 false_alarms.append(record)
     # Chronological, so a demo can walk through the video from start to end.
     hits.sort(key=lambda r: (r["t"], r["horizon_minutes"]))
+    watch_hits.sort(key=lambda r: (r["t"], r["horizon_minutes"]))
     misses.sort(key=lambda r: (r["t"], r["horizon_minutes"]))
     false_alarms.sort(key=lambda r: (-r["p_gridlock"], r["t"]))
     return {
         "hits": _spread(hits, 60.0, limit),
+        "watch_hits": _spread(watch_hits, 60.0, 3),
         "misses": _spread(misses, 60.0, 3),
         "false_alarms": _spread(false_alarms, 60.0, 3),
     }
@@ -551,20 +539,19 @@ def build_minute_forecast(timeline: Iterable[Mapping[str, Any]], *, duration_sec
         ],
         "ground_truth": "visual_ci_60s_mean",
         "method": {
-            "model": METHOD_ENSEMBLE,
+            "model": METHOD_BLEND,
             "components": list(COMPONENTS),
-            "fallback": METHOD_DAMPED,
-            "features": list(FEATURE_NAMES),
+            "fallback": METHOD_DEFAULT,
             "min_train_pairs": MIN_TRAIN_PAIRS,
             "warning_probability": WARNING_PROBABILITY,
+            "watch_probability": WATCH_PROBABILITY,
             "library_videos": int(library_videos),
-            "ridge_lambda": RIDGE_LAMBDA,
             "causal": True,
             "description": (
-                "Tại mỗi thời điểm t, hệ thống chỉ dùng dữ liệu đến t. Năm bộ dự báo (giữ nguyên, "
-                "hồi về mức thường gặp của đoạn đường, xu hướng giảm chấn, hồi quy ridge, tình huống tương tự) được kết hợp theo nghịch đảo "
-                "sai số gần đây của chính chúng; ridge và tình huống tương tự học từ các cặp "
-                "(đặc trưng lúc τ, CI lúc τ+h) có τ+h ≤ t trong video này và từ các video đã phân tích trước."
+                "Tại mỗi thời điểm t, hệ thống chỉ dùng dữ liệu đến t. Mức CI sau h phút = mức hiện tại "
+                "cộng tổ hợp của ba xu hướng: kéo về mức trung bình của camera, kéo về mức trung bình "
+                "10 phút gần nhất và xu hướng 3 phút (giảm dần). Trọng số học bằng bình phương tối thiểu "
+                "trên các video đã phân tích trước và phần video này đã xem xong (τ+h ≤ t)."
             ),
         },
     }
