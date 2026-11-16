@@ -69,6 +69,8 @@ def test_horizon_items_are_consistent():
             assert math.isclose(item["target_t"], anchor["t"] + item["horizon_minutes"] * 60)
             assert 0 <= item["lower"] <= item["ci"] <= item["upper"] <= 1
             assert item["warning"] == (item["p_gridlock"] >= mf.WARNING_PROBABILITY)
+            assert item["watch"] == (mf.WATCH_PROBABILITY <= item["p_gridlock"] < mf.WARNING_PROBABILITY)
+            assert all(w >= 0 for w in item["weights"].values())
             if item["target_t"] > 40 * 60 - 1:
                 assert item["actual_ci"] is None
 
@@ -133,3 +135,16 @@ def test_bundled_library_beats_persistence_leave_one_video_out():
                 totals[metric["horizon_minutes"]][1] += metric["mae_persistence"] * metric["evaluated"]
     for h, (model, persistence) in totals.items():
         assert model < persistence, f"+{h} min forecast is not better than keeping the current level"
+    # 2026-11-16: +18% at +5 min; guard against falling back toward the old +9.5%.
+    assert 1 - totals[5][0] / totals[5][1] > 0.14
+
+
+def test_nonnegative_weights_recover_a_known_blend_and_drop_harmful_terms():
+    rng = np.random.default_rng(0)
+    a = rng.normal(size=(500, 3))
+    y = a @ np.array([0.4, 0.6, 0.0]) + rng.normal(scale=0.01, size=500)
+    w = mf._nonnegative_weights(a.T @ a, a.T @ y, lam=0.0)
+    assert np.allclose(w, [0.4, 0.6, 0.0], atol=0.02)
+    y_neg = a @ np.array([0.5, 0.0, -0.7])
+    w_neg = mf._nonnegative_weights(a.T @ a, a.T @ y_neg, lam=0.0)
+    assert w_neg[2] == 0 and np.all(w_neg >= 0)
