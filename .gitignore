@@ -27,3 +27,4 @@ node_modules/
 Thumbs.db
 Desktop.ini
 .DS_Store
+!static/demo/hanoi_demo.mp4
