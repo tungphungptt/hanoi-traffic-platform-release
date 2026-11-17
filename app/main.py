@@ -384,8 +384,11 @@ def demo() -> dict[str, Any]:
         segments.append({"name": seg["name"], "start": start, "duration": seg["duration"],
                          "download_url": f"https://drive.google.com/file/d/{seg['drive_id']}/view"})
         start += float(seg["duration"])
+    video = config.get("video")
+    if video and not (STATIC_DIR / Path(video["url"]).relative_to("/static")).is_file():
+        video = None
     return {"title": config["title"], "note": config["note"], "source": config.get("source"),
-            "segments": segments, "session": session}
+            "segments": segments, "session": session, "video": video}
 
 
 def _weather_now(lat: float, lng: float) -> dict[str, Any] | None:

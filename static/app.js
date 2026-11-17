@@ -725,7 +725,18 @@ if (typeof document !== 'undefined') {
       const hadParts = Boolean(clip.segments);
       loadSession(validateSession(demo.session));
       const parts = demo.segments.map(s => s.name).join(', ');
-      if (!hadParts) {
+      if (demo.video && !hadParts) {
+        // Hosted preview of the same recording: plays straight away, no file to pick.
+        releaseUrls();
+        state.file = null;
+        clip.segments = [{ url: demo.video.url, start: 0, duration: demo.video.duration }];
+        loadSegment(0, 0, false);
+        $('fileName').textContent = 'Video demo Hà Nội (bản xem thử đã nén)';
+        renderInputs();
+        syncVideoState();
+        notice(demo.video.note);
+        scheduleRender();
+      } else if (!hadParts) {
         notice(`${demo.note} Để xem hình ảnh: tải ${demo.segments.length} file (${parts}) từ thư mục Drive, rồi chọn cả ${demo.segments.length} file cùng lúc ở mục 1.`);
         $('demoSource').href = demo.source; $('demoSource').hidden = false;
       }
