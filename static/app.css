@@ -141,7 +141,7 @@ h1, h2, h3 { font-family: Manrope, sans-serif; margin: 0; }
 video { display: block; width: 100%; max-height: 62vh; background: #1c1512; }
 .video-badge { position: absolute; left: 12px; top: 12px; padding: 6px 12px; border-radius: 999px; font-weight: 700; font-size: 12px; color: #fff; background: rgba(28, 21, 18, .72); pointer-events: none; }
 .video-badge i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: middle; }
-.video-badge.off { background: rgba(148, 26, 30, .85); }
+.video-badge.off { background: rgba(148, 26, 30, .85); pointer-events: auto; cursor: pointer; }
 .chart-wrap { margin-top: 12px; }
 #ciChart { width: 100%; height: 240px; display: block; cursor: crosshair; }
 .chart-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); font-size: 10px; margin-top: 6px; }
