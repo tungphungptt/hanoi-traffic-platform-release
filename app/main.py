@@ -32,7 +32,6 @@ from traffic_brain import routing
 from traffic_brain.history import History
 from traffic_brain.live import LiveError, LiveStore
 from traffic_brain.detector import Detector
-from traffic_brain.speed import CalibrationError, measure_bursts, plane_from_request
 from traffic_brain.minute_forecaster import record_to_series, series_record, video_key
 from traffic_brain.video_analysis import VideoAnalysisError, analyze_video, capture_evidence, result_payload
 
@@ -61,7 +60,6 @@ def _env_flag(name: str, default: bool) -> bool:
 MAX_UPLOAD_BYTES = _env_int("MAX_UPLOAD_MIB", 2048, 1, 16384) * 1024 * 1024
 MAX_VIDEO_SECONDS = _env_int("MAX_VIDEO_MINUTES", 90, 1, 240) * 60
 SAMPLE_FPS = 1.0
-SPEED_MAX_FRAMES = _env_int("SPEED_MAX_FRAMES", 1500, 100, 20000)  # detector passes spent on speed (4 per second of burst)
 SUPPORTED_SUFFIXES = {".mp4", ".avi", ".mkv", ".mov", ".mpeg", ".mpg", ".webm"}
 # Shipped training series (models/forecast_library) and series of videos analysed on this machine.
 BUNDLED_LIBRARY_ENABLED = _env_flag("FORECAST_BUNDLED_LIBRARY", True)
@@ -239,39 +237,7 @@ def _prune_jobs() -> None:
             shutil.rmtree(EVIDENCE_DIR / job_id, ignore_errors=True)
 
 
-def _camera_at(analysis: dict[str, Any], t: float) -> dict[str, Any] | None:
-    """The camera on air at video time ``t`` (the only camera of a single-camera video)."""
-    cameras = analysis["cameras"]
-    if analysis["mode"] == "single_camera":
-        return cameras[0] if cameras else None
-    for cam in cameras:
-        if any(a <= t <= b for a, b in cam["intervals"]):
-            return cam
-    return None
-
-
-def _speed_result(path: Path, analysis: dict[str, Any], calibration: tuple[Any, dict[str, float]]) -> dict[str, Any]:
-    plane, info = calibration
-    cam = _camera_at(analysis, info["time_seconds"])
-    if cam is None:
-        return {"status": "skipped", "calibration": info,
-                "message": "Khung hình dùng để chọn 4 điểm không thuộc camera nào trong video; chọn lại ở lúc một camera đang lên sóng."}
-    try:
-        out = measure_bursts(path, detector, plane, intervals=cam["intervals"], max_frames=SPEED_MAX_FRAMES)
-    except Exception:
-        logger.warning("Speed measurement failed", exc_info=True)
-        return {"status": "failed", "calibration": info, "camera_id": cam["id"], "message": "Không đo được tốc độ trong video này."}
-    message = None
-    if not out["overall"]["vehicles"]:
-        message = "Không theo dõi được xe nào trong tứ giác đã chọn đủ lâu để tính tốc độ."
-    return {"status": "ok" if out["overall"]["vehicles"] else "no_vehicles", "camera_id": cam["id"], "calibration": info,
-            "message": message, **out,
-            "note": "Tốc độ từ 4 điểm bạn nhập; chỉ đo các xe nằm trong tứ giác và đủ lâu để theo dõi; "
-                    "bộ nhận diện bỏ sót xe nên đây là tốc độ của các xe được thấy."}
-
-
-def _run_job(job_id: str, path: Path, filename: str, timing_confirmed: bool,
-             calibration: tuple[Any, dict[str, float]] | None = None) -> None:
+def _run_job(job_id: str, path: Path, filename: str, timing_confirmed: bool) -> None:
     def progress(pct: int, done: int, total: int) -> None:
         with LOCK:
             JOBS[job_id].update(progress_percent=pct, frames_decoded=done, frames_total=total)
@@ -296,8 +262,6 @@ def _run_job(job_id: str, path: Path, filename: str, timing_confirmed: bool,
         except Exception:
             logger.warning("Could not capture evidence frames", exc_info=True)
             result["evidence"] = []
-        if calibration is not None:
-            result["speed"] = _speed_result(path, analysis, calibration)
         with LOCK:
             JOBS[job_id].update(status="succeeded", progress_percent=100, result=result)
     except VideoAnalysisError as exc:
@@ -313,11 +277,10 @@ def _run_job(job_id: str, path: Path, filename: str, timing_confirmed: bool,
             JOBS[job_id]["finished"] = _now()
 
 
-def _check_video(path: Path) -> tuple[int, int]:
-    """Raises for an unreadable or too long video; returns (width, height) of its frames."""
+def _check_video(path: Path) -> None:
     cap = cv2.VideoCapture(str(path))
     try:
-        ok, frame = cap.read()
+        ok, _ = cap.read()
         fps = float(cap.get(cv2.CAP_PROP_FPS) or 0)
         frames = float(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
     finally:
@@ -326,7 +289,6 @@ def _check_video(path: Path) -> tuple[int, int]:
         raise HTTPException(400, "Không đọc được video hoặc FPS không hợp lệ.")
     if frames / fps > MAX_VIDEO_SECONDS:
         raise HTTPException(413, f"Video vượt giới hạn {MAX_VIDEO_SECONDS // 60} phút.")
-    return int(frame.shape[1]), int(frame.shape[0])
 
 
 # ---------------------------------------------------------------- routes
@@ -511,8 +473,7 @@ def status() -> dict[str, Any]:
 
 
 @app.post("/api/analyze", status_code=202)
-async def analyze(file: UploadFile = File(...), timing_confirmed: bool = Form(False),
-                  calibration: str | None = Form(None)) -> dict[str, Any]:
+async def analyze(file: UploadFile = File(...), timing_confirmed: bool = Form(False)) -> dict[str, Any]:
     # Token, hourly limit, busy state and size are checked by UploadGuard before this body is parsed.
     filename = Path(file.filename or "video.mp4").name
     suffix = Path(filename).suffix.lower()
@@ -538,15 +499,7 @@ async def analyze(file: UploadFile = File(...), timing_confirmed: bool = Form(Fa
                 await run_in_threadpool(tmp.write, chunk)
         if size == 0:
             raise HTTPException(400, "Tệp video rỗng.")
-        width, height = await run_in_threadpool(_check_video, path)
-        plane = None
-        if calibration:
-            if len(calibration) > 2000:
-                raise HTTPException(422, "Calibration quá dài.")
-            try:
-                plane = plane_from_request(calibration, width, height)
-            except CalibrationError as exc:
-                raise HTTPException(422, f"Calibration tốc độ không hợp lệ: {exc}") from exc
+        await run_in_threadpool(_check_video, path)
         with LOCK:
             if _busy():
                 raise HTTPException(409, "Máy chủ đang phân tích một video khác. Vui lòng thử lại sau.")
@@ -554,7 +507,7 @@ async def analyze(file: UploadFile = File(...), timing_confirmed: bool = Form(Fa
             job_id = uuid.uuid4().hex
             JOBS[job_id] = {"job_id": job_id, "status": "queued", "filename": filename,
                             "progress_percent": 0, "frames_decoded": 0, "frames_total": 0}
-            EXECUTOR.submit(_run_job, job_id, path, filename, timing_confirmed, plane)
+            EXECUTOR.submit(_run_job, job_id, path, filename, timing_confirmed)
         path = None
         return {"job_id": job_id, "status": "queued"}
     finally:

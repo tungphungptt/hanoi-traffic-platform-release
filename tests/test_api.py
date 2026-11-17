@@ -24,7 +24,7 @@ def test_upload_rejects_unsupported_and_unreadable_files():
 
 
 def test_job_runs_and_returns_the_best_checked_camera(monkeypatch, tmp_path):
-    monkeypatch.setattr(main, "_check_video", lambda path: (640, 360))
+    monkeypatch.setattr(main, "_check_video", lambda path: None)
     monkeypatch.setattr(main.detector, "load", lambda: None)
     seen = {}
 
@@ -197,70 +197,3 @@ def test_live_export_is_token_gated_and_needs_a_history_file(monkeypatch, tmp_pa
     assert client.get("/api/live/export?limit=0", headers={"X-Live-Token": "thu-nhan"}).status_code == 422
     # "export" and "history" are routes, not camera ids.
     assert client.post("/api/live/export/samples", json=body, headers={"X-Live-Token": "thu-nhan"}).status_code == 422
-
-
-def _fake_analysis(mode="single_camera"):
-    series = {"t": np.arange(4.0), "ci": np.zeros(4), "occupancy": np.zeros(4), "count": np.zeros(4), "motion": np.zeros(4)}
-    cam = lambda i, intervals: {"id": i, "label": f"Camera {i + 1}", "on_air_seconds": 60.0, "intervals": intervals,
-                                 "series": series, "checked_forecasts": 3, "minute_forecast": {"available": True}}
-    cams = [cam(0, [[0, 30]]), cam(1, [[40, 60]])] if mode == "broadcast" else [cam(0, [[0, 60]])]
-    return {"video": {"duration_seconds": 60, "width": 640, "height": 360}, "mode": mode, "cameras": cams, "timeline": []}
-
-
-GOOD_CALIBRATION = '{"points": [[0.3, 0.9], [0.7, 0.9], [0.58, 0.4], [0.44, 0.4]], "width_m": 7, "length_m": 40, "time_seconds": %s}'
-
-
-def _run_analysis(monkeypatch, mode, calibration, speed_out=None):
-    monkeypatch.setattr(main, "_check_video", lambda path: (640, 360))
-    monkeypatch.setattr(main.detector, "load", lambda: None)
-    monkeypatch.setattr(main, "analyze_video", lambda path, detector, **kw: _fake_analysis(mode))
-    calls = []
-
-    def fake_bursts(path, detector, plane, **kw):
-        calls.append(kw["intervals"])
-        return speed_out or {"bursts": [{"t_start": 0.0, "t_end": 12.0, "vehicles": 4, "median_kmh": 31.0, "mean_kmh": 30.0,
-                                         "p85_kmh": 38.0, "stopped_share": 0.0}],
-                             "overall": {"vehicles": 4, "median_kmh": 31.0, "mean_kmh": 30.0, "p85_kmh": 38.0, "stopped_share": 0.0},
-                             "frames_processed": 49, "burst_seconds": 12.0, "warning": None}
-
-    monkeypatch.setattr(main, "measure_bursts", fake_bursts)
-    response = client.post("/api/analyze", files={"file": ("clip.mp4", b"\0" * 1024)},
-                           data={"timing_confirmed": "true", "calibration": calibration})
-    return response, calls
-
-
-def _wait(job_id):
-    for _ in range(100):
-        job = client.get(f"/api/jobs/{job_id}").json()
-        if job["status"] in {"succeeded", "failed"}:
-            return job
-        time.sleep(0.05)
-    return job
-
-
-def test_speed_is_measured_when_a_valid_calibration_is_sent(monkeypatch):
-    response, calls = _run_analysis(monkeypatch, "single_camera", GOOD_CALIBRATION % 5)
-    assert response.status_code == 202
-    job = _wait(response.json()["job_id"])
-    speed = job["result"]["speed"]
-    assert speed["status"] == "ok" and speed["overall"]["median_kmh"] == 31.0 and speed["camera_id"] == 0
-    assert speed["calibration"] == {"width_m": 7.0, "length_m": 40.0, "time_seconds": 5.0}
-    assert calls == [[[0, 60]]]
-
-
-def test_speed_follows_the_camera_on_air_at_the_calibration_time(monkeypatch):
-    response, calls = _run_analysis(monkeypatch, "broadcast", GOOD_CALIBRATION % 50)
-    job = _wait(response.json()["job_id"])
-    assert job["result"]["speed"]["camera_id"] == 1 and calls == [[[40, 60]]]
-    response, calls = _run_analysis(monkeypatch, "broadcast", GOOD_CALIBRATION % 35)  # between the two cameras: nobody on air
-    job = _wait(response.json()["job_id"])
-    assert job["result"]["speed"]["status"] == "skipped" and calls == []
-
-
-def test_no_calibration_means_no_speed_pass_and_a_bad_one_is_refused_up_front(monkeypatch):
-    response, calls = _run_analysis(monkeypatch, "single_camera", "")
-    job = _wait(response.json()["job_id"])
-    assert "speed" not in job["result"] and calls == []
-    bad, calls = _run_analysis(monkeypatch, "single_camera", '{"points": [[0, 0]], "width_m": 7, "length_m": 40}')
-    assert bad.status_code == 422 and "Calibration" in bad.json()["detail"] and calls == []
-    assert not list(main.UPLOAD_DIR.glob("upload_*")), "a refused upload must not leave its video behind"
