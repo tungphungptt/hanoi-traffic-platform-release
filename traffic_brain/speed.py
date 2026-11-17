@@ -76,15 +76,6 @@ def _polygon_area(points: np.ndarray) -> float:
     return 0.5 * float(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
 
 
-def _convex_in_order(points: np.ndarray) -> bool:
-    """True when walking the points in the given order always turns the same way (no bow-tie, no dent)."""
-    turns = []
-    for i in range(len(points)):
-        a, b, c = points[i], points[(i + 1) % len(points)], points[(i + 2) % len(points)]
-        turns.append((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]))
-    return all(t > 1e-9 for t in turns) or all(t < -1e-9 for t in turns)
-
-
 def contact_point(box: Sequence[float]) -> tuple[float, float]:
     """Where the vehicle meets the road: bottom centre of its box."""
     x1, y1, x2, y2 = box
@@ -197,14 +188,6 @@ def track_speed(times: Sequence[float], xy: Sequence[Sequence[float]]) -> tuple[
     return float(np.hypot(*velocity) * 3.6), distance
 
 
-def speed_stats(speeds: Sequence[float]) -> dict[str, Any]:
-    arr = np.asarray(list(speeds), dtype=float)
-    if not arr.size:
-        return {"vehicles": 0, "median_kmh": None, "mean_kmh": None, "p85_kmh": None, "stopped_share": None}
-    return {"vehicles": int(arr.size), "median_kmh": round(float(np.median(arr)), 1), "mean_kmh": round(float(arr.mean()), 1),
-            "p85_kmh": round(float(np.percentile(arr, 85)), 1), "stopped_share": round(float((arr < STOPPED_KMH).mean()), 3)}
-
-
 def summarise(tracks: Iterable[TrackSpeed], *, window_seconds: float = 10.0, duration: float | None = None) -> list[dict[str, Any]]:
     """Per window: how many vehicles crossed, median / mean / 85th percentile speed and the share that stood still.
     A track belongs to the window of its middle time."""
@@ -246,103 +229,3 @@ def draw_calibration(frame: np.ndarray, plane: GroundPlane, grid_m: float = 5.0)
         a, b = plane.to_pixels(np.array([[x0, gy], [x1, gy]]))
         cv2.line(image, tuple(map(int, a)), tuple(map(int, b)), (0, 200, 0), 1, cv2.LINE_AA)
     return image
-
-
-# ---------------------------------------------------------------- from a web request and over a whole video
-
-MAX_SIDE_METERS = 300.0
-MIN_QUAD_SHARE = 0.005   # the calibrated quadrilateral must cover at least 0.5% of the frame
-
-
-def plane_from_request(data: Any, frame_width: int, frame_height: int) -> tuple[GroundPlane, dict[str, float]]:
-    """Calibration sent by the web page: four clicked points as fractions of the frame (near-left, near-right,
-    far-right, far-left of a rectangle on the road) and the real width and length of that rectangle in metres."""
-    if isinstance(data, str):
-        try:
-            data = json.loads(data)
-        except ValueError as exc:
-            raise CalibrationError("Calibration không phải JSON hợp lệ.") from exc
-    if not isinstance(data, dict):
-        raise CalibrationError("Calibration phải là một đối tượng.")
-    points = data.get("points")
-    if (not isinstance(points, list) or len(points) != 4
-            or any(not isinstance(p, (list, tuple)) or len(p) != 2 for p in points)):
-        raise CalibrationError("Cần đúng 4 điểm [x, y].")
-    try:
-        norm = np.asarray(points, dtype=float)
-        width_m, length_m = float(data.get("width_m")), float(data.get("length_m"))
-        when = float(data.get("time_seconds") or 0.0)
-    except (TypeError, ValueError) as exc:
-        raise CalibrationError("Điểm, bề rộng và chiều dài phải là số.") from exc
-    if not (np.isfinite(norm).all() and math.isfinite(width_m) and math.isfinite(length_m) and math.isfinite(when)):
-        raise CalibrationError("Giá trị phải là số hữu hạn.")
-    if norm.min() < 0.0 or norm.max() > 1.0:
-        raise CalibrationError("Điểm phải nằm trong khung hình.")
-    if not (1.0 <= width_m <= MAX_SIDE_METERS and 1.0 <= length_m <= MAX_SIDE_METERS):
-        raise CalibrationError(f"Bề rộng và chiều dài phải trong khoảng 1–{int(MAX_SIDE_METERS)} m.")
-    pixels = norm * np.array([frame_width, frame_height], dtype=float)
-    area = abs(_polygon_area(pixels))
-    if not _convex_in_order(pixels) or area < MIN_QUAD_SHARE * frame_width * frame_height:
-        raise CalibrationError("Bốn điểm phải tạo thành một tứ giác lồi, không quá nhỏ (không tự cắt nhau).")
-    plane = GroundPlane(pixels, [[0, 0], [width_m, 0], [width_m, length_m], [0, length_m]])
-    return plane, {"width_m": width_m, "length_m": length_m, "time_seconds": max(0.0, when)}
-
-
-def measure_bursts(video: Path, detector: Any, plane: GroundPlane, *, intervals: Sequence[Sequence[float]] | None = None,
-                   fps: float = 4.0, burst_seconds: float = 12.0, every_seconds: float = 120.0,
-                   max_frames: int = 1500) -> dict[str, Any]:
-    """Speed over short bursts spread across the video (a speed needs a vehicle followed for a few seconds,
-    not every second of an hour). Only inside ``intervals`` (when the calibrated camera is on air)."""
-    cap = cv2.VideoCapture(str(video))
-    if not cap.isOpened():
-        raise CalibrationError("Không mở được video để đo tốc độ.")
-    native = float(cap.get(cv2.CAP_PROP_FPS) or 0) or 25.0
-    total = float(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0) / native
-    stride = max(1, int(round(native / fps)))
-    allowed = [list(map(float, i)) for i in intervals] if intervals else [[0.0, total]]
-    starts = []
-    t = 0.0
-    while t < total:
-        for a, b in allowed:
-            if a <= t and t + burst_seconds <= b + 1e-6:
-                starts.append(t)
-                break
-        t += every_seconds
-    if not starts:  # a short or fragmented video: take the first long enough on-air stretch
-        for a, b in allowed:
-            if b - a >= MIN_TRACK_SECONDS * 2:
-                starts.append(a)
-                break
-    per_burst = int(burst_seconds * fps) + 1
-    if len(starts) * per_burst > max_frames:
-        keep = max(1, max_frames // max(1, per_burst))
-        starts = [starts[int(i * len(starts) / keep)] for i in range(keep)]
-    bursts, all_speeds, frames = [], [], 0
-    try:
-        for start in starts:
-            end = min(start + burst_seconds, total)
-            cap.set(cv2.CAP_PROP_POS_FRAMES, int(start * native))
-            tracker = SpeedTracker(plane)
-            index = int(start * native)
-            while index / native < end:
-                if (index - int(start * native)) % stride:
-                    if not cap.grab():
-                        break
-                else:
-                    ok, frame = cap.read()
-                    if not ok:
-                        break
-                    tracker.update(index / native, detector.detect(frame))
-                    frames += 1
-                index += 1
-            speeds = [tr.speed_kmh for tr in tracker.finish()]
-            all_speeds += speeds
-            bursts.append({"t_start": round(start, 1), "t_end": round(end, 1), **speed_stats(speeds)})
-    finally:
-        cap.release()
-    overall = speed_stats(all_speeds)
-    warning = None
-    if overall["median_kmh"] is not None and overall["median_kmh"] > MAX_PLAUSIBLE_KMH:
-        warning = "Tốc độ trung vị vượt 120 km/h: gần như chắc chắn khoảng cách hoặc bốn điểm đã nhập sai."
-    return {"bursts": bursts, "overall": overall, "frames_processed": frames, "burst_seconds": burst_seconds,
-            "warning": warning}
