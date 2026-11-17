@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <link rel="stylesheet" href="/static/app.css?v=9.3" />
+  <link rel="stylesheet" href="/static/app.css?v=9.5" />
 </head>
 <body>
   <div class="app-shell">
@@ -87,6 +87,7 @@
                 <div class="video-wrap">
                   <video id="player" controls preload="metadata" playsinline></video>
                   <div class="video-badge" id="nowBadge" hidden></div>
+                  <div class="no-video" id="noVideo" hidden><p>Chưa có video để phát. Kết quả phân tích đã mở; chọn đúng file video gốc để xem hình và tua.</p><button class="btn btn-primary" id="noVideoPick" type="button">Chọn file video</button></div>
                 </div>
                 <div class="chart-wrap">
                   <svg id="ciChart" viewBox="0 0 1000 260" preserveAspectRatio="none" role="img" aria-label="Chỉ số ùn tắc theo thời gian và dự báo"></svg>
@@ -241,7 +242,7 @@
   <div class="toast" id="toast" role="status" hidden></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="/static/shell.js?v=9.2"></script>
-  <script src="/static/app.js?v=9.1"></script>
+  <script src="/static/app.js?v=9.5"></script>
   <script src="/static/map.js?v=9.1"></script>
   <script src="/static/live.js?v=9.2"></script>
   <script src="/static/routes.js?v=9.1"></script>
