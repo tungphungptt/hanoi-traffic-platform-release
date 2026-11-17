@@ -114,6 +114,8 @@ if (typeof document !== 'undefined') {
   // forecast timeline is then segment.start + the segment's own playback time.
   const clip = { segments: null, index: 0 };
   const hasVideo = () => Boolean(clip.segments || player.getAttribute('src'));
+  // With no video there is nothing to hide the future from: show the whole chart instead of a blank one.
+  const blindNow = () => state.blind && hasVideo();
   // Without any video the chart still works: clicking it moves a virtual playhead.
   let virtualT = 0;
   function videoTime() {
@@ -141,6 +143,17 @@ if (typeof document !== 'undefined') {
     if (clip.segments && clip.index < clip.segments.length - 1) loadSegment(clip.index + 1, 0, true);
   });
   const chart = $('ciChart');
+  const noVideo = $('noVideo');
+  function syncVideoState() {
+    const missing = Boolean(state.session) && !hasVideo();
+    noVideo.hidden = !missing;
+    player.classList.toggle('is-empty', missing);
+  }
+  player.addEventListener('error', () => {
+    if (!player.getAttribute('src')) return;
+    notice('Trình duyệt không phát được file video này. Hãy chọn lại đúng file mp4 (H.264) ở mục 1.', 'error');
+  });
+  $('noVideoPick').addEventListener('click', () => $('videoFile').click());
 
   const camera = () => state.session?.cameras.find(c => c.id === state.camera) || state.session?.cameras[0];
   const forecast = () => camera()?.minute_forecast;
@@ -239,6 +252,7 @@ if (typeof document !== 'undefined') {
     }
     clip.segments = segments;
     loadSegment(0, 0, false);
+    syncVideoState();
     $('fileName').textContent = `${segments.length} phần nối tiếp · ${fmtTime(start)} (${sorted[0].name} … ${sorted[sorted.length - 1].name})`;
     renderInputs();
     const expected = Number(state.session?.video?.duration_seconds || 0);
@@ -255,7 +269,9 @@ if (typeof document !== 'undefined') {
     player.src = state.objectUrl || '';
     $('fileName').textContent = file ? `${file.name} · ${(file.size / 1048576).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} MiB` : 'Chọn video từ máy tính';
     renderInputs();
+    syncVideoState();
     if (state.session) checkVideoMatchesSession();
+    if (state.session) scheduleRender();
   }
 
   function upload(form) {
@@ -348,6 +364,7 @@ if (typeof document !== 'undefined') {
     renderCameraTabs();
     showCamera();
     checkVideoMatchesSession();
+    syncVideoState();
     $('workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -456,7 +473,7 @@ if (typeof document !== 'undefined') {
     const mf = forecast();
     $('unlockBtn').hidden = !state.locked;
     // Rebuild only when something visible changes, so buttons stay clickable during playback.
-    const key = anchor ? [anchor.t, Boolean(state.locked), state.blind, ...anchor.horizons.map(item => isRevealed(item, t, state.blind))].join('|') : `none|${Math.floor(t)}`;
+    const key = anchor ? [anchor.t, Boolean(state.locked), blindNow(), ...anchor.horizons.map(item => isRevealed(item, t, blindNow()))].join('|') : `none|${Math.floor(t)}`;
     if (key === state.panelKey) {
       if (state.locked) $('forecastSub').textContent = `Đang giữ dự báo này để kiểm chứng. Video đang ở ${fmtTime(t)}.`;
       return;
@@ -479,7 +496,7 @@ if (typeof document !== 'undefined') {
       : 'Cập nhật theo thời điểm đang xem.';
     $('nowRow').innerHTML = `<span>Lúc lập dự báo:</span>${levelChip(anchor.observed_ci)}<strong>CI ${num(anchor.observed_ci)}</strong>`;
     $('horizonList').innerHTML = anchor.horizons.map((item, index) => {
-      const revealed = isRevealed(item, t, state.blind);
+      const revealed = isRevealed(item, t, blindNow());
       let verify;
       if (item.actual_ci === null || item.actual_ci === undefined) {
         verify = multiCamera() && item.target_t <= duration()
@@ -543,7 +560,7 @@ if (typeof document !== 'undefined') {
       parts.push(`<text x="${x(s)}" y="${height - 8}" text-anchor="middle" font-size="11" fill="#817467">${fmtTime(s)}</text>`);
     }
     // Observed CI line, cut at the playhead in blind mode.
-    const limit = state.blind ? t : dur;
+    const limit = blindNow() ? t : dur;
     let d = '', open = false;
     for (const point of mf.observed) {
       if (point.t > limit + 1e-6) break;
@@ -554,7 +571,7 @@ if (typeof document !== 'undefined') {
     parts.push(`<path d="${d}" fill="none" stroke="#55463d" stroke-width="2" stroke-linejoin="round"/>`);
     // Correct congestion warnings that have already happened on screen.
     for (const hit of mf.highlights?.hits || []) {
-      if (state.blind && hit.target_t > t) continue;
+      if (blindNow() && hit.target_t > t) continue;
       parts.push(`<path d="M${x(hit.t)},${y(1) + 2} l6,10 l-12,0 z" fill="${LEVEL_COLOR.gridlock}"><title>Lúc ${fmtTime(hit.t)} cảnh báo +${hit.horizon_minutes} phút sẽ tắc: đúng</title></path>`);
     }
     if (anchor) {
@@ -563,7 +580,7 @@ if (typeof document !== 'undefined') {
         parts.push(`<line x1="${x(anchor.t)}" y1="${y(anchor.observed_ci)}" x2="${x(item.target_t)}" y2="${y(item.ci)}" stroke="#597e9b" stroke-width="1.5" stroke-dasharray="5 4"/>`);
         parts.push(`<line x1="${x(item.target_t)}" x2="${x(item.target_t)}" y1="${y(item.upper)}" y2="${y(item.lower)}" stroke="#597e9b" stroke-width="2" opacity=".45"/>`);
         parts.push(`<circle cx="${x(item.target_t)}" cy="${y(item.ci)}" r="5" fill="#597e9b"><title>+${item.horizon_minutes} phút: CI dự báo ${num(item.ci)}</title></circle>`);
-        if (item.actual_ci !== null && item.actual_ci !== undefined && isRevealed(item, t, state.blind)) {
+        if (item.actual_ci !== null && item.actual_ci !== undefined && isRevealed(item, t, blindNow())) {
           parts.push(`<circle cx="${x(item.target_t)}" cy="${y(item.actual_ci)}" r="6" fill="#fff" stroke="#332b26" stroke-width="2"><title>Thực tế: CI ${num(item.actual_ci)}</title></circle>`);
         }
       }
@@ -593,7 +610,7 @@ if (typeof document !== 'undefined') {
       : kind === 'watch'
       ? `Hệ thống báo mức theo dõi: sau <strong>${record.horizon_minutes} phút</strong> có thể tắc (khả năng ${pct(record.p_gridlock)}, chưa tới ngưỡng cảnh báo 40%).`
       : `Hệ thống cảnh báo: sau <strong>${record.horizon_minutes} phút</strong> sẽ tắc (khả năng ${pct(record.p_gridlock)}, CI dự báo ${num(record.predicted_ci)}).`;
-    const outcome = (kind === 'hit' || kind === 'watch') && state.blind
+    const outcome = (kind === 'hit' || kind === 'watch') && blindNow()
       ? `Kết quả: tua tới ${fmtTime(record.target_t)} để xem.`
       : `Thực tế lúc ${fmtTime(record.target_t)}: ${LEVEL_LABEL[levelKey(record.actual_ci)]} (CI ${num(record.actual_ci)}).`;
     return `<div class="moment"><div><p>${lead} ${said}</p><p class="muted">${outcome}</p></div>
@@ -630,7 +647,7 @@ if (typeof document !== 'undefined') {
     const frames = (state.session?.evidence || []).filter(f => f.camera === state.camera);
     $('evidenceCard').hidden = !frames.length;
     if (!frames.length) { $('evidenceGrid').innerHTML = ''; return; }
-    if (state.blind) {
+    if (blindNow()) {
       $('evidenceGrid').innerHTML = '<p class="empty">Đang bật “Ẩn tương lai”: tắt chế độ này để xem ảnh minh chứng.</p>';
       return;
     }
