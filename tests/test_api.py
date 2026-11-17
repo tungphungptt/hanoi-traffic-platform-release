@@ -144,6 +144,8 @@ def test_demo_endpoint_lists_consecutive_segments():
     total = demo["segments"][-1]["start"] + demo["segments"][-1]["duration"]
     assert abs(total - demo["session"]["video"]["duration_seconds"]) < 5
     assert demo["session"]["contract"].startswith("hanoiflow-forecast-session/")
+    assert demo["video"]["url"].startswith("/static/demo/")
+    assert abs(demo["video"]["duration"] - demo["session"]["video"]["duration_seconds"]) < 5
 
 
 def test_live_intake_needs_a_token_and_serves_forecasts(monkeypatch):

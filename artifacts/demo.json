@@ -34,5 +34,10 @@
       "drive_id": "1zP4dbj2sbafirIS9NbmTlDbTkWEiThGk",
       "duration": 232.0
     }
-  ]
+  ],
+  "video": {
+    "url": "/static/demo/hanoi_demo.mp4",
+    "duration": 1730.0,
+    "note": "Bản xem thử đã nén (640 px, không tiếng) của cùng bản ghi; kết quả phân tích lấy từ video gốc."
+  }
 }
