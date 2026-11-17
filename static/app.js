@@ -360,6 +360,7 @@ if (typeof document !== 'undefined') {
   function loadSession(session) {
     state.session = validateSession(session);
     state.camera = state.session.main_camera;
+    state.pinned = false;
     setProgress(100, 'Hoàn tất. Phát video hoặc chọn một khoảnh khắc bên dưới.');
     renderCameraTabs();
     showCamera();
@@ -404,10 +405,17 @@ if (typeof document !== 'undefined') {
     scheduleRender();
   }
 
+  $('nowBadge').addEventListener('click', () => {
+    if (!state.session || !multiCamera() || onAir(camera().intervals, videoTime())) return;
+    state.pinned = false;
+    scheduleRender();
+  });
+
   $('cameraTabs').addEventListener('click', event => {
     const button = event.target.closest('[data-camera]');
     if (!button || !state.session) return;
     state.camera = Number(button.dataset.camera);
+    state.pinned = true;  // the person chose this camera: stop switching automatically
     notice('');
     showCamera();
   });
@@ -439,8 +447,19 @@ if (typeof document !== 'undefined') {
     return state.locked || lastAtOrBefore(anchors, t);
   }
 
+  // In a multi-camera recording the chart should follow whichever camera is on air at the playhead.
+  function followOnAirCamera(t) {
+    if (state.pinned || !multiCamera() || onAir(camera().intervals, t)) return false;
+    const other = state.session.cameras.find(c => c.id !== camera().id && c.minute_forecast.available && onAir(c.intervals, t));
+    if (!other) return false;
+    state.camera = other.id;
+    showCamera();
+    return true;
+  }
+
   function render() {
     if (!forecast()?.available) return;
+    if (followOnAirCamera(videoTime())) return;
     const t = videoTime();
     const anchor = currentAnchor(t);
     renderPanel(anchor, t);
@@ -454,7 +473,7 @@ if (typeof document !== 'undefined') {
     if (multiCamera() && !onAir(camera().intervals, t)) {
       badge.hidden = false;
       badge.className = 'video-badge off';
-      badge.textContent = `${camera().label} đang không lên sóng`;
+      badge.textContent = `${camera().label} đang không lên sóng · bấm để theo camera đang lên sóng`;
       return;
     }
     badge.className = 'video-badge';
