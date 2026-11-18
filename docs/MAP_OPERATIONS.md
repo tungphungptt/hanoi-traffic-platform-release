@@ -27,7 +27,11 @@ Set `TRAFFIC_TILE_URL_TEMPLATE` and `TRAFFIC_TILE_ATTRIBUTION` only after select
 - camera exists, `location_verified=true`, and coordinates present;
 - source exactly `rtsp` (set only by your trusted collector); `observed_at` no older than 180 seconds and no more than 15 seconds in the future;
 - CI in `[0,1]`, and optional speed_kmh/flow_pcu in allowed ranges;
-- protected deployment with authentication/authorization, because the contract endpoint is not a substitute for an authenticated ingestion gateway.
+- `PUBLIC_DEMO_MODE=false` and a configured `LIVE_TOKEN`; send it as `Authorization: Bearer <LIVE_TOKEN>`. Missing configuration disables ingestion (503), and a missing/incorrect token is rejected (401). Keep the token in the deployment secret store, never in the browser.
+
+The public demo remains read-only. Configure `LIVE_TOKEN` in the deployment environment before enabling a trusted collector; this endpoint is not a substitute for camera-source authorization or a broader ingestion gateway.
+
+The linear segment baseline also requires at least five observations spanning four minutes, with no gap over 180 seconds between samples. Otherwise it returns no predictions. It remains an unvalidated reference, not a trained or calibrated traffic model.
 
 Data is in-memory and disappears on server restart. No collector runs by default. The route scorer uses telemetry within 350 meters of geometry; only when all candidate routes have recent live observations does it mark the comparison `traffic_aware=true`.
 

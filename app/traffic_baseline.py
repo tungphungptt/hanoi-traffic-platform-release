@@ -5,6 +5,9 @@ import time
 from datetime import datetime, timezone
 
 
+MAX_TELEMETRY_GAP_SECONDS = 180
+
+
 def _level(ci: float) -> tuple[str, str]:
     if ci < 0.30:
         return "free", "Thông thoáng"
@@ -47,6 +50,20 @@ def forecast_from_history(history, *, now_epoch=None):
     age = now - rows[-1]["observed_epoch"]
     if age > 180:
         return {**base, "reason": "stale_telemetry", "message": "Telemetry mới nhất đã quá 180 giây."}
+
+    max_gap = max(
+        later["observed_epoch"] - earlier["observed_epoch"]
+        for earlier, later in zip(rows, rows[1:])
+    )
+    if max_gap > MAX_TELEMETRY_GAP_SECONDS:
+        return {
+            **base,
+            "reason": "gapped_history",
+            "message": (
+                "Chuỗi telemetry có khoảng trống trên "
+                f"{MAX_TELEMETRY_GAP_SECONDS} giây; chưa ngoại suy dự báo."
+            ),
+        }
 
     xs = [row["observed_epoch"] - rows[0]["observed_epoch"] for row in rows]
     ys = [row["ci"] for row in rows]

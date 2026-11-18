@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import asyncio
 from contextlib import asynccontextmanager
+import hmac
 import math
 import mimetypes
 import os
@@ -80,6 +81,22 @@ def require_write_access() -> None:
     """In public demo mode, keep the site read-only for anonymous visitors."""
     if PUBLIC_DEMO_MODE:
         raise HTTPException(status_code=403, detail="Public demo đang ở chế độ chỉ đọc; thao tác ghi đã bị tắt.")
+
+
+def require_live_collector_access(request: Request) -> None:
+    """Require a configured bearer token before accepting collector telemetry."""
+    expected_token = os.getenv("LIVE_TOKEN", "").strip()
+    if not expected_token:
+        raise HTTPException(status_code=503, detail="LIVE_TOKEN chưa được cấu hình; endpoint telemetry đang tắt.")
+
+    scheme, separator, supplied_token = request.headers.get("authorization", "").partition(" ")
+    if (scheme.lower() != "bearer" or not separator
+            or not hmac.compare_digest(supplied_token.strip().encode("utf-8"), expected_token.encode("utf-8"))):
+        raise HTTPException(
+            status_code=401,
+            detail="Thiếu hoặc sai bearer token của collector.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 def video_review_access() -> dict[str, Any]:
@@ -1970,9 +1987,10 @@ def route_alternatives(body: RouteAlternativesRequest) -> dict[str, Any]:
 
 
 @app.post("/api/traffic/telemetry")
-def ingest_live_traffic_telemetry(body: LiveTelemetryRequest) -> dict[str, Any]:
+def ingest_live_traffic_telemetry(body: LiveTelemetryRequest, request: Request) -> dict[str, Any]:
     """Collector contract for a protected RTSP process; never treat fixture camera metrics as live telemetry."""
     require_write_access()
+    require_live_collector_access(request)
     _assert_camera_exists(body.camera_id)
     camera = next((row for row in CAMERAS if row.get("id") == body.camera_id), None)
     if not camera:

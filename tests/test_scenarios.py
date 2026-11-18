@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import cv2
@@ -272,12 +273,65 @@ def test_route_api_attaches_video_analysis_only_when_origin_camera_matches(monke
 
 def test_camera_telemetry_requires_verified_camera_location(monkeypatch):
     monkeypatch.setattr(main, "PUBLIC_DEMO_MODE", False)
+    monkeypatch.setenv("LIVE_TOKEN", "test-collector-token")
     response = client.post("/api/traffic/telemetry", json={
         "camera_id": "HN-001", "source": "rtsp", "ci": 0.7,
         "observed_at": "2026-10-23T07:00:00Z"
-    })
+    }, headers={"Authorization": "Bearer test-collector-token"})
     assert response.status_code == 409
     assert "chưa được xác minh" in response.json()["detail"].lower()
+
+
+def test_camera_telemetry_is_disabled_without_live_token(monkeypatch):
+    monkeypatch.setattr(main, "PUBLIC_DEMO_MODE", False)
+    monkeypatch.delenv("LIVE_TOKEN", raising=False)
+    response = client.post("/api/traffic/telemetry", json={"camera_id": "HN-001", "ci": 0.7})
+    assert response.status_code == 503
+
+
+def test_camera_telemetry_stays_read_only_in_public_demo(monkeypatch):
+    monkeypatch.setattr(main, "PUBLIC_DEMO_MODE", True)
+    monkeypatch.setenv("LIVE_TOKEN", "test-collector-token")
+    response = client.post(
+        "/api/traffic/telemetry",
+        json={"camera_id": "HN-001", "ci": 0.7},
+        headers={"Authorization": "Bearer test-collector-token"},
+    )
+    assert response.status_code == 403
+
+
+def test_camera_telemetry_rejects_invalid_live_token(monkeypatch):
+    monkeypatch.setattr(main, "PUBLIC_DEMO_MODE", False)
+    monkeypatch.setenv("LIVE_TOKEN", "test-collector-token")
+    response = client.post(
+        "/api/traffic/telemetry",
+        json={"camera_id": "HN-001", "ci": 0.7},
+        headers={"Authorization": "Bearer wrong-token"},
+    )
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
+def test_camera_telemetry_accepts_valid_live_token(monkeypatch):
+    monkeypatch.setattr(main, "PUBLIC_DEMO_MODE", False)
+    monkeypatch.setenv("LIVE_TOKEN", "test-collector-token")
+    monkeypatch.setattr(main, "CAMERAS", [{
+        "id": "HN-001", "lat": 21.02, "lng": 105.83, "location_verified": True,
+    }])
+    monkeypatch.setattr(main, "LIVE_TELEMETRY", {})
+    monkeypatch.setattr(main, "LIVE_TELEMETRY_HISTORY", {})
+    response = client.post(
+        "/api/traffic/telemetry",
+        json={
+            "camera_id": "HN-001",
+            "ci": 0.7,
+            "observed_at": datetime.now(timezone.utc).isoformat(),
+        },
+        headers={"Authorization": "Bearer test-collector-token"},
+    )
+    assert response.status_code == 200
+    assert response.json()["stored"] is True
+    assert main.LIVE_TELEMETRY["HN-001"]["ci"] == 0.7
 
 
 def test_v5_ui_explains_video_frames_route_candidates_and_hides_legacy_flow_by_default():
