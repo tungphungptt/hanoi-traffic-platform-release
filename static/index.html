@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" onerror="this.onerror=null;this.removeAttribute('integrity');this.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'" />
-  <link rel="stylesheet" href="/static/app.css?v=12.0" />
+  <link rel="stylesheet" href="/static/app.css?v=12.1" />
 </head>
 <body>
   <div class="app-shell">
@@ -286,6 +286,17 @@
               <button class="btn btn-primary" id="routeBtn" type="button">Tìm các tuyến thay thế</button>
             </div>
             <div class="route-forecast" id="routeForecast">Chưa có dự báo: mở một kết quả ở mục 1–2 và chọn vị trí camera để hệ thống tránh đoạn được dự báo tắc.</div>
+            <div class="route-decision" id="routeDecision" aria-live="polite">
+              <div class="route-decision-heading">
+                <div><small>ĐIỀU PHỐI MÔ PHỎNG</small><strong>Gợi ý xử lý theo dự báo video</strong></div>
+                <span class="route-decision-badge" id="routeDecisionBadge">Chờ dữ liệu</span>
+              </div>
+              <div class="route-decision-grid">
+                <article><small>Điều tiết tại camera</small><strong id="routeStaffDecision">Mở demo hoặc kết quả dự báo, rồi chọn vị trí camera.</strong><span id="routeStaffBasis">Chưa có dữ liệu dự báo để đưa ra khuyến nghị.</span></article>
+                <article><small>Hướng đi cho người dùng</small><strong id="routeRerouteDecision">Chọn điểm đi, điểm đến và tìm tuyến.</strong><span id="routeRerouteBasis">Chưa có phương án tuyến để so sánh.</span></article>
+              </div>
+              <p>Đây là hỗ trợ quyết định mô phỏng, không tự động điều động. Ngưỡng CI chỉ để minh họa; cần xác minh hiện trường. OSRM và vị trí camera tham chiếu không cung cấp dữ liệu làn hoặc tình trạng giao thông trực tiếp.</p>
+            </div>
             <div class="route-disclaimer">Thời gian tuyến lấy từ OSRM trên dữ liệu OpenStreetMap (thời gian theo mạng đường). Nếu tuyến đi qua vị trí camera (trong 300 m) mà dự báo ở mục 2 cho thấy sắp đông/tắc, thời gian được cộng thêm theo CI dự báo: <em>thời gian × (1 + 0,35 × CI dự báo +10 phút)</em> — quy tắc tham khảo, không phải đo tắc thời gian thực.</div>
             <div class="route-layout">
               <div id="routeList" class="route-list"><div class="empty">Chưa có phương án tuyến.</div></div>
@@ -377,6 +388,6 @@
   <script src="/static/app.js?v=12.0"></script>
   <script src="/static/map.js?v=12.0"></script>
   <script src="/static/live.js?v=9.2"></script>
-  <script src="/static/routes.js?v=12.0"></script>
+  <script src="/static/routes.js?v=12.1"></script>
 </body>
 </html>

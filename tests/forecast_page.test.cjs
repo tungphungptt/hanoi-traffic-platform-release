@@ -1,5 +1,6 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const page = require('../static/app.js');
 
 test('CI levels use the shared three-level scale', () => {
@@ -90,6 +91,34 @@ test('route ranking adds the forecast delay only to routes passing the camera', 
   const free = routes.rankRoutes([near, far], camera, 0.1);
   assert.equal(free[0].duration_seconds, 600);         // free-flow forecast: no penalty
   assert.equal(routes.rankRoutes([near, far], null, 0.9)[0].duration_seconds, 600);
+});
+
+test('coordination guidance distinguishes missing data, watch, urgent, and alternate routes', () => {
+  const routes = require('../static/routes.js');
+  const missing = routes.decisionGuidance(Number.NaN, false);
+  assert.equal(missing.badge, 'Chờ dữ liệu');
+  assert.match(missing.staff, /Chọn camera/);
+
+  const watch = routes.decisionGuidance(0.55, true, [{ passes: false }]);
+  assert.equal(watch.badge, 'Theo dõi sát');
+  assert.match(watch.staff, /xác nhận ùn tắc/);
+  assert.match(watch.route, /tránh vùng camera/);
+
+  const urgent = routes.decisionGuidance(0.78, true, [{ passes: true }]);
+  assert.equal(urgent.badge, 'Ưu tiên xác minh');
+  assert.match(urgent.staff, /bổ sung người điều tiết/);
+  assert.match(urgent.routeDetail, /kiểm tra tình hình thực tế/);
+
+  const normal = routes.decisionGuidance(0.54, true, [{ passes: false }]);
+  assert.equal(normal.badge, 'Chưa có tín hiệu mạnh');
+  assert.match(normal.route, /mạng đường/);
+});
+
+test('route coordination panel is present and discloses its simulation limits', () => {
+  const html = fs.readFileSync(require.resolve('../static/index.html'), 'utf8');
+  assert.match(html, /id="routeDecision"/);
+  assert.match(html, /không tự động điều động/);
+  assert.match(html, /không cung cấp dữ liệu làn hoặc tình trạng giao thông trực tiếp/);
 });
 
 test('live page helpers format age, draw the history line and flag warnings', () => {

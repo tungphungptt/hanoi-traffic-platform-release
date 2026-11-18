@@ -29,6 +29,42 @@ function rankRoutes(routes, cameraPoint, forecastCi, radius = 300) {
   }).sort((a, b) => a.adjusted_seconds - b.adjusted_seconds);
 }
 
+function decisionGuidance(ci, hasCameraForecast, routes = []) {
+  const forecastReady = hasCameraForecast && Number.isFinite(ci) && ci >= 0 && ci <= 1;
+  let badge = 'Chờ dữ liệu', tone = '', staff, route, routeDetail;
+
+  if (!forecastReady) {
+    staff = 'Chọn camera và mở kết quả dự báo trước khi cân nhắc điều tiết.';
+  } else if (ci >= 0.78) {
+    badge = 'Ưu tiên xác minh'; tone = 'urgent';
+    staff = 'Ưu tiên xác minh hiện trường; cân nhắc bổ sung người điều tiết.';
+  } else if (ci >= 0.55) {
+    badge = 'Theo dõi sát'; tone = 'watch';
+    staff = 'Theo dõi sát; chỉ cân nhắc điều tiết khi hiện trường xác nhận ùn tắc.';
+  } else {
+    badge = 'Chưa có tín hiệu mạnh';
+    staff = 'Chưa đề xuất tăng người điều tiết theo ngưỡng mô phỏng.';
+  }
+
+  if (!routes.length) {
+    route = 'Chọn điểm đi, điểm đến và tìm tuyến.';
+    routeDetail = 'Chưa có phương án tuyến để so sánh.';
+  } else if (!forecastReady) {
+    route = 'Tuyến 1 nhanh nhất theo mạng đường.';
+    routeDetail = 'Chưa có dự báo áp dụng; OSRM không phản ánh tình trạng giao thông trực tiếp.';
+  } else if (ci >= 0.55 && !routes[0].passes) {
+    route = 'Ưu tiên tuyến 1 để tránh vùng camera có nguy cơ ùn tắc.';
+    routeDetail = 'Xếp hạng đã tính CI dự báo; xem tuyến trên bản đồ và xác minh trước khi đi.';
+  } else if (ci >= 0.55) {
+    route = 'Tuyến 1 có thời gian tham khảo tốt nhất sau khi tính dự báo.';
+    routeDetail = 'Nếu tuyến vẫn đi qua vùng camera, hãy kiểm tra tình hình thực tế trước khi chọn.';
+  } else {
+    route = 'Tuyến 1 nhanh nhất theo dữ liệu mạng đường.';
+    routeDetail = 'Chưa có tín hiệu để khẳng định cần đổi tuyến nhằm tránh ùn tắc.';
+  }
+  return { badge, tone, staff, route, routeDetail };
+}
+
 function fmtDistance(meters) {
   return `${(Number(meters) / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} km`;
 }
@@ -44,7 +80,7 @@ const KNOWN_CAMERAS = [
   { name: '1111 Giải Phóng', latitude: 20.9620, longitude: 105.8410 },
 ];
 
-if (typeof module !== 'undefined') module.exports = { fmtDuration, fmtDistance, distanceToLine, rankRoutes, KNOWN_CAMERAS };
+if (typeof module !== 'undefined') module.exports = { fmtDuration, fmtDistance, distanceToLine, rankRoutes, decisionGuidance, KNOWN_CAMERAS };
 
 function bootRoutes() {
   if (typeof document === 'undefined' || typeof L === 'undefined' || bootRoutes.done) return;
@@ -52,7 +88,7 @@ function bootRoutes() {
   const $ = id => document.getElementById(id);
   const escapeHtml = text => String(text ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const COLORS = ['#b52226', '#597e9b', '#c49a38'];
-  let map, layers = [], points = { from: null, to: null }, markers = {}, areas = [], nextClick = 'from', ready = false;
+  let map, layers = [], points = { from: null, to: null }, markers = {}, areas = [], nextClick = 'from', ready = false, rankedRoutes = [];
 
   async function init() {
     if (ready) return;
@@ -100,14 +136,24 @@ function bootRoutes() {
     if (markers[which]) markers[which].remove();
     markers[which] = L.marker([lat, lng], { title: which === 'from' ? 'Điểm đi' : 'Điểm đến' })
       .bindTooltip(`${which === 'from' ? 'A · ' : 'B · '}${escapeHtml(name)}`, { permanent: true, direction: 'top', offset: [-15, -10] }).addTo(map);
+    clearRouteResults();
   }
 
   let cameraPoint = null, cameraMarker = null;
+  function clearRouteResults() {
+    rankedRoutes = [];
+    layers.forEach(layer => layer.remove());
+    layers = [];
+    $('routeList').innerHTML = '<div class="empty">Tìm lại tuyến sau khi đổi điểm đi, điểm đến hoặc camera.</div>';
+    renderDecision();
+  }
+
   function setCamera(c) {
     cameraPoint = c;
     if (cameraMarker) cameraMarker.remove();
     cameraMarker = c ? L.circle([c.lat, c.lng], { radius: 300, color: '#a94d43', weight: 2, fillOpacity: 0.12 })
       .bindTooltip(`📷 ${escapeHtml(c.name)}`, { permanent: true, direction: 'right' }).addTo(map) : null;
+    clearRouteResults();
     describeForecast();
   }
 
@@ -126,11 +172,29 @@ function bootRoutes() {
       : !cameraPoint
         ? `Đang có dự báo của ${f.camera} lúc ${fmtT(f.t)} (+10 phút: CI ${ci.toFixed(2)}). Chọn vị trí camera để áp dụng vào tuyến.`
         : `Dùng dự báo của ${f.camera} lập lúc ${fmtT(f.t)} trên video: sau 10 phút CI ${ci.toFixed(2)}, khả năng tắc ${Math.round(p * 100)}%. Tuyến đi qua vùng tròn đỏ sẽ bị cộng thêm thời gian.`;
+    renderDecision();
+  }
+
+  function renderDecision() {
+    const { f, ci } = forecastCi();
+    const forecastReady = Boolean(f && cameraPoint && Number.isFinite(ci));
+    const guidance = decisionGuidance(ci, forecastReady, rankedRoutes);
+    const badge = $('routeDecisionBadge');
+    badge.textContent = guidance.badge;
+    badge.className = `route-decision-badge ${guidance.tone}`;
+    $('routeStaffDecision').textContent = guidance.staff;
+    $('routeStaffBasis').textContent = forecastReady
+      ? `${f.camera}, +10 phút: CI ${ci.toFixed(2)}. Chỉ hỗ trợ quyết định thử nghiệm.`
+      : 'Cần có dự báo và vị trí camera để đánh giá khu vực.';
+    $('routeRerouteDecision').textContent = guidance.route;
+    $('routeRerouteBasis').textContent = guidance.routeDetail;
   }
   setInterval(() => { if (ready && window.hanoiFlow.page === 'video') describeForecast(); }, 2000);
 
   async function findRoutes() {
     if (!points.from || !points.to) { $('routeList').innerHTML = '<div class="empty">Chọn đủ điểm đi và điểm đến.</div>'; return; }
+    rankedRoutes = [];
+    renderDecision();
     $('routeList').innerHTML = '<div class="empty">Đang tìm tuyến…</div>';
     const q = new URLSearchParams({ from: `${points.from.lat},${points.from.lng}`, to: `${points.to.lat},${points.to.lng}` });
     try {
@@ -140,6 +204,8 @@ function bootRoutes() {
       layers.forEach(l => l.remove());
       const { ci } = forecastCi();
       const ranked = rankRoutes(payload.routes, cameraPoint ? [cameraPoint.lng, cameraPoint.lat] : null, ci);
+      rankedRoutes = ranked;
+      renderDecision();
       payload.routes = ranked;
       layers = payload.routes.map((r, i) => L.geoJSON(r.geometry, { style: { color: COLORS[i % COLORS.length], weight: i === 0 ? 6 : 4, opacity: i === 0 ? 0.9 : 0.6 } }).addTo(map));
       layers.slice().reverse().forEach(l => l.bringToFront());
@@ -157,6 +223,8 @@ function bootRoutes() {
         map.fitBounds(layer.getBounds(), { padding: [20, 20] });
       }));
     } catch (error) {
+      rankedRoutes = [];
+      renderDecision();
       $('routeList').innerHTML = `<div class="empty">Không tìm được tuyến: ${escapeHtml(error.message)}</div>`;
     }
   }

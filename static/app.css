@@ -276,10 +276,29 @@ td.bad { color: var(--jam-text); font-weight: 700; }
   .city-map { height: 440px; }
   .system-pill span:last-child { display: none; }
 }
+@media (max-width: 640px) {
+  .route-decision-grid { grid-template-columns: 1fr; }
+  .route-decision-heading { align-items: flex-start; }
+  .route-decision-badge { white-space: normal; text-align: center; }
+}
 .field input { border: 1px solid var(--line-2); border-radius: 9px; background: #fff; color: var(--ink-2); padding: 9px 10px; font-size: 14px; }
 .token-field { min-width: 0; }
 .route-forecast { margin-top: 12px; font-size: 13.5px; color: var(--ink-2); background: var(--blue-soft); border-radius: 9px; padding: 9px 12px; }
 .route-option .warn { color: var(--jam-text); font-weight: 700; }
+.route-decision { border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-top: 12px; background: linear-gradient(135deg, #fbf8f0, #fff); }
+.route-decision-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.route-decision-heading > div { display: grid; gap: 5px; }
+.route-decision-heading small { font-size: 11px; letter-spacing: .08em; font-weight: 800; color: var(--muted); }
+.route-decision-heading strong { font-size: 15px; color: var(--ink); }
+.route-decision-badge { border-radius: 999px; padding: 4px 9px; background: var(--blue-soft); color: var(--blue); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.route-decision-badge.watch { background: var(--gold-soft); color: #80621f; }
+.route-decision-badge.urgent { background: #fae8e5; color: var(--jam-text); }
+.route-decision-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 12px; }
+.route-decision-grid article { min-width: 0; display: grid; align-content: start; gap: 6px; border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 11px; }
+.route-decision-grid article > small { font-size: 12px; color: var(--muted); }
+.route-decision-grid article > strong { font-size: 13px; color: var(--ink-2); line-height: 1.45; }
+.route-decision-grid article > span, .route-decision > p { font-size: 12px; color: var(--muted); line-height: 1.55; }
+.route-decision > p { margin: 10px 1px 0; }
 
 .evidence-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
 .evidence-item { display: grid; gap: 6px; text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 7px; background: #fff; font: inherit; cursor: pointer; color: inherit; }
