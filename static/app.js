@@ -767,7 +767,7 @@ if (typeof document !== 'undefined') {
   }
   $('demoBtn').addEventListener('click', openDemo);
   // The intro page's main button opens the demo straight away.
-  $('introDemo').addEventListener('click', () => { if (!state.session && !$('demoBtn').disabled) setTimeout(openDemo, 0); });
+  ['introDemo', 'introDemo2'].forEach(id => $(id).addEventListener('click', () => { if (!state.session && !$('demoBtn').disabled) setTimeout(openDemo, 0); }));
   // Lets the route planner use the forecast shown at the current playback time.
   if (window.hanoiFlow) {
     window.hanoiFlow.forecastNow = () => {
