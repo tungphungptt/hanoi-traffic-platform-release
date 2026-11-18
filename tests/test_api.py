@@ -118,6 +118,8 @@ def test_route_search_supplements_osrm_with_distinct_waypoint_routes(monkeypatch
         calls.append((points, alternatives))
         if len(points) == 2:
             return [dict(direct)]
+        if len(calls) == 2:
+            raise routing.RouteError("no route through this waypoint")
         origin, waypoint, destination = points
         duration = 800.0 if waypoint[0] < origin[0] else 700.0
         return [{"distance_m": 6500.0, "duration_seconds": duration,
@@ -133,7 +135,7 @@ def test_route_search_supplements_osrm_with_distinct_waypoint_routes(monkeypatch
     assert [route["search_method"] for route in routes] == [
         "osrm_alternative", "via_waypoint", "via_waypoint"
     ]
-    assert [call[1] for call in calls] == ["3", "false", "false"]
+    assert [call[1] for call in calls] == ["3", "false", "false", "false"]
 
 
 def test_upload_token_and_hourly_limit(monkeypatch):

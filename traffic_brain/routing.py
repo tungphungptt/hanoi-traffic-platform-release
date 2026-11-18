@@ -77,13 +77,14 @@ def _detour_waypoints(
     offset = min(2_500, max(700, length * 0.15))
     perpendicular_x, perpendicular_y = -dy / length, dx / length
     waypoints = []
-    for side in (-1, 1):
-        candidate = (
-            lat + perpendicular_y * offset * side / 110_540,
-            lon + perpendicular_x * offset * side / x_scale,
-        )
-        if waypoint_is_valid is None or waypoint_is_valid(*candidate):
-            waypoints.append(candidate)
+    for scale in (1.0, 0.65, 1.35):
+        for side in (-1, 1):
+            candidate = (
+                lat + perpendicular_y * offset * scale * side / 110_540,
+                lon + perpendicular_x * offset * scale * side / x_scale,
+            )
+            if waypoint_is_valid is None or waypoint_is_valid(*candidate):
+                waypoints.append(candidate)
     return waypoints
 
 
@@ -118,13 +119,15 @@ def route_alternatives(
 
     routes = _request_routes([origin, destination], timeout, "3")
     if len(routes) < 3:
+        attempts = 0
         for waypoint in _detour_waypoints(origin, destination, waypoint_is_valid):
-            if len(routes) >= 3:
+            if len(routes) >= 3 or attempts >= 4:
                 break
             if any(_route_distance_to_point(route, waypoint) <= 300 for route in routes):
                 continue
+            attempts += 1
             try:
-                candidates = _request_routes([origin, waypoint, destination], min(timeout, 5.0), "false")
+                candidates = _request_routes([origin, waypoint, destination], min(timeout, 4.0), "false")
             except RouteError:
                 continue
             candidate = next((route for route in candidates
