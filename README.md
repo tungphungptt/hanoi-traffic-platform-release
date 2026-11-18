@@ -77,16 +77,15 @@ liệu cũ (tối đa 3 giờ) và ghi rõ.
    đổi mức, đông nhất, thông thoáng nhất và các mốc định kỳ, vẽ khung quanh xe nhận diện kèm giờ và CI. Ảnh giữ
    khoảng 1 giờ trên máy chủ và không nằm trong file kết quả tải về. Bộ nhận diện YOLOv8n còn bỏ sót nhiều xe máy
    khi đường rất đông (ảnh minh chứng cho thấy rõ điều này), nên CI có thể thấp hơn thực tế.
-4. **Học** (`models/forecast_library/`): chuỗi CI của 3 video AIC21 và 19 chuỗi camera Hà Nội (không lưu
+4. **Học** (`models/forecast_library/`): chuỗi CI của 3 video AIC21, 19 chuỗi camera Hà Nội và 8 clip camera cố định (thư mục Drive "Mới") (không lưu
    hình ảnh). Video đã phân tích trên máy bạn cũng được lưu thành chuỗi số vào `data/forecast_library/`
    để lần sau học thêm. Một video không bao giờ học từ chính nó.
 
-Kiểm tra chéo bỏ-một-video trên 7 video (3 AIC21 + 4 bản ghi Hà Nội dài 80–109 phút, toàn bộ thư mục Drive
-"Hanoi Flow" trừ phần giữ lại làm demo), so với "giữ nguyên mức hiện tại": **tốt hơn 18,3% ở +5 phút, 16,0% ở
-+10 phút, 11,1% ở +15 phút** (851 / 640 / 486 lần kiểm chứng; khoảng tin cậy 95% đều dương). Riêng camera Hà
-Nội: +19,2% / +19,1% / +10,1%. Cảnh báo tắc trước 5 phút: bắt 23/52 lần chuyển sang tắc, không báo nhầm lần
-nào; trước 10–15 phút cảnh báo 40% hầu như không bật, mức "theo dõi" bắt 15/39 và 12/28 lần (đúng 31% và
-40% số lần bật). Chi tiết: `models/forecast_library/README.md` và trang **Đánh giá mô hình**.
+Kiểm tra chéo bỏ-một-video trên 15 video (3 AIC21, 4 bản ghi Hà Nội dài 80–109 phút, 8 clip camera cố định 30 phút), so
+với "giữ nguyên mức hiện tại": **tốt hơn 22,4% ở +5 phút, 17,8% ở +10 phút, 18,4% ở +15 phút** (1521 / 1150 / 836
+lần kiểm chứng; khoảng tin cậy 95% đều dương). Cảnh báo tắc, với ngưỡng chọn mà không nhìn video đang chấm: trước 5
+phút bắt 50/104 lần chuyển sang tắc (báo nhầm 35); trước 10 phút bắt 33/90 (nhầm 34); trước 15 phút bắt 31/70 nhưng
+nhầm 49, nên chỉ nên xem như tham khảo. Các clip cùng thư mục có thể được ghi cùng lúc nên không hoàn toàn độc lập. Chi tiết: `models/forecast_library/README.md` và trang **Đánh giá mô hình**.
 
 **Giới hạn.** "Thực tế" dùng để chấm là CI thị giác do chính hệ thống đo, không phải nhãn chuyên gia; số
 lần kiểm chứng trên Hà Nội còn ít; các lần chuyển sang tắc (52 lần) tập trung ở 5 video; cấu trúc mô hình và

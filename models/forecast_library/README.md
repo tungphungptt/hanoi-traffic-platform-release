@@ -11,12 +11,14 @@ Built with the same pipeline as the web app:
 python tools/build_forecast_library.py VIDEO... --out models/forecast_library --source-note "..."
 ```
 
-## Contents (22 camera series, 7 videos, about 9 hours of video)
+## Contents (30 camera series, 15 videos, about 13 hours of video)
 
 | Source | Videos | Camera series | Notes |
 | --- | --- | --- | --- |
 | AI City Challenge 2021 Track 1 Dataset A `cam_2`, `cam_3`, `cam_6` | 3 × 30 min, one fixed camera each | 3 | US roads. Licence: non-commercial academic research only. |
 | "Hanoi Flow" Google Drive folder: recordings of the Hanoi traffic-camera broadcast (VOV Giao thông FM90 / Hà Nội LIVE) | Nguyen Xien, Ho Tung Mau, Le Hong Phong parts 000–021 (109 min each); Tran Duy Hung parts 000–015 (80 min) | 19 | The programme cuts between cameras and studio shots; each record is one camera, with gaps while it is off air (5–75 min on air per record). Research/demo use; credit the broadcaster. |
+
+| Google Drive folder "Mới" (`vid 1`, `vid 2`): eight 30-minute single-camera clips, 960×540, camera name in the top-left corner | 8 × 30 min | 8 | Added 2026-11-18. Each file is one fixed camera (the pipeline saw `vid1/04_Bottom_Right` as two views, and only one had enough footage to keep). The 2×2 grid file `giao_thong_00_30.mp4` in `vid 2` is the same four cameras side by side and was not used. Camera names are not read yet: records are labelled "Camera cố định". Clips of one folder are probably recorded at the same time, so they are not fully independent. |
 
 Held out (never in the library): Tran Duy Hung parts 016–021, used for the Hanoi demo
 (`artifacts/demo_hanoi_tdh_htm.hanoiflow.json`). All 88 parts of the Drive folder were downloaded
@@ -30,21 +32,14 @@ interval resamples whole videos (bootstrap).
 
 | Horizon | Forecasts checked | Model | Keep current level | Linear trend | Improvement | 95% interval |
 | --- | --- | --- | --- | --- | --- | --- |
-| +5 min | 851 | 0.093 | 0.114 | 0.212 | +18.3% | +8.0% … +25.8% |
-| +10 min | 640 | 0.084 | 0.100 | 0.253 | +16.0% | +1.5% … +25.1% |
-| +15 min | 486 | 0.092 | 0.103 | 0.318 | +11.1% | +1.0% … +16.4% |
+| +5 min | 1521 | 0.084 | 0.109 | 0.208 | +22.4% | +13.4% … +29.9% |
+| +10 min | 1150 | 0.079 | 0.097 | 0.266 | +17.8% | +6.3% … +27.5% |
+| +15 min | 836 | 0.088 | 0.107 | 0.322 | +18.4% | +10.7% … +26.5% |
 
-Hanoi cameras only: 587 / 436 / 342 forecasts checked, improvement +19.2% / +19.1% / +10.1%.
+(15 videos. Before the "Mới" clips were added, 7 videos gave +18.3% / +16.0% / +11.1%.)
 
-Congestion onsets (CI below 0.55 at forecast time, at or above 0.55 at the target time):
-
-| Horizon | Onsets | Warning (p ≥ 40%) caught / false | Watch (p ≥ 20%) caught / false |
-| --- | --- | --- | --- |
-| +5 min | 52 | 23 / 0 | 25 / 47 |
-| +10 min | 39 | 3 / 3 | 15 / 33 |
-| +15 min | 28 | 0 / 0 | 12 / 18 |
-
-The onsets come from 5 of the 7 videos. The watch threshold was set after this check, so this table is optimistic.
+The onset counts at fixed 40% / 20% thresholds are no longer listed: those thresholds were set after
+seeing the old results, so the table below (thresholds chosen without the scored video) is the one to read.
 
 ### Thresholds chosen without the scored video (`tools/honest_eval.py`)
 
@@ -54,15 +49,15 @@ Result in `artifacts/honest_eval.json`.
 
 | Horizon | Onsets (videos) | Warning caught / false | Watch caught / false |
 | --- | --- | --- | --- |
-| +5 min | 52 (5) | 23 / 14 | 23 / 3 |
-| +10 min | 39 (4) | 0 / 0 | 18 / 91 |
-| +15 min | 28 (4) | 10 / 16 | 12 / 37 |
+| +5 min | 104 (9) | 50 / 35 | 50 / 26 |
+| +10 min | 90 (8) | 33 / 34 | 33 / 34 |
+| +15 min | 70 (8) | 31 / 49 | 34 / 96 |
 
-Reading: at +5 minutes about 44% of onsets are caught with few false alarms, and that holds up when the
-threshold is not tuned on the test video. At +10 and +15 minutes the learned thresholds change from video
-to video and the false alarms outnumber the hits (watch precision 17% and 24%), so those two horizons are
-useful as a CI forecast but not yet as a jam alarm. The onsets come from only 4–5 videos, so every figure
-here has a wide margin.
+Reading: at +5 minutes about 48% of onsets are caught and 6 in 10 warnings are right, with thresholds that
+were not tuned on the scored video. At +10 minutes warnings are right about half of the time and catch
+37%; at +15 minutes false alarms outnumber hits (watch precision 26%). So +5 is usable as an early warning,
++10 is borderline and +15 is a CI forecast rather than an alarm. The onsets come from 8–9 videos and some
+clips were recorded at the same time, so every figure here has a wide margin.
 
 ### Model history (same check)
 
@@ -88,7 +83,7 @@ The ground truth is the same visual CI the system measures, not expert labels; u
 
 ## Heavier models, relative speed and calibrated probabilities (`tools/model_lab.py`)
 
-Leave-one-video-out on the same 22 series. Rule fixed before running: a candidate replaces the shipped
+Leave-one-video-out on the 22 series that existed before the "Mới" clips were added (these results were not recomputed). Rule fixed before running: a candidate replaces the shipped
 formulas only if the 95% interval of its MAE gain (bootstrap over whole videos) is above zero. Result in
 `artifacts/model_lab.json`.
 
