@@ -65,6 +65,78 @@
         "duration": 1800.0,
         "note": "Bản xem thử đã nén (640 px, không tiếng); kết quả phân tích lấy từ video gốc."
       }
+    },
+    {
+      "id": "truong_chinh",
+      "label": "66 Trường Chinh",
+      "title": "Hà Nội · 66 Trường Chinh (25 phút)",
+      "session_file": "demo_truong_chinh.hanoiflow.json",
+      "note": "Camera 66 Trường Chinh (25 phút, một tuyến đường duy nhất; đã cắt 5 phút đầu vì khi đó camera còn ở tuyến khác). Clip này nằm trong thư viện học, nhưng khi dự báo hệ thống loại chính nó ra (so khớp theo dấu vân tay video) nên không tự đoán lại chính mình. Tua tới một thời điểm bất kỳ: dự báo chỉ dùng dữ liệu đến lúc đó, phần tương lai bị ẩn; so với đường thực tế để kiểm chứng.",
+      "video": {
+        "url": "/static/demo/truong_chinh.mp4",
+        "duration": 1504.0,
+        "note": "Bản xem thử đã nén (512 px, không tiếng); kết quả phân tích lấy từ video gốc."
+      }
+    },
+    {
+      "id": "nga_tu_so",
+      "label": "Ngã Tư Sở",
+      "title": "Hà Nội · Ngã Tư Sở (30 phút)",
+      "session_file": "demo_nga_tu_so.hanoiflow.json",
+      "note": "Camera Ngã Tư Sở (30 phút, một tuyến đường duy nhất). Clip này nằm trong thư viện học, nhưng khi dự báo hệ thống loại chính nó ra (so khớp theo dấu vân tay video) nên không tự đoán lại chính mình. Tua tới một thời điểm bất kỳ: dự báo chỉ dùng dữ liệu đến lúc đó, phần tương lai bị ẩn; so với đường thực tế để kiểm chứng.",
+      "video": {
+        "url": "/static/demo/nga_tu_so.mp4",
+        "duration": 1800.0,
+        "note": "Bản xem thử đã nén (512 px, không tiếng); kết quả phân tích lấy từ video gốc."
+      }
+    },
+    {
+      "id": "nguyen_van_cu_b",
+      "label": "Nguyễn Văn Cừ (1)",
+      "title": "Hà Nội · Nguyễn Văn Cừ, lần quay 1 (25 phút)",
+      "session_file": "demo_nguyen_van_cu_b.hanoiflow.json",
+      "note": "Camera Nguyễn Văn Cừ (1) (25 phút, một tuyến đường duy nhất; đã cắt 5 phút đầu vì khi đó camera còn ở tuyến khác). Clip này nằm trong thư viện học, nhưng khi dự báo hệ thống loại chính nó ra (so khớp theo dấu vân tay video) nên không tự đoán lại chính mình. Tua tới một thời điểm bất kỳ: dự báo chỉ dùng dữ liệu đến lúc đó, phần tương lai bị ẩn; so với đường thực tế để kiểm chứng.",
+      "video": {
+        "url": "/static/demo/nguyen_van_cu_b.mp4",
+        "duration": 1504.0,
+        "note": "Bản xem thử đã nén (512 px, không tiếng); kết quả phân tích lấy từ video gốc."
+      }
+    },
+    {
+      "id": "nguyen_van_cu",
+      "label": "Nguyễn Văn Cừ (2)",
+      "title": "Hà Nội · Nguyễn Văn Cừ, lần quay 2 (30 phút)",
+      "session_file": "demo_nguyen_van_cu.hanoiflow.json",
+      "note": "Camera Nguyễn Văn Cừ (2) (30 phút, một tuyến đường duy nhất). Clip này nằm trong thư viện học, nhưng khi dự báo hệ thống loại chính nó ra (so khớp theo dấu vân tay video) nên không tự đoán lại chính mình. Tua tới một thời điểm bất kỳ: dự báo chỉ dùng dữ liệu đến lúc đó, phần tương lai bị ẩn; so với đường thực tế để kiểm chứng.",
+      "video": {
+        "url": "/static/demo/nguyen_van_cu.mp4",
+        "duration": 1800.0,
+        "note": "Bản xem thử đã nén (512 px, không tiếng); kết quả phân tích lấy từ video gốc."
+      }
+    },
+    {
+      "id": "quang_trung",
+      "label": "Quang Trung – Lê Trọng Tấn",
+      "title": "Hà Nội · Quang Trung – Lê Trọng Tấn (30 phút)",
+      "session_file": "demo_quang_trung.hanoiflow.json",
+      "note": "Camera Quang Trung – Lê Trọng Tấn (30 phút, một tuyến đường duy nhất). Clip này nằm trong thư viện học, nhưng khi dự báo hệ thống loại chính nó ra (so khớp theo dấu vân tay video) nên không tự đoán lại chính mình. Tua tới một thời điểm bất kỳ: dự báo chỉ dùng dữ liệu đến lúc đó, phần tương lai bị ẩn; so với đường thực tế để kiểm chứng.",
+      "video": {
+        "url": "/static/demo/quang_trung.mp4",
+        "duration": 1800.0,
+        "note": "Bản xem thử đã nén (512 px, không tiếng); kết quả phân tích lấy từ video gốc."
+      }
+    },
+    {
+      "id": "le_hong_phong",
+      "label": "Lê Hồng Phong",
+      "title": "Hà Nội · Lê Hồng Phong (30 phút)",
+      "session_file": "demo_le_hong_phong.hanoiflow.json",
+      "note": "Camera Lê Hồng Phong (30 phút, một tuyến đường duy nhất). Clip này nằm trong thư viện học, nhưng khi dự báo hệ thống loại chính nó ra (so khớp theo dấu vân tay video) nên không tự đoán lại chính mình. Tua tới một thời điểm bất kỳ: dự báo chỉ dùng dữ liệu đến lúc đó, phần tương lai bị ẩn; so với đường thực tế để kiểm chứng.",
+      "video": {
+        "url": "/static/demo/le_hong_phong.mp4",
+        "duration": 1800.0,
+        "note": "Bản xem thử đã nén (512 px, không tiếng); kết quả phân tích lấy từ video gốc."
+      }
     }
   ]
 }

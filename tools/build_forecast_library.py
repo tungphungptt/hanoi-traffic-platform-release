@@ -121,6 +121,8 @@ def main() -> int:
     parser.add_argument("--source-note", default="")
     parser.add_argument("--demo", type=Path, default=None)
     parser.add_argument("--demo-out", type=Path, default=None)
+    parser.add_argument("--demo-source", type=Path, default=None,
+                        help="Original file when --demo is a trimmed copy: its key is excluded from the library too.")
     args = parser.parse_args()
 
     detector = Detector()
@@ -141,9 +143,10 @@ def main() -> int:
         print(row)
 
     if args.demo:
-        key = mf.video_key(args.demo)
-        library = [mf.record_to_series(r) for r in records if key not in r["source_video_keys"]]
-        sources = {tuple(r["source_video_keys"]) for r in records if key not in r["source_video_keys"]}
+        keys = {mf.video_key(args.demo)} | ({mf.video_key(args.demo_source)} if args.demo_source else set())
+        kept = [r for r in records if not keys & set(r["source_video_keys"])]
+        library = [mf.record_to_series(r) for r in kept]
+        sources = {tuple(r["source_video_keys"]) for r in kept}
         analysis = _analyse(args.demo, detector, library, len(sources))
         session = {"contract": SESSION_CONTRACT, "created_at": report["created_at"],
                    **result_payload(analysis, args.demo.name)}
