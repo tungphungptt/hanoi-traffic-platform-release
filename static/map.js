@@ -32,7 +32,7 @@ const describeCode = code => WMO_VI[Number(code)] || 'Không rõ';
 const OPEN_METEO = 'https://api.open-meteo.com/v1/forecast';
 const CUR = 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m';
 const DAILY_FIELDS = 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max';
-const num = v => (v === null || v === undefined || !Number.isFinite(Number(v)) ? null : Math.round(Number(v) * 10) / 10);
+const omNum = v => (v === null || v === undefined || !Number.isFinite(Number(v)) ? null : Math.round(Number(v) * 10) / 10);
 
 async function openMeteo(params) {
   const response = await fetch(`${OPEN_METEO}?${new URLSearchParams(params)}`);
@@ -48,13 +48,13 @@ async function directPoint(lat, lng) {
   const start = Math.max(0, times.findIndex(t => String(t) >= String(c.time || '').slice(0, 13)));
   const hourly = [];
   for (let i = start; i < Math.min(times.length, start + 24); i++) {
-    hourly.push({ time: times[i], temperature_c: num(h.temperature_2m?.[i]), precipitation_probability_pct: num(h.precipitation_probability?.[i]),
-      precipitation_mm: num(h.precipitation?.[i]), description: describeCode(h.weather_code?.[i]) });
+    hourly.push({ time: times[i], temperature_c: omNum(h.temperature_2m?.[i]), precipitation_probability_pct: omNum(h.precipitation_probability?.[i]),
+      precipitation_mm: omNum(h.precipitation?.[i]), description: describeCode(h.weather_code?.[i]) });
   }
-  const daily = (d.time || []).map((date, i) => ({ date, max_c: num(d.temperature_2m_max?.[i]), min_c: num(d.temperature_2m_min?.[i]),
-    precipitation_mm: num(d.precipitation_sum?.[i]), precipitation_probability_pct: num(d.precipitation_probability_max?.[i]), description: describeCode(d.weather_code?.[i]) }));
-  return { current: { temperature_c: num(c.temperature_2m), apparent_temperature_c: num(c.apparent_temperature), humidity_pct: num(c.relative_humidity_2m),
-    precipitation_mm: num(c.precipitation), wind_kmh: num(c.wind_speed_10m), description: describeCode(c.weather_code) }, hourly, daily, direct: true };
+  const daily = (d.time || []).map((date, i) => ({ date, max_c: omNum(d.temperature_2m_max?.[i]), min_c: omNum(d.temperature_2m_min?.[i]),
+    precipitation_mm: omNum(d.precipitation_sum?.[i]), precipitation_probability_pct: omNum(d.precipitation_probability_max?.[i]), description: describeCode(d.weather_code?.[i]) }));
+  return { current: { temperature_c: omNum(c.temperature_2m), apparent_temperature_c: omNum(c.apparent_temperature), humidity_pct: omNum(c.relative_humidity_2m),
+    precipitation_mm: omNum(c.precipitation), wind_kmh: omNum(c.wind_speed_10m), description: describeCode(c.weather_code) }, hourly, daily, direct: true };
 }
 
 async function directOverview(areas) {
@@ -62,9 +62,9 @@ async function directOverview(areas) {
   const rows = Array.isArray(raw) ? raw : [raw];
   return { areas: areas.map((a, i) => {
     const c = rows[i]?.current || {}, d = rows[i]?.daily || {}, first = k => (d[k] || [null])[0];
-    return { name: a.name, latitude: a.latitude, longitude: a.longitude, inner: a.inner !== false, temperature_c: num(c.temperature_2m), precipitation_mm: num(c.precipitation),
-      wind_kmh: num(c.wind_speed_10m), weather_code: c.weather_code, description: describeCode(c.weather_code), today_max_c: num(first('temperature_2m_max')),
-      today_min_c: num(first('temperature_2m_min')), today_rain_probability_pct: num(first('precipitation_probability_max')) };
+    return { name: a.name, latitude: a.latitude, longitude: a.longitude, inner: a.inner !== false, temperature_c: omNum(c.temperature_2m), precipitation_mm: omNum(c.precipitation),
+      wind_kmh: omNum(c.wind_speed_10m), weather_code: c.weather_code, description: describeCode(c.weather_code), today_max_c: omNum(first('temperature_2m_max')),
+      today_min_c: omNum(first('temperature_2m_min')), today_rain_probability_pct: omNum(first('precipitation_probability_max')) };
   }), attribution: 'Dữ liệu thời tiết: Open-Meteo (CC BY 4.0)', fetched_at: new Date().toISOString() };
 }
 
