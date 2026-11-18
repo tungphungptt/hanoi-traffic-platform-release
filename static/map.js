@@ -103,7 +103,7 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') {
   async function showPoint(lat, lng, name, retry = false) {
     if (clickMarker) clickMarker.remove();
     clickMarker = L.circleMarker([lat, lng], { radius: 7, color: '#b52226', weight: 3, fillColor: '#c49a38', fillOpacity: 0.7 }).addTo(map);
-    $('placeKicker').textContent = name.toUpperCase();
+    $('placeKicker').textContent = name;
     $('placeMeta').textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)} · Dữ liệu từ Open-Meteo; không thay thế cảnh báo khí tượng chính thức.`;
     const chip = $('weatherChip');
     chip.textContent = 'Đang tải'; chip.className = 'level-chip';

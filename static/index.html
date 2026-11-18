@@ -11,16 +11,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <link rel="stylesheet" href="/static/app.css?v=9.8" />
+  <link rel="stylesheet" href="/static/app.css?v=10.0" />
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#intro" aria-label="hanoiFlow">
         <span class="brand-mark"><img src="/static/vietnam-flag.svg" width="30" height="20" alt="Quốc kỳ Việt Nam" /></span>
-        <span class="brand-copy"><strong>hanoi<span>Flow</span></strong><small>TRUNG TÂM ĐIỀU HÀNH</small></span>
+        <span class="brand-copy"><strong>hanoi<span>Flow</span></strong><small>Trung tâm điều hành</small></span>
       </a>
-      <div class="side-label">KHÔNG GIAN LÀM VIỆC</div>
+      <div class="side-label">Không gian làm việc</div>
       <nav class="side-nav" aria-label="Điều hướng chính">
         <a class="nav-item" href="#intro" data-page="intro"><span class="nav-icon">⌂</span><span>Giới thiệu</span></a>
         <a class="nav-item" href="#video" data-page="video"><span class="nav-icon">⌁</span><span>Dự báo &amp; phương án</span></a>
@@ -46,60 +46,116 @@
       <div class="page-wrap">
         <!-- ===================== Giới thiệu ===================== -->
         <section class="page" id="page-intro">
-          <div class="intro-hero panel">
-            <div class="eyebrow">GIỚI THIỆU SẢN PHẨM</div>
-            <h1>hanoiFlow: nhìn trước ùn tắc 5 phút, từ chính video camera giao thông</h1>
-            <p class="intro-lead">hanoiFlow đo mức ùn tắc từ hình ảnh camera, dự báo 5, 10 và 15 phút tới, rồi cho người điều hành tua lại video để tự kiểm chứng từng dự báo. Hệ thống đặt thêm bản đồ, thời tiết và tuyến thay thế của Hà Nội trong cùng một màn hình.</p>
-            <div class="intro-cta">
-              <a class="btn btn-primary" href="#video" id="introDemo">▶ Xem demo dự báo</a>
-              <a class="btn btn-outline" href="#overview">Bản đồ &amp; thời tiết</a>
-              <a class="btn btn-outline" href="#report">Đánh giá mô hình</a>
+          <div class="intro-hero">
+            <div class="intro-hero-copy">
+              <h1>Biết trước ùn tắc 5 phút, ngay từ video camera giao thông</h1>
+              <p class="intro-lead">hanoiFlow đo mức ùn tắc từ hình ảnh camera, dự báo 5, 10 và 15 phút tới, rồi để bạn tua lại video xem dự báo đúng hay sai.</p>
+              <div class="intro-cta">
+                <a class="btn btn-primary btn-lg" href="#video" id="introDemo">Xem demo dự báo</a>
+                <a class="btn btn-outline btn-lg" href="#overview">Bản đồ và thời tiết</a>
+              </div>
+              <p class="intro-note">Demo chạy ngay trong trình duyệt, không cần tải file.</p>
             </div>
+            <figure class="intro-figure" aria-labelledby="figCap">
+              <svg viewBox="0 0 560 330" role="img" aria-label="Minh họa: chỉ số ùn tắc đo được đến hiện tại, rồi dự báo tăng vượt mức ùn tắc nặng trong 10 phút tới">
+                <rect x="40" y="20" width="500" height="92" fill="#f8e6e3"/>
+                <rect x="40" y="112" width="500" height="78" fill="#fbf2e3"/>
+                <rect x="40" y="190" width="500" height="100" fill="#eaf3e9"/>
+                <line x1="40" y1="112" x2="540" y2="112" stroke="#d9b9b2" stroke-dasharray="4 5"/>
+                <line x1="40" y1="190" x2="540" y2="190" stroke="#e3cfa5" stroke-dasharray="4 5"/>
+                <text x="46" y="38" class="fig-band jam">Ùn tắc nặng</text>
+                <text x="46" y="130" class="fig-band busy">Đông đúc</text>
+                <text x="46" y="208" class="fig-band free">Thông thoáng</text>
+                <line x1="332" y1="20" x2="332" y2="290" stroke="#332b26" stroke-width="1.5"/>
+                <text x="326" y="314" text-anchor="end" class="fig-axis">Đã đo</text>
+                <text x="338" y="314" class="fig-axis">Dự báo</text>
+                <path class="fig-line" d="M52 262 C72 258 84 244 104 246 S136 230 156 222 S190 236 210 214 S246 196 266 202 S306 168 332 160" fill="none" stroke="#332b26" stroke-width="3" stroke-linecap="round" pathLength="1"/>
+                <path class="fig-forecast" d="M332 160 C372 148 410 118 470 78" fill="none" stroke="#597e9b" stroke-width="3" stroke-dasharray="2 7" stroke-linecap="round"/>
+                <circle cx="332" cy="160" r="6" fill="#fff" stroke="#332b26" stroke-width="3"/>
+                <g class="fig-pin"><circle cx="372" cy="143" r="5" fill="#597e9b"/><text x="372" y="168" text-anchor="middle" class="fig-tag">+5 phút</text></g>
+                <g class="fig-pin"><circle cx="430" cy="106" r="5" fill="#597e9b"/><text x="430" y="132" text-anchor="middle" class="fig-tag">+10 phút</text></g>
+                <g class="fig-pin"><circle cx="478" cy="72" r="6" fill="#a94d43"/><text x="478" y="58" text-anchor="middle" class="fig-tag jam">+15 phút</text></g>
+              </svg>
+              <figcaption id="figCap">Minh họa: đường đen là chỉ số ùn tắc đo từ video; đường chấm xanh là dự báo.</figcaption>
+            </figure>
           </div>
 
-          <div class="intro-grid">
-            <article class="panel intro-card"><span class="intro-num">1</span><h2>Đo ùn tắc từ video</h2><p>Mỗi khung hình được đếm xe, đo độ lấp đầy mặt đường và tỷ lệ xe đứng yên. Ba số này gộp thành chỉ số ùn tắc CI từ 0 đến 1: dưới 0,30 thông thoáng, từ 0,30 đông đúc, từ 0,55 ùn tắc nặng.</p></article>
-            <article class="panel intro-card"><span class="intro-num">2</span><h2>Dự báo không nhìn trước</h2><p>Tại mỗi thời điểm, hệ thống chỉ dùng phần video đã qua để dự báo CI sau 5, 10 và 15 phút, kèm xác suất ùn tắc. Dự báo được lập trước, không sửa lại sau khi biết kết quả.</p></article>
-            <article class="panel intro-card"><span class="intro-num">3</span><h2>Tua để kiểm chứng</h2><p>Bấm vào một dự báo để nhảy tới đúng thời điểm được dự báo và xem thực tế có ùn tắc hay không. Chế độ "Ẩn tương lai" giữ cho người xem không bị lộ đáp án.</p></article>
-            <article class="panel intro-card"><span class="intro-num">4</span><h2>Bản đồ, thời tiết, tuyến thay thế</h2><p>Bản đồ toàn Hà Nội với thời tiết từng khu vực (Open-Meteo), cùng công cụ so sánh các tuyến thay thế trên mạng đường thật.</p></article>
-          </div>
-
-          <div class="intro-split">
-            <section class="panel">
-              <div class="panel-heading"><div><h2>Độ chính xác hiện tại, nói thẳng</h2><p class="panel-subtitle">Kết quả kiểm chứng bỏ lại từng video, chỉ dùng video chưa từng học.</p></div></div>
-              <ul class="intro-list">
-                <li><strong>+5 phút:</strong> bắt được khoảng 48% số lần bắt đầu ùn tắc (50 trên 104), và khoảng 6 trên 10 cảnh báo là đúng. Đây là mức dùng được để cảnh báo sớm.</li>
-                <li><strong>+10 phút:</strong> cảnh báo đúng khoảng một nửa số lần. <strong>+15 phút:</strong> cảnh báo sai nhiều hơn đúng, nên chỉ xem như tham khảo.</li>
-                <li><strong>Số liệu chi tiết</strong> nằm ở trang <a href="#report">Đánh giá mô hình</a>, kèm khoảng tin cậy 95%.</li>
-              </ul>
-            </section>
-            <section class="panel">
-              <div class="panel-heading"><div><h2>Phạm vi hiện tại</h2><p class="panel-subtitle">Để bạn biết đang xem gì.</p></div></div>
-              <ul class="intro-list">
-                <li><strong>Dữ liệu là video ghi sẵn,</strong> chưa phải camera trực tiếp. Trang "Trực tiếp" chỉ hoạt động khi có bộ thu gửi số liệu về.</li>
-                <li><strong>Thời tiết được hiển thị</strong> nhưng chưa là đầu vào của dự báo ùn tắc.</li>
-                <li><strong>Ảnh bằng chứng được làm mờ</strong> người đi bộ trước khi hiển thị.</li>
-              </ul>
-            </section>
-          </div>
-
-          <section class="panel">
-            <div class="panel-heading"><div><h2>Bắt đầu nhanh</h2></div></div>
-            <ol class="intro-steps">
-              <li>Vào <a href="#video">Dự báo &amp; phương án</a> và bấm "Xem demo Hà Nội": video và kết quả mở ngay.</li>
-              <li>Bấm Play, hoặc bấm lên biểu đồ để xem dự báo ở từng thời điểm.</li>
-              <li>Bấm "Tua tới" ở một dự báo để kiểm tra thực tế sau 5, 10 hoặc 15 phút.</li>
-              <li>Muốn dùng video của bạn: chọn file ở mục 1 và bấm phân tích.</li>
+          <section class="intro-block">
+            <h2>Cách hoạt động</h2>
+            <ol class="flow">
+              <li class="flow-step">
+                <span class="flow-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8h3l1.5-2h7L17 8h3v10H4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></span>
+                <h3>Đo từ video</h3>
+                <p>Mỗi khung hình được đếm xe, đo độ lấp đầy mặt đường và tỷ lệ xe đứng yên. Ba số này gộp thành chỉ số ùn tắc CI từ 0 đến 1.</p>
+              </li>
+              <li class="flow-step">
+                <span class="flow-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+                <h3>Dự báo không nhìn trước</h3>
+                <p>Tại mỗi thời điểm, hệ thống chỉ dùng phần video đã qua để dự báo CI sau 5, 10 và 15 phút, kèm xác suất ùn tắc.</p>
+              </li>
+              <li class="flow-step">
+                <span class="flow-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                <h3>Tua để kiểm chứng</h3>
+                <p>Bấm vào một dự báo để nhảy tới đúng thời điểm được dự báo và xem thực tế có ùn tắc hay không. Chế độ "Ẩn tương lai" không làm lộ đáp án.</p>
+              </li>
             </ol>
+            <p class="intro-extra">Ngoài ra có bản đồ Hà Nội với thời tiết từng khu vực, và công cụ so sánh các tuyến thay thế trên mạng đường thật.</p>
+          </section>
+
+          <section class="intro-block">
+            <h2>Đọc màu trên màn hình</h2>
+            <p class="intro-sub">Ba mức này dùng xuyên suốt: trên video, biểu đồ và bản đồ.</p>
+            <div class="levels">
+              <div class="level-card free"><span class="level-swatch"></span><strong>Thông thoáng</strong><span>CI dưới 0,30. Xe chạy bình thường.</span></div>
+              <div class="level-card busy"><span class="level-swatch"></span><strong>Đông đúc</strong><span>CI từ 0,30 đến dưới 0,55. Xe đông, tốc độ chậm lại.</span></div>
+              <div class="level-card gridlock"><span class="level-swatch"></span><strong>Ùn tắc nặng</strong><span>CI từ 0,55 trở lên. Nhiều xe đứng yên.</span></div>
+            </div>
+          </section>
+
+          <section class="intro-block">
+            <h2>Dự báo đáng tin đến đâu</h2>
+            <p class="intro-sub">Kiểm chứng trên 15 video bằng cách bỏ lần lượt từng video ra khỏi phần học, và chọn ngưỡng cảnh báo mà không nhìn video đang chấm.</p>
+            <div class="trust">
+              <article class="trust-card good">
+                <header><h3>+5 phút</h3><span class="trust-verdict">Dùng được để cảnh báo sớm</span></header>
+                <div class="meter"><span style="width:48%"></span></div>
+                <p><strong>48%</strong> số lần ùn tắc bắt đầu được báo trước (50 trên 104). Khoảng 6 trong 10 cảnh báo là đúng.</p>
+              </article>
+              <article class="trust-card mid">
+                <header><h3>+10 phút</h3><span class="trust-verdict">Tham khảo thêm</span></header>
+                <div class="meter"><span style="width:37%"></span></div>
+                <p><strong>37%</strong> số lần ùn tắc được báo trước (33 trên 90). Cảnh báo đúng khoảng một nửa số lần.</p>
+              </article>
+              <article class="trust-card weak">
+                <header><h3>+15 phút</h3><span class="trust-verdict">Chỉ để tham khảo</span></header>
+                <div class="meter"><span style="width:44%"></span></div>
+                <p><strong>44%</strong> số lần ùn tắc được báo trước (31 trên 70), nhưng cảnh báo sai nhiều hơn đúng.</p>
+              </article>
+            </div>
+            <p class="intro-foot">Chi tiết từng video có ở trang <a href="#report">Đánh giá mô hình</a>.</p>
+          </section>
+
+          <section class="intro-block">
+            <h2>Cần biết trước khi dùng</h2>
+            <ul class="scope">
+              <li><strong>Dữ liệu là video ghi sẵn.</strong> Trang "Trực tiếp" chỉ hoạt động khi có bộ thu gửi số liệu camera về.</li>
+              <li><strong>Thời tiết chỉ để xem.</strong> Dự báo ùn tắc chưa dùng dữ liệu thời tiết làm đầu vào.</li>
+              <li><strong>Người đi bộ được làm mờ</strong> trong mọi ảnh minh chứng.</li>
+            </ul>
+          </section>
+
+          <section class="intro-end">
+            <div><h2>Thử ngay với video demo</h2><p>Mở demo Hà Nội, bấm Play, rồi bấm vào một dự báo để tua tới lúc đó.</p></div>
+            <a class="btn btn-lg btn-on-red" href="#video" id="introDemo2">Xem demo dự báo</a>
           </section>
         </section>
 
         <!-- ===================== Dự báo & phương án ===================== -->
         <section class="page" id="page-video">
-          <div class="page-heading"><div><div class="eyebrow">DỰ BÁO TUYẾN ĐƯỜNG</div><h1>Dự báo ùn tắc +5 / +10 / +15 phút &amp; chọn tuyến thay thế</h1><p class="page-subtitle">Nạp video giao thông: tại mỗi thời điểm hệ thống dự báo mức ùn tắc 5, 10, 15 phút sau, chỉ dùng phần video đã qua. Tua tới thời điểm được dự báo để tự kiểm chứng, rồi so sánh các tuyến thay thế trên mạng đường Hà Nội.</p></div></div>
+          <div class="page-heading"><div><div class="eyebrow">Dự báo tuyến đường</div><h1>Dự báo ùn tắc +5 / +10 / +15 phút &amp; chọn tuyến thay thế</h1><p class="page-subtitle">Nạp video giao thông: tại mỗi thời điểm hệ thống dự báo mức ùn tắc 5, 10, 15 phút sau, chỉ dùng phần video đã qua. Tua tới thời điểm được dự báo để tự kiểm chứng, rồi so sánh các tuyến thay thế trên mạng đường Hà Nội.</p></div></div>
 
           <section class="panel" id="uploadCard" aria-labelledby="uploadTitle">
-            <div class="panel-heading"><div><div class="section-kicker">01 · NGUỒN VIDEO</div><h2 id="uploadTitle">Tải video để bắt đầu phân tích</h2><p class="panel-subtitle" id="limitText">Đang kiểm tra cấu hình máy chủ…</p></div></div>
+            <div class="panel-heading"><div><div class="section-kicker">Mục 1: Nguồn video</div><h2 id="uploadTitle">Tải video để bắt đầu phân tích</h2><p class="panel-subtitle" id="limitText">Đang kiểm tra cấu hình máy chủ…</p></div></div>
             <div class="upload-grid">
               <label class="file-drop" for="videoFile">
                 <input id="videoFile" type="file" multiple accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska,video/webm,.mp4,.mov,.avi,.mkv,.mpeg,.mpg,.webm" />
@@ -128,7 +184,7 @@
             <div class="workspace-grid">
               <div class="panel player-card">
                 <div class="panel-heading">
-                  <div><div class="section-kicker">02 · VIDEO VÀ DỰ BÁO</div><h2>Xem video, tua để kiểm chứng</h2><p class="panel-subtitle" id="videoMeta">—</p></div>
+                  <div><div class="section-kicker">Mục 2: Video và dự báo</div><h2>Xem video, tua để kiểm chứng</h2><p class="panel-subtitle" id="videoMeta">—</p></div>
                   <label class="switch" title="Ẩn đường CI phía sau thời điểm đang xem, để dự báo không bị lộ đáp án"><input id="blindMode" type="checkbox" checked /><span>Ẩn tương lai</span></label>
                 </div>
                 <div class="camera-row" id="cameraRow" hidden>
@@ -154,7 +210,7 @@
 
               <aside class="panel forecast-card" aria-live="polite">
                 <div class="panel-heading">
-                  <div><div class="section-kicker">DỰ BÁO NGẮN HẠN</div><h2 id="forecastTitle">Dự báo tại 00:00</h2><p class="panel-subtitle" id="forecastSub">Phát video hoặc bấm vào biểu đồ để chọn thời điểm.</p></div>
+                  <div><div class="section-kicker">Dự báo ngắn hạn</div><h2 id="forecastTitle">Dự báo tại 00:00</h2><p class="panel-subtitle" id="forecastSub">Phát video hoặc bấm vào biểu đồ để chọn thời điểm.</p></div>
                   <button class="btn btn-outline small" id="unlockBtn" type="button" hidden>Theo video</button>
                 </div>
                 <div class="now-row" id="nowRow"></div>
@@ -164,7 +220,7 @@
             </div>
 
             <section class="panel" id="highlightsCard">
-              <div class="panel-heading"><div><div class="section-kicker">CẦN QUAN TÂM</div><h2>Những lần dự báo trước được cơn tắc</h2><p class="panel-subtitle">Bấm “Xem lúc dự báo” để quay lại thời điểm hệ thống phát cảnh báo, rồi “Tua tới” để kiểm chứng.</p></div></div>
+              <div class="panel-heading"><div><div class="section-kicker">Cần quan tâm</div><h2>Những lần dự báo trước được cơn tắc</h2><p class="panel-subtitle">Bấm “Xem lúc dự báo” để quay lại thời điểm hệ thống phát cảnh báo, rồi “Tua tới” để kiểm chứng.</p></div></div>
               <div id="hitList" class="moment-list"></div>
               <details class="honest">
                 <summary>Các lần dự báo sai (bỏ lỡ hoặc báo nhầm)</summary>
@@ -173,13 +229,13 @@
             </section>
 
             <section class="panel" id="evidenceCard" hidden>
-              <div class="panel-heading"><div><div class="section-kicker">ẢNH MINH CHỨNG</div><h2>Khung hình tại các thời điểm đáng chú ý</h2><p class="panel-subtitle">Mỗi ảnh có khung quanh xe hệ thống nhận diện, giờ trong video và chỉ số CI. Bấm ảnh để tua tới thời điểm đó. Ảnh chỉ giữ khoảng 1 giờ sau khi phân tích và không nằm trong file kết quả tải về.</p></div></div>
+              <div class="panel-heading"><div><div class="section-kicker">Ảnh minh chứng</div><h2>Khung hình tại các thời điểm đáng chú ý</h2><p class="panel-subtitle">Mỗi ảnh có khung quanh xe hệ thống nhận diện, giờ trong video và chỉ số CI. Bấm ảnh để tua tới thời điểm đó. Ảnh chỉ giữ khoảng 1 giờ sau khi phân tích và không nằm trong file kết quả tải về.</p></div></div>
               <div id="evidenceGrid" class="evidence-grid"></div>
             </section>
 
             <section class="panel" id="metricsCard">
               <div class="panel-heading">
-                <div><div class="section-kicker">ĐỘ TIN CẬY</div><h2>Mô hình có tốt hơn cách đoán đơn giản không?</h2><p class="panel-subtitle" id="metricsSub">So trên mọi thời điểm trong video mà kết quả thực tế đã được quan sát.</p></div>
+                <div><div class="section-kicker">Độ tin cậy</div><h2>Mô hình có tốt hơn cách đoán đơn giản không?</h2><p class="panel-subtitle" id="metricsSub">So trên mọi thời điểm trong video mà kết quả thực tế đã được quan sát.</p></div>
                 <div class="actions">
                   <button class="btn btn-outline small" id="exportJson" type="button">↓ Kết quả (.json)</button>
                   <button class="btn btn-outline small" id="exportCsv" type="button">↓ Dự báo (.csv)</button>
@@ -197,15 +253,15 @@
           </section>
 
           <section class="panel route-panel" id="routePanel">
-            <div class="panel-heading"><div><div class="section-kicker">03 · ĐỀ XUẤT TUYẾN THAY THẾ</div><h2>Nếu đoạn đường có nguy cơ tắc, đi theo hướng nào?</h2><p class="panel-subtitle">Chọn điểm đi và điểm đến từ danh sách, hoặc bấm lên bản đồ (lần 1 là điểm đi, lần 2 là điểm đến). Hệ thống lấy tối đa 3 tuyến trên mạng đường OpenStreetMap.</p></div></div>
+            <div class="panel-heading"><div><div class="section-kicker">Mục 3: Đề xuất tuyến thay thế</div><h2>Nếu đoạn đường có nguy cơ tắc, đi theo hướng nào?</h2><p class="panel-subtitle">Chọn điểm đi và điểm đến từ danh sách, hoặc bấm lên bản đồ (lần 1 là điểm đi, lần 2 là điểm đến). Hệ thống lấy tối đa 3 tuyến trên mạng đường OpenStreetMap.</p></div></div>
             <div class="route-controls">
               <div class="field"><label for="routeFrom">Điểm đi</label><select id="routeFrom"></select></div>
               <div class="field"><label for="routeTo">Điểm đến</label><select id="routeTo"></select></div>
               <div class="field"><label for="routeCamera">Vị trí camera của video (để dùng dự báo)</label><select id="routeCamera"></select></div>
               <button class="btn btn-primary" id="routeBtn" type="button">Tìm các tuyến thay thế</button>
             </div>
-            <div class="route-forecast" id="routeForecast">Chưa có dự báo: mở một kết quả ở mục 01–02 và chọn vị trí camera để hệ thống tránh đoạn được dự báo tắc.</div>
-            <div class="route-disclaimer">Thời gian tuyến lấy từ OSRM trên dữ liệu OpenStreetMap (thời gian theo mạng đường). Nếu tuyến đi qua vị trí camera (trong 300 m) mà dự báo ở mục 02 cho thấy sắp đông/tắc, thời gian được cộng thêm theo CI dự báo: <em>thời gian × (1 + 0,35 × CI dự báo +10 phút)</em> — quy tắc tham khảo, không phải đo tắc thời gian thực.</div>
+            <div class="route-forecast" id="routeForecast">Chưa có dự báo: mở một kết quả ở mục 1–2 và chọn vị trí camera để hệ thống tránh đoạn được dự báo tắc.</div>
+            <div class="route-disclaimer">Thời gian tuyến lấy từ OSRM trên dữ liệu OpenStreetMap (thời gian theo mạng đường). Nếu tuyến đi qua vị trí camera (trong 300 m) mà dự báo ở mục 2 cho thấy sắp đông/tắc, thời gian được cộng thêm theo CI dự báo: <em>thời gian × (1 + 0,35 × CI dự báo +10 phút)</em> — quy tắc tham khảo, không phải đo tắc thời gian thực.</div>
             <div class="route-layout">
               <div id="routeList" class="route-list"><div class="empty">Chưa có phương án tuyến.</div></div>
               <div id="routeMap" class="route-map" role="region" aria-label="Bản đồ các tuyến thay thế"></div>
@@ -213,7 +269,7 @@
           </section>
 
           <details class="panel" id="how">
-            <summary><span class="section-kicker">HƯỚNG DẪN</span><h2>Cách hệ thống dự báo và giới hạn</h2></summary>
+            <summary><span class="section-kicker">Hướng dẫn</span><h2>Cách hệ thống dự báo và giới hạn</h2></summary>
             <div class="how-body">
               <ol>
                 <li><strong>Đo hiện trạng.</strong> Mỗi giây lấy 1 khung hình, nhận diện ô tô, xe máy, buýt, tải (YOLOv8n), tính chỉ số ùn tắc CI từ số xe, phần diện tích xe chiếm và mức độ đứng yên. CI quan sát là trung bình 60 giây, cập nhật mỗi 15 giây.</li>
@@ -233,7 +289,7 @@
 
           <section class="panel weather-panel" aria-labelledby="placeTitle">
             <div class="panel-heading">
-              <div><div class="section-kicker">THỜI TIẾT · <span id="placeKicker">HOÀN KIẾM</span></div><h2 id="placeTitle">Thời tiết hiện tại &amp; dự báo theo giờ</h2><p class="panel-subtitle" id="placeMeta">Dữ liệu thời tiết từ Open-Meteo; không thay thế cảnh báo khí tượng chính thức.</p></div>
+              <div><div class="section-kicker">Thời tiết · <span id="placeKicker">Hoàn Kiếm</span></div><h2 id="placeTitle">Thời tiết hiện tại &amp; dự báo theo giờ</h2><p class="panel-subtitle" id="placeMeta">Dữ liệu thời tiết từ Open-Meteo; không thay thế cảnh báo khí tượng chính thức.</p></div>
               <span class="level-chip" id="weatherChip">Đang tải</span>
             </div>
             <div class="weather-summary">
@@ -246,7 +302,7 @@
           </section>
 
           <section class="panel map-panel">
-            <div class="panel-heading"><div><div class="section-kicker">BẢN ĐỒ ĐƯỜNG PHỐ THẬT</div><h2>Hà Nội · thời tiết theo khu vực</h2><p class="panel-subtitle">Bấm bất kỳ điểm nào trong ranh giới Hà Nội để xem dự báo chi tiết tại đó. Khu vực đang hoặc sắp mưa có nhãn xanh.</p></div></div>
+            <div class="panel-heading"><div><div class="section-kicker">Bản đồ đường phố thật</div><h2>Hà Nội · thời tiết theo khu vực</h2><p class="panel-subtitle">Bấm bất kỳ điểm nào trong ranh giới Hà Nội để xem dự báo chi tiết tại đó. Khu vực đang hoặc sắp mưa có nhãn xanh.</p></div></div>
             <div class="city-map">
               <div id="map" class="leaflet-map" aria-label="Bản đồ Hà Nội"></div>
               <div class="map-zoom">
@@ -261,10 +317,10 @@
 
         <!-- ===================== Trực tiếp ===================== -->
         <section class="page" id="page-live">
-          <div class="page-heading"><div><div class="eyebrow">CAMERA ĐƯỢC CẤP PHÉP</div><h1>Dự báo trực tiếp +5 / +10 / +15 phút</h1><p class="page-subtitle">Mỗi camera có bộ thu nhận riêng đo luồng hình rồi gửi chỉ số CI về đây; dự báo dùng đúng mô hình của phần video. Trang tự làm mới mỗi 15 giây.</p></div></div>
+          <div class="page-heading"><div><div class="eyebrow">Camera được cấp phép</div><h1>Dự báo trực tiếp +5 / +10 / +15 phút</h1><p class="page-subtitle">Mỗi camera có bộ thu nhận riêng đo luồng hình rồi gửi chỉ số CI về đây; dự báo dùng đúng mô hình của phần video. Trang tự làm mới mỗi 15 giây.</p></div></div>
           <div id="liveGrid" class="live-grid"></div>
           <section class="panel" id="liveHelp" hidden>
-            <div class="panel-heading"><div><div class="section-kicker">CÁCH KẾT NỐI</div><h2 id="liveHelpTitle">Chưa có camera nào gửi số liệu</h2></div></div>
+            <div class="panel-heading"><div><div class="section-kicker">Cách kết nối</div><h2 id="liveHelpTitle">Chưa có camera nào gửi số liệu</h2></div></div>
             <ol class="live-steps">
               <li>Đặt biến môi trường <code>LIVE_TOKEN</code> (một chuỗi bí mật) trên máy chủ.</li>
               <li>Trên máy có quyền đọc luồng camera, chạy: <code>python tools/live_collector.py --source RTSP_URL --camera-id tdh-216 --name "216 Trần Duy Hưng" --lat 21.0075 --lng 105.7993 --server URL_MAY_CHU --token MA_BI_MAT</code></li>
@@ -276,7 +332,7 @@
 
         <!-- ===================== Đánh giá mô hình ===================== -->
         <section class="page" id="page-report">
-          <div class="page-heading"><div><div class="eyebrow">GÓC NHÌN DỮ LIỆU</div><h1>Đánh giá mô hình dự báo</h1><p class="page-subtitle">Kiểm tra chéo bỏ-một-video: mỗi video được dự báo chỉ bằng dữ liệu của các video khác, rồi chấm với những gì video đó cho thấy sau đó.</p></div></div>
+          <div class="page-heading"><div><div class="eyebrow">Góc nhìn dữ liệu</div><h1>Đánh giá mô hình dự báo</h1><p class="page-subtitle">Kiểm tra chéo bỏ-một-video: mỗi video được dự báo chỉ bằng dữ liệu của các video khác, rồi chấm với những gì video đó cho thấy sau đó.</p></div></div>
           <div class="metric-grid" id="reportSummary"></div>
           <section class="panel table-panel">
             <div class="table-tools"><div class="table-title"><h2>Kết quả theo từng video / camera</h2><span class="table-count" id="reportCount">—</span></div></div>
@@ -285,7 +341,7 @@
           </section>
         </section>
 
-        <footer class="page-footer"><span>© 2026 hanoiFlow</span><span>Chỉ báo tham khảo từ dữ liệu hiện có</span><span class="footer-version">Bản vận hành 9.1</span></footer>
+        <footer class="page-footer"><span>© 2026 hanoiFlow</span><span>Chỉ báo tham khảo từ dữ liệu hiện có</span><span class="footer-version">Bản vận hành 10.0</span></footer>
       </div>
     </main>
   </div>
@@ -293,7 +349,7 @@
   <div class="toast" id="toast" role="status" hidden></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="/static/shell.js?v=9.8"></script>
-  <script src="/static/app.js?v=9.9"></script>
+  <script src="/static/app.js?v=10.0"></script>
   <script src="/static/map.js?v=9.1"></script>
   <script src="/static/live.js?v=9.2"></script>
   <script src="/static/routes.js?v=9.1"></script>
