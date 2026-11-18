@@ -64,6 +64,8 @@ test('multi-camera sessions keep every camera and on-air intervals gate verifica
 test('sidebar pages and route/weather formatting', () => {
   const shell = require('../static/shell.js');
   assert.equal(shell.pageFromHash('#overview'), 'overview');
+  assert.equal(shell.pageFromHash(''), 'intro');
+  assert.equal(shell.pageFromHash('#intro'), 'intro');
   assert.equal(shell.pageFromHash('#how'), 'video');
   assert.equal(shell.pageFromHash('#nope'), 'video');
   const routes = require('../static/routes.js');
