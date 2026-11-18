@@ -23,7 +23,52 @@ function isRainy(code) {
   return RAINY_CODES.has(Number(code));
 }
 
-if (typeof module !== 'undefined') module.exports = { fmt, hourLabel, dayLabel, isRainy };
+
+// ---- Open-Meteo straight from the browser: used when the server cannot reach it (shared hosting IPs are often rate-limited).
+const WMO_VI = { 0: 'Trời quang', 1: 'Ít mây', 2: 'Mây rải rác', 3: 'Nhiều mây', 45: 'Sương mù', 48: 'Sương mù đóng băng', 51: 'Mưa phùn nhẹ', 53: 'Mưa phùn', 55: 'Mưa phùn dày',
+  56: 'Mưa phùn lạnh', 57: 'Mưa phùn lạnh dày', 61: 'Mưa nhỏ', 63: 'Mưa vừa', 65: 'Mưa to', 66: 'Mưa lạnh', 67: 'Mưa lạnh to', 80: 'Mưa rào nhẹ', 81: 'Mưa rào',
+  82: 'Mưa rào rất to', 95: 'Dông', 96: 'Dông kèm mưa đá', 99: 'Dông kèm mưa đá lớn' };
+const describeCode = code => WMO_VI[Number(code)] || 'Không rõ';
+const OPEN_METEO = 'https://api.open-meteo.com/v1/forecast';
+const CUR = 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m';
+const DAILY_FIELDS = 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max';
+const num = v => (v === null || v === undefined || !Number.isFinite(Number(v)) ? null : Math.round(Number(v) * 10) / 10);
+
+async function openMeteo(params) {
+  const response = await fetch(`${OPEN_METEO}?${new URLSearchParams(params)}`);
+  if (!response.ok) throw new Error(`Open-Meteo HTTP ${response.status}`);
+  return response.json();
+}
+
+async function directPoint(lat, lng) {
+  const raw = await openMeteo({ latitude: lat, longitude: lng, current: CUR, daily: DAILY_FIELDS, forecast_days: 3, timezone: 'Asia/Bangkok',
+    hourly: 'temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m' });
+  const c = raw.current || {}, h = raw.hourly || {}, d = raw.daily || {};
+  const times = h.time || [];
+  const start = Math.max(0, times.findIndex(t => String(t) >= String(c.time || '').slice(0, 13)));
+  const hourly = [];
+  for (let i = start; i < Math.min(times.length, start + 24); i++) {
+    hourly.push({ time: times[i], temperature_c: num(h.temperature_2m?.[i]), precipitation_probability_pct: num(h.precipitation_probability?.[i]),
+      precipitation_mm: num(h.precipitation?.[i]), description: describeCode(h.weather_code?.[i]) });
+  }
+  const daily = (d.time || []).map((date, i) => ({ date, max_c: num(d.temperature_2m_max?.[i]), min_c: num(d.temperature_2m_min?.[i]),
+    precipitation_mm: num(d.precipitation_sum?.[i]), precipitation_probability_pct: num(d.precipitation_probability_max?.[i]), description: describeCode(d.weather_code?.[i]) }));
+  return { current: { temperature_c: num(c.temperature_2m), apparent_temperature_c: num(c.apparent_temperature), humidity_pct: num(c.relative_humidity_2m),
+    precipitation_mm: num(c.precipitation), wind_kmh: num(c.wind_speed_10m), description: describeCode(c.weather_code) }, hourly, daily, direct: true };
+}
+
+async function directOverview(areas) {
+  const raw = await openMeteo({ latitude: areas.map(a => a.latitude).join(','), longitude: areas.map(a => a.longitude).join(','), current: CUR, daily: DAILY_FIELDS, forecast_days: 1, timezone: 'Asia/Bangkok' });
+  const rows = Array.isArray(raw) ? raw : [raw];
+  return { areas: areas.map((a, i) => {
+    const c = rows[i]?.current || {}, d = rows[i]?.daily || {}, first = k => (d[k] || [null])[0];
+    return { name: a.name, latitude: a.latitude, longitude: a.longitude, inner: a.inner !== false, temperature_c: num(c.temperature_2m), precipitation_mm: num(c.precipitation),
+      wind_kmh: num(c.wind_speed_10m), weather_code: c.weather_code, description: describeCode(c.weather_code), today_max_c: num(first('temperature_2m_max')),
+      today_min_c: num(first('temperature_2m_min')), today_rain_probability_pct: num(first('precipitation_probability_max')) };
+  }), attribution: 'Dữ liệu thời tiết: Open-Meteo (CC BY 4.0)', fetched_at: new Date().toISOString() };
+}
+
+if (typeof module !== 'undefined') module.exports = { fmt, hourLabel, dayLabel, isRainy, directPoint, directOverview, describeCode };
 
 if (typeof document !== 'undefined') {
   const $ = id => document.getElementById(id);
@@ -44,6 +89,9 @@ if (typeof document !== 'undefined') {
     });
   };
 
+  const FALLBACK_AREAS = [['Hoàn Kiếm', 21.0285, 105.8542], ['Cầu Giấy', 21.0362, 105.7906], ['Long Biên', 21.0465, 105.8885], ['Hoàng Mai', 20.9745, 105.8628],
+    ['Hà Đông', 20.9714, 105.7788], ['Bắc Từ Liêm', 21.07, 105.75], ['Đông Anh', 21.137, 105.846], ['Gia Lâm', 21.0213, 105.947], ['Sóc Sơn', 21.256, 105.848],
+    ['Sơn Tây', 21.138, 105.505], ['Ba Vì', 21.199, 105.423], ['Chương Mỹ', 20.92, 105.705], ['Mỹ Đức', 20.683, 105.744]].map(([name, latitude, longitude]) => ({ name, latitude, longitude }));
   let map, pinLayer, clickMarker, boundaryLayer, config, started = false;
 
   async function getJson(url) {
@@ -104,7 +152,9 @@ if (typeof document !== 'undefined') {
 
   async function loadOverview() {
     try {
-      const data = await getJson('/api/weather/overview');
+      let data;
+      try { data = await getJson('/api/weather/overview'); }
+      catch (serverError) { data = await directOverview((config.areas && config.areas.length ? config.areas : FALLBACK_AREAS)); }
       if (pinLayer) pinLayer.clearLayers();
       renderAreaList(data.areas);
       for (const area of (map ? data.areas : [])) {
@@ -132,7 +182,9 @@ if (typeof document !== 'undefined') {
     const chip = $('weatherChip');
     chip.textContent = 'Đang tải'; chip.className = 'level-chip';
     try {
-      const w = await getJson(`/api/weather?latitude=${lat}&longitude=${lng}`);
+      let w;
+      try { w = await getJson(`/api/weather?latitude=${lat}&longitude=${lng}`); }
+      catch (serverError) { w = await directPoint(lat, lng); }
       const c = w.current;
       $('nowTemp').textContent = fmt(c.temperature_c, '°C');
       $('nowDesc').textContent = c.description;
