@@ -14,7 +14,8 @@
 - **OSRM** public demo server (router.project-osrm.org) for route alternatives: best-effort, no SLA; run your own for production.
 - **Google Fonts** DM Sans and Manrope (SIL Open Font License).
 - **Open-Meteo** weather data, CC BY 4.0, attributed on the map page.
-- Python packages in `requirements.txt` keep their own licences (FastAPI MIT, Uvicorn BSD-3,
+- **DejaVu Sans** (`traffic_brain/fonts/`, Bitstream Vera / public-domain-style licence, see `DejaVu-LICENSE.txt`): embedded in PDF reports so Vietnamese text renders.
+- Python packages in `requirements.txt` keep their own licences (FastAPI MIT, Uvicorn BSD-3, openpyxl MIT, ReportLab BSD,
   NumPy BSD-3, ONNX Runtime MIT, OpenCV Apache-2.0).
 
 - **YOLOX** (optional, not shipped): Megvii, Apache-2.0, https://github.com/Megvii-BaseDetection/YOLOX.

@@ -187,3 +187,15 @@ Khi đã có ít nhất 14 ngày số liệu thật, kiểm tra xem giờ-trong-
 nghĩa ứng dụng bên thứ ba được lấy luồng hình hay API: cần xin tài liệu giao diện, điều kiện sử dụng và quyền
 truy cập từ chủ nguồn dữ liệu. Mã tải lên (`UPLOAD_TOKEN`) gửi qua tiêu đề `X-Upload-Token`; cả hai mã được
 kiểm tra cùng giới hạn dung lượng và lượt tải trước khi máy chủ nhận nội dung.
+
+## Xuất báo cáo Excel và PDF
+
+Ở trang **Dự báo & phương án**, mục "Độ tin cậy" có thêm hai nút cạnh `.json` và `.csv`:
+
+- **Báo cáo Excel (.xlsx):** các sheet Tổng quan (độ chính xác từng camera, giới hạn), Dự báo (mọi dự báo +5/+10/+15 phút
+  kèm mức dự báo và mức thực tế, có bộ lọc), Số liệu đo (CI mỗi 15 giây), Biểu đồ (đường CI từng camera) và Khoảnh khắc.
+- **Báo cáo PDF:** biểu đồ CI kèm dự báo +5 phút, bảng độ chính xác, khoảnh khắc đáng chú ý, ảnh minh chứng đã làm mờ
+  (khi kết quả vừa được phân tích trên máy chủ) và các giới hạn cần biết.
+
+Máy chủ dựng báo cáo từ kết quả đang mở trên trang (`POST /api/report/xlsx|pdf`, tối đa 24 MiB, hai báo cáo cùng lúc);
+mã nằm ở `traffic_brain/report.py`.
