@@ -1,8 +1,7 @@
 # Third-party notices
 
-- **YOLOv8n detector** (`models/detector.onnx`): model architecture and COCO-pretrained weights by
-  Ultralytics, licensed AGPL-3.0 (https://github.com/ultralytics/ultralytics). Distributing a service
-  built on it has AGPL obligations; check before commercial or public deployment.
+- **YOLOX-s detector** (`models/detector.onnx`): Megvii YOLOX, COCO-pretrained weights, licensed
+  Apache-2.0 (https://github.com/Megvii-BaseDetection/YOLOX).
 - **AI City Challenge 2021 Track 1** (`models/forecast_library/` AIC records): derived numeric series
   only; the dataset is licensed for non-commercial academic research.
 - **Hanoi traffic-camera broadcast recordings** (`models/forecast_library/` Hanoi records, Hanoi demo):

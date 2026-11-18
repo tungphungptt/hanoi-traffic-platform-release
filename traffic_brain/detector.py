@@ -1,8 +1,9 @@
 """ONNX vehicle detector (COCO classes) and a greedy nearest-centre tracker, on CPU.
 
-Shipped: YOLOv8n (AGPL-3.0). Also understood, picked from the model's output shape: the official YOLOX
-ONNX exports (Apache-2.0), e.g. ``DETECTOR_MODEL=/path/yolox_s.onnx``. Changing the detector changes the
-CI scale, so the forecast library must be rebuilt with the same detector.
+Shipped: YOLOX-s (Apache-2.0), run on two overlapping halves of each frame plus the whole frame
+(``DETECTOR_TILES``, default ``2x1``) because distant vehicles are tiny in a wide frame. The decoder is picked
+from the model's output shape, so a YOLOv8 export (``DETECTOR_MODEL=/path/model.onnx``) still works. Changing
+the detector or the tiling changes the CI scale, so the forecast library must be rebuilt with the same setting.
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ import numpy as np
 
 MODEL_PATH = Path(os.getenv("DETECTOR_MODEL") or Path(__file__).resolve().parents[1] / "models" / "detector.onnx")
 INPUT_SIZE = 640
+TILE_OVERLAP = 0.15
 VEHICLE_CLASS_IDS = frozenset({2, 3, 5, 7})  # COCO: car, motorcycle, bus, truck
 PERSON_CLASS_ID = 0  # only used to blur people in saved pictures, never counted as traffic
 CONFIDENCE_THRESHOLD = 0.25
@@ -134,11 +136,40 @@ def parse_yolox(output: np.ndarray, size: int, ratio: float, class_ids: frozense
     return found
 
 
+def _env_tiles() -> tuple[int, int]:
+    try:
+        cols, rows = (int(v) for v in os.getenv("DETECTOR_TILES", "2x1").lower().split("x"))
+        return max(1, cols), max(1, rows)
+    except ValueError:
+        return 1, 1
+
+
+def _merge(found: list[Detection]) -> list[Detection]:
+    """Drops the copy of a vehicle seen in both the whole frame and a tile (same class, strong overlap)."""
+    keep: list[Detection] = []
+    for d in sorted(found, key=lambda x: -x.score):
+        for k in keep:
+            if k.class_id != d.class_id:
+                continue
+            ix = max(0.0, min(d.box[2], k.box[2]) - max(d.box[0], k.box[0]))
+            iy = max(0.0, min(d.box[3], k.box[3]) - max(d.box[1], k.box[1]))
+            inter = ix * iy
+            union = ((d.box[2] - d.box[0]) * (d.box[3] - d.box[1]) + (k.box[2] - k.box[0]) * (k.box[3] - k.box[1]) - inter)
+            if union > 0 and inter / union > NMS_THRESHOLD:
+                break
+        else:
+            keep.append(d)
+    return keep
+
+
 class Detector:
     """Loads the ONNX model (models/detector.onnx, or DETECTOR_MODEL) on first use; shared by the worker thread."""
 
-    def __init__(self, path: Path = MODEL_PATH) -> None:
+    def __init__(self, path: Path = MODEL_PATH, tiles: tuple[int, int] | None = None) -> None:
         self.path = Path(path)
+        # (columns, rows): also run each overlapping tile at full model resolution, so small distant
+        # vehicles in a wide frame are found. (1, 1) = whole frame only.
+        self.tiles = tiles or _env_tiles()
         self._session: Any = None
         self._input_name = ""
         self._input_size = INPUT_SIZE
@@ -172,6 +203,24 @@ class Detector:
 
     def detect(self, frame: np.ndarray, class_ids: frozenset[int] = VEHICLE_CLASS_IDS,
                min_score: float = CONFIDENCE_THRESHOLD) -> list[Detection]:
+        cols, rows = self.tiles
+        if cols * rows <= 1:
+            return self._detect_once(frame, class_ids, min_score)
+        height, width = frame.shape[:2]
+        found = list(self._detect_once(frame, class_ids, min_score))
+        tile_w, tile_h = width / cols, height / rows
+        pad_x, pad_y = tile_w * TILE_OVERLAP, tile_h * TILE_OVERLAP
+        for r in range(rows):
+            for c in range(cols):
+                x0, x1 = int(max(0, c * tile_w - pad_x)), int(min(width, (c + 1) * tile_w + pad_x))
+                y0, y1 = int(max(0, r * tile_h - pad_y)), int(min(height, (r + 1) * tile_h + pad_y))
+                for d in self._detect_once(frame[y0:y1, x0:x1], class_ids, min_score):
+                    b = d.box
+                    found.append(Detection(d.class_id, (b[0] + x0, b[1] + y0, b[2] + x0, b[3] + y0), d.score))
+        return _merge(found)
+
+    def _detect_once(self, frame: np.ndarray, class_ids: frozenset[int] = VEHICLE_CLASS_IDS,
+                     min_score: float = CONFIDENCE_THRESHOLD) -> list[Detection]:
         if self._session is None:
             self.load()
         if self.kind == "yolox":

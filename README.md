@@ -65,7 +65,7 @@ liệu cũ (tối đa 3 giờ) và ghi rõ.
 
 ## Cách hoạt động
 
-1. **Đo** (`traffic_brain/video_analysis.py`): 1 khung hình/giây, YOLOv8n ONNX nhận diện ô tô, xe máy, buýt,
+1. **Đo** (`traffic_brain/video_analysis.py`): 1 khung hình/giây, YOLOX-s ONNX (chạy thêm trên 2 nửa khung hình để thấy xe nhỏ ở xa) nhận diện ô tô, xe máy, buýt,
    tải; bám vết để đo chuyển động. CI (0–1) = phần diện tích xe chiếm + số xe + tỉ lệ xe đứng yên.
    CI quan sát là trung bình 60 giây, mỗi 15 giây.
 2. **Dự báo** (`traffic_brain/minute_forecaster.py`): tại mỗi thời điểm t, CI sau h phút = CI hiện tại
@@ -75,7 +75,7 @@ liệu cũ (tối đa 3 giờ) và ghi rõ.
    chấm); mức "theo dõi" khi từ 20% đến dưới 40%.
 3. **Ảnh minh chứng**: sau khi phân tích, hệ thống chụp lại khoảng 8 khung hình mỗi camera tại các thời điểm
    đổi mức, đông nhất, thông thoáng nhất và các mốc định kỳ, vẽ khung quanh xe nhận diện kèm giờ và CI. Ảnh giữ
-   khoảng 1 giờ trên máy chủ và không nằm trong file kết quả tải về. Bộ nhận diện YOLOv8n còn bỏ sót nhiều xe máy
+   khoảng 1 giờ trên máy chủ và không nằm trong file kết quả tải về. Bộ nhận diện vẫn bỏ sót xe ở rất xa và xe máy chen dày
    khi đường rất đông (ảnh minh chứng cho thấy rõ điều này), nên CI có thể thấp hơn thực tế.
 4. **Học** (`models/forecast_library/`): chuỗi CI của 3 video AIC21, 19 chuỗi camera Hà Nội và 8 clip camera cố định (thư mục Drive "Mới") (không lưu
    hình ảnh). Video đã phân tích trên máy bạn cũng được lưu thành chuỗi số vào `data/forecast_library/`
@@ -132,7 +132,7 @@ phân tích, nên demo luôn chạy nhanh trên Render.
 ```
 app/main.py                    API (upload → job → kết quả, bản đồ, thời tiết) và trang web
 app/weather.py, hanoi_scope.py thời tiết Open-Meteo, ranh giới Hà Nội
-traffic_brain/detector.py      YOLOv8n ONNX + bám vết
+traffic_brain/detector.py      YOLOX-s ONNX (chia 2 ô) + bám vết
 traffic_brain/video_analysis.py  CI theo khung hình, tách camera, gọi bộ dự báo
 traffic_brain/minute_forecaster.py  dự báo +5/+10/+15 phút, chấm điểm
 static/                        giao diện: index.html, shell.js (điều hướng), app.js (dự báo), map.js (bản đồ, thời tiết), routes.js (tuyến)

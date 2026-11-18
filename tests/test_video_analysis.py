@@ -7,7 +7,7 @@ from traffic_brain.detector import Detection, parse_detections, update_tracks
 
 def test_visual_ci_is_bounded_and_monotone():
     assert va.visual_ci(0, 0.0, None) == 0.0
-    assert va.visual_ci(40, 0.5, 0.0) == 1.0
+    assert va.visual_ci(60, 0.6, 0.0) == 1.0
     assert va.visual_ci(10, 0.10, None) < va.visual_ci(15, 0.10, None)
     # Stopped traffic is more congested than moving traffic at the same density.
     assert va.visual_ci(10, 0.10, 0.0) > va.visual_ci(10, 0.10, 0.05)
@@ -180,4 +180,4 @@ def test_detector_picks_decoder_from_the_model_output_shape():
     pytest.importorskip("onnxruntime")
     shipped = Detector(MODEL_PATH)
     shipped.load()
-    assert shipped.kind == "yolov8"
+    assert shipped.kind == "yolox"

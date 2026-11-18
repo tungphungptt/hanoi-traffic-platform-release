@@ -1,8 +1,11 @@
 # Models
 
-- `detector.onnx` — YOLOv8n vehicle detector (COCO classes car, motorcycle, bus, truck), 640×640 input,
-  run on CPU with ONNX Runtime by `traffic_brain/detector.py`. YOLOv8 is published by Ultralytics under
-  AGPL-3.0; see `THIRD_PARTY_NOTICES.md`.
+- `detector.onnx` — YOLOX-s vehicle detector (COCO classes car, motorcycle, bus, truck), 640×640 input,
+  Apache-2.0, run on CPU with ONNX Runtime by `traffic_brain/detector.py` on the whole frame plus its two
+  overlapping halves (`DETECTOR_TILES`, default `2x1`). Replaced YOLOv8n, which found about a quarter of the
+  vehicles and almost no motorbikes, so CI read "free" on crowded roads. The CI scale (`OCCUPANCY_FULL`,
+  `COUNT_FULL`, `SPEED_MOVING` in `video_analysis.py`) was re-fitted for it and the library rebuilt with
+  `tools/rebuild_library.py`. No human labels exist yet, so the scale is a judgement, not a calibration.
 - `forecast_library/` — the forecaster's training data: congestion-index series (numbers only, no
   images) of long traffic videos. See `forecast_library/README.md`.
 

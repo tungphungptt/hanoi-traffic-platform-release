@@ -37,14 +37,22 @@ class VideoAnalysisError(ValueError):
     """A problem with the input video that the user can fix."""
 
 
+# CI scale for the shipped detector (YOLOX-s on two halves of the frame). Full scale = the occupancy,
+# vehicle count and speed at which a road counts as fully jammed. Chosen on 8 Hanoi cameras so that the
+# busiest roads reach gridlock and a sparse one stays below it; changing the detector means re-checking them.
+OCCUPANCY_FULL = 0.50
+COUNT_FULL = 50.0
+SPEED_MOVING = 0.015  # median vehicle speed (fraction of the frame diagonal per second) of free-flowing traffic
+
+
 def visual_ci(vehicle_count: int, occupancy: float, normalized_speed: float | None) -> float:
     """Explainable congestion index: occupancy, count and (when tracked) stopped motion."""
-    occ = min(max(float(occupancy), 0.0) / 0.22, 1.0)
-    count = min(max(int(vehicle_count), 0) / 20.0, 1.0)
+    occ = min(max(float(occupancy), 0.0) / OCCUPANCY_FULL, 1.0)
+    count = min(max(int(vehicle_count), 0) / COUNT_FULL, 1.0)
     if normalized_speed is None:
         ci = 0.62 * occ + 0.38 * count
     else:
-        stopped = 1.0 - min(max(float(normalized_speed), 0.0) / 0.045, 1.0)
+        stopped = 1.0 - min(max(float(normalized_speed), 0.0) / SPEED_MOVING, 1.0)
         ci = 0.50 * occ + 0.32 * count + 0.18 * stopped
     return max(0.0, min(1.0, ci))
 
