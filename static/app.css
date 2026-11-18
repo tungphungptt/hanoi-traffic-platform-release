@@ -367,7 +367,7 @@ body { font-size: 15px; line-height: 1.6; }
 
 .intro-block h2 { font-size: 28px; letter-spacing: -.8px; font-weight: 800; color: var(--ink); }
 .intro-sub { margin: 8px 0 0; color: var(--muted); font-size: 16px; max-width: 46em; }
-.intro-extra, .intro-foot { margin: 20px 0 0; color: var(--ink-2); font-size: 15.5px; max-width: 46em; }
+.intro-extra { margin: 20px 0 0; color: var(--ink-2); font-size: 15.5px; max-width: 46em; }
 
 .flow { list-style: none; margin: 26px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; position: relative; counter-reset: step; }
 .flow-step { position: relative; padding: 0 28px 0 0; }
@@ -386,19 +386,8 @@ body { font-size: 15px; line-height: 1.6; }
 .level-card.gridlock { background: var(--jam-soft); color: #8a3d34; }
 .level-swatch { width: 38px; height: 8px; border-radius: 99px; background: currentColor; opacity: .75; margin-bottom: 6px; }
 
-.trust { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 22px; }
-.trust-card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 22px; display: grid; gap: 14px; align-content: start; }
-.trust-card header { display: grid; gap: 8px; }
-.trust-card h3 { font-size: 26px; letter-spacing: -.8px; font-weight: 800; }
-.trust-verdict { justify-self: start; padding: 5px 12px; border-radius: 99px; font-size: 14px; font-weight: 700; }
-.trust-card.good .trust-verdict { background: var(--free-soft); color: #3f6a4b; }
-.trust-card.mid .trust-verdict { background: var(--busy-soft); color: #86602b; }
-.trust-card.weak .trust-verdict { background: var(--jam-soft); color: #8a3d34; }
 .meter { height: 12px; border-radius: 99px; background: #f0e8da; overflow: hidden; }
 .meter span { display: block; height: 100%; border-radius: 99px; }
-.trust-card.good .meter span { background: var(--free); } .trust-card.mid .meter span { background: var(--busy); } .trust-card.weak .meter span { background: var(--jam); }
-.trust-card p { margin: 0; color: var(--ink-2); font-size: 15.5px; line-height: 1.6; }
-.trust-card p strong { font: 700 22px var(--display); color: var(--ink); }
 
 .scope { list-style: none; margin: 20px 0 0; padding: 0; display: grid; gap: 10px; max-width: 52em; }
 .scope li { padding: 14px 18px 14px 20px; border-left: 4px solid var(--gold); background: var(--panel-subtle); border-radius: 0 12px 12px 0; font-size: 15.5px; line-height: 1.6; color: var(--ink-2); }
@@ -416,7 +405,7 @@ body { font-size: 15px; line-height: 1.6; }
   .flow { grid-template-columns: 1fr; gap: 26px; }
   .flow-step { padding-right: 0; }
   .flow-step::before { display: none; }
-  .levels, .trust { grid-template-columns: 1fr; }
+  .levels { grid-template-columns: 1fr; }
   .intro-end { padding: 26px 22px; }
   .sidebar { width: 264px; }
   .main-content { margin-left: 0; }
@@ -461,7 +450,7 @@ body {
   background-attachment: fixed;
 }
 h1, h2, h3, .brand-copy strong, .verdict strong, .weather-temperature strong, .route-option strong,
-.now-row strong, .htitle, .proof-stat strong, .trust-card h3 {
+.now-row strong, .htitle, .proof-stat strong {
   font-family: var(--display); font-weight: 700; letter-spacing: -.015em;
 }
 .panel h2 { font-size: 21px; line-height: 1.25; }
@@ -526,8 +515,6 @@ video, #player { border-radius: 16px; }
 .levels > * { border-radius: 24px; position: relative; overflow: hidden; transition: transform .25s ease; }
 .levels > *:hover { transform: translateY(-4px); }
 .levels > *::after { content: ""; position: absolute; right: -28px; bottom: -28px; width: 110px; height: 110px; border-radius: 50%; background: currentColor; opacity: .07; }
-.trust-card { border-radius: 24px; border-color: #efe0bd; box-shadow: var(--shadow); }
-.trust-card h3 { font-size: 34px; }
 .scope li { border-radius: 0 16px 16px 0; border-left-width: 5px; border-image: linear-gradient(180deg,#e7c46a,#c49a38) 1; }
 .scope li { border-image: none; border-left: 5px solid #d3a93f; }
 .intro-end { border-radius: 32px; background: var(--lacquer); position: relative; overflow: hidden; box-shadow: 0 30px 60px -30px rgba(141,21,25,.8); padding: 44px 48px; }
