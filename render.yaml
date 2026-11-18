@@ -13,10 +13,11 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.8
       # Analysis runs on a shared CPU (roughly 10x slower than a laptop): keep uploads modest.
+      # YOLOX-s on two tiles needs ~250 MB RAM and ~0.5 s/frame on a fast core: keep uploads short.
       - key: MAX_UPLOAD_MIB
-        value: "500"
+        value: "300"
       - key: MAX_VIDEO_MINUTES
-        value: "40"
+        value: "15"
       # The disk is wiped on restart and anyone can upload: do not learn from public uploads.
       - key: FORECAST_LIBRARY_ENABLED
         value: "false"

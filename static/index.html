@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400..800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <link rel="stylesheet" href="/static/app.css?v=11.0" />
+  <link rel="stylesheet" href="/static/app.css?v=11.1" />
 </head>
 <body>
   <div class="app-shell">
@@ -127,25 +127,25 @@
 
           <section class="intro-block">
             <h2>Dự báo đáng tin đến đâu</h2>
-            <p class="intro-sub">Kiểm chứng trên 15 video bằng cách bỏ lần lượt từng video ra khỏi phần học, và chọn ngưỡng cảnh báo mà không nhìn video đang chấm.</p>
+            <p class="intro-sub">Kiểm chứng trên 8 clip camera bằng cách bỏ lần lượt từng clip ra khỏi phần học, và chọn ngưỡng cảnh báo mà không nhìn clip đang chấm.</p>
             <div class="trust">
               <article class="trust-card good">
-                <header><h3>+5 phút</h3><span class="trust-verdict">Dùng được để cảnh báo sớm</span></header>
-                <div class="meter"><span style="width:48%"></span></div>
-                <p><strong>48%</strong> số lần ùn tắc bắt đầu được báo trước (50 trên 104). Khoảng 6 trong 10 cảnh báo là đúng.</p>
+                <header><h3>+5 phút</h3><span class="trust-verdict">Theo dõi sớm, kèm báo nhầm</span></header>
+                <div class="meter"><span style="width:21%"></span></div>
+                <p><strong>21%</strong> sai số thấp hơn cách giữ nguyên hiện tại. Bắt 45 trên 48 lần ùn tắc bắt đầu, nhưng 6 trong 10 cảnh báo là báo nhầm.</p>
               </article>
               <article class="trust-card mid">
                 <header><h3>+10 phút</h3><span class="trust-verdict">Tham khảo thêm</span></header>
-                <div class="meter"><span style="width:37%"></span></div>
-                <p><strong>37%</strong> số lần ùn tắc được báo trước (33 trên 90). Cảnh báo đúng khoảng một nửa số lần.</p>
+                <div class="meter"><span style="width:10%"></span></div>
+                <p><strong>10%</strong> sai số thấp hơn cách giữ nguyên hiện tại, chỉ nhỉnh hơn một chút. Cảnh báo đúng khoảng một nửa số lần.</p>
               </article>
               <article class="trust-card weak">
                 <header><h3>+15 phút</h3><span class="trust-verdict">Chỉ để tham khảo</span></header>
-                <div class="meter"><span style="width:44%"></span></div>
-                <p><strong>44%</strong> số lần ùn tắc được báo trước (31 trên 70), nhưng cảnh báo sai nhiều hơn đúng.</p>
+                <div class="meter"><span style="width:17%"></span></div>
+                <p><strong>17%</strong> sai số thấp hơn cách giữ nguyên hiện tại, nhưng khoảng tin cậy còn chạm 0. Cảnh báo đúng chưa tới 6 trong 10 lần.</p>
               </article>
             </div>
-            <p class="intro-foot">Chi tiết từng video có ở trang <a href="#report">Đánh giá mô hình</a>.</p>
+            <p class="intro-foot">Chỉ 3 trong 8 clip có lúc ùn tắc bắt đầu, nên số liệu cảnh báo còn ít. Chi tiết từng clip có ở trang <a href="#report">Đánh giá mô hình</a>.</p>
           </section>
 
           <section class="intro-block">
@@ -298,7 +298,7 @@
             <div class="how-body">
               <ol>
                 <li><strong>Đo hiện trạng.</strong> Mỗi giây lấy 1 khung hình, nhận diện ô tô, xe máy, buýt, tải (YOLOX-s, chia khung hình làm 2 ô để thấy xe nhỏ ở xa), tính chỉ số ùn tắc CI từ số xe, phần diện tích xe chiếm và mức độ đứng yên. CI quan sát là trung bình 60 giây, cập nhật mỗi 15 giây.</li>
-                <li><strong>Dự báo không nhìn trước.</strong> Tại mỗi thời điểm t, mức CI sau 5/10/15 phút = mức hiện tại cộng tổ hợp ba xu hướng: kéo về mức trung bình của camera, kéo về mức trung bình 10 phút gần nhất và xu hướng 3 phút gần đây. Trọng số học từ thư viện huấn luyện đi kèm (video AIC21 và camera Hà Nội), các video đã phân tích trước và phần video trước t. “⚠ Cảnh báo sắp tắc” khi khả năng tắc từ 40%; “◔ Theo dõi” khi từ 20%.</li>
+                <li><strong>Dự báo không nhìn trước.</strong> Tại mỗi thời điểm t, mức CI sau 5/10/15 phút = mức hiện tại cộng tổ hợp ba xu hướng: kéo về mức trung bình của camera, kéo về mức trung bình 10 phút gần nhất và xu hướng 3 phút gần đây. Trọng số học từ thư viện huấn luyện đi kèm (8 clip camera Hà Nội), các video đã phân tích trước và phần video trước t. “Cảnh báo sắp tắc” khi khả năng tắc từ 40%; “Theo dõi” khi từ 20%.</li>
                 <li><strong>Video nhiều camera.</strong> Với bản ghi chương trình truyền hình chuyển qua lại giữa các camera, mỗi khung hình được gán vào một camera theo ảnh thu nhỏ; cảnh trường quay và băng rôn bị bỏ qua. Mỗi camera có chuỗi CI riêng, đứt quãng khi không lên sóng; dự báo chỉ được chấm khi camera đang lên sóng ở thời điểm đích.</li>
                 <li><strong>Kiểm chứng.</strong> Phần video sau t được dùng để chấm điểm. Cảnh báo tắc được phát khi xác suất CI ≥ 0,55 từ 40% trở lên; ngưỡng này cố định trước khi chấm.</li>
               </ol>
@@ -374,7 +374,7 @@
   <div class="toast" id="toast" role="status" hidden></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="/static/shell.js?v=9.8"></script>
-  <script src="/static/app.js?v=10.1"></script>
+  <script src="/static/app.js?v=11.1"></script>
   <script src="/static/map.js?v=9.1"></script>
   <script src="/static/live.js?v=9.2"></script>
   <script src="/static/routes.js?v=9.1"></script>

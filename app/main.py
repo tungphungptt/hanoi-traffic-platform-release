@@ -24,6 +24,7 @@ import numpy as np
 from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.concurrency import run_in_threadpool
 
 from app import weather
@@ -174,8 +175,34 @@ class RequestGuard:
         await self.app(scope, limited_receive, guarded_send)
 
 
+class SelectiveGZip(GZipMiddleware):
+    """Compresses text (pages, scripts, JSON); leaves videos, pictures and report files alone (Range requests, already packed)."""
+
+    async def __call__(self, scope, receive, send):
+        path = scope.get("path", "")
+        if scope["type"] == "http" and (path.startswith("/static/demo/") or "/evidence/" in path or path.startswith("/api/report/")):
+            return await self.app(scope, receive, send)
+        return await super().__call__(scope, receive, send)
+
+
+class CachedStatic(StaticFiles):
+    """Demo videos and fonts-like assets are cached for a week; scripts and styles are revalidated (ETag) on every visit."""
+
+    def file_response(self, full_path, stat_result, scope, status_code=200):
+        response = super().file_response(full_path, stat_result, scope, status_code)
+        name = str(full_path).replace("\\", "/")
+        if "/static/demo/" in name:
+            response.headers["Cache-Control"] = "public, max-age=604800"
+        elif name.endswith((".geojson", ".svg")):
+            response.headers["Cache-Control"] = "public, max-age=86400"
+        else:
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.add_middleware(SelectiveGZip, minimum_size=1024)
 app.add_middleware(RequestGuard)
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.mount("/static", CachedStatic(directory=str(STATIC_DIR)), name="static")
 
 
 # ---------------------------------------------------------------- training library
