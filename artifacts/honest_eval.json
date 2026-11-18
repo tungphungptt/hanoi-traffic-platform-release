@@ -2,88 +2,95 @@
   "note": "thresholds chosen on the other videos only; MIN_PRECISION=0.50 for warning, best F1 for watch",
   "horizons": {
     "+5": {
-      "forecasts": 759,
-      "onsets": 52,
-      "onset_videos": 5,
+      "forecasts": 1281,
+      "onsets": 104,
+      "onset_videos": 9,
       "warning": {
-        "caught": 23,
-        "false": 14,
-        "onsets": 52,
-        "recall": 0.442,
-        "precision": 0.622,
+        "caught": 50,
+        "false": 35,
+        "onsets": 104,
+        "recall": 0.481,
+        "precision": 0.588,
         "thresholds_chosen": [
+          0.22,
           0.24,
           0.26
         ],
         "folds_without_threshold": 0
       },
       "watch": {
-        "caught": 23,
-        "false": 3,
-        "onsets": 52,
-        "recall": 0.442,
-        "precision": 0.885,
+        "caught": 50,
+        "false": 26,
+        "onsets": 104,
+        "recall": 0.481,
+        "precision": 0.658,
         "thresholds_chosen": [
-          0.3,
-          0.36
+          0.34,
+          0.42
         ],
         "folds_without_threshold": 0
       }
     },
     "+10": {
-      "forecasts": 587,
-      "onsets": 39,
-      "onset_videos": 4,
+      "forecasts": 995,
+      "onsets": 90,
+      "onset_videos": 8,
       "warning": {
-        "caught": 0,
-        "false": 0,
-        "onsets": 39,
-        "recall": 0.0,
-        "precision": null,
+        "caught": 33,
+        "false": 34,
+        "onsets": 90,
+        "recall": 0.367,
+        "precision": 0.493,
         "thresholds_chosen": [
-          0.28
+          0.18,
+          0.2,
+          0.22,
+          0.24
         ],
-        "folds_without_threshold": 1
+        "folds_without_threshold": 0
       },
       "watch": {
-        "caught": 18,
-        "false": 91,
-        "onsets": 39,
-        "recall": 0.462,
-        "precision": 0.165,
+        "caught": 33,
+        "false": 34,
+        "onsets": 90,
+        "recall": 0.367,
+        "precision": 0.493,
         "thresholds_chosen": [
           0.04,
-          0.08,
           0.18,
-          0.2
+          0.26
         ],
         "folds_without_threshold": 0
       }
     },
     "+15": {
-      "forecasts": 457,
-      "onsets": 28,
-      "onset_videos": 4,
+      "forecasts": 736,
+      "onsets": 70,
+      "onset_videos": 8,
       "warning": {
-        "caught": 10,
-        "false": 16,
-        "onsets": 28,
-        "recall": 0.357,
-        "precision": 0.385,
-        "thresholds_chosen": [
-          0.2
-        ],
-        "folds_without_threshold": 6
-      },
-      "watch": {
-        "caught": 12,
-        "false": 37,
-        "onsets": 28,
-        "recall": 0.429,
-        "precision": 0.245,
+        "caught": 31,
+        "false": 49,
+        "onsets": 70,
+        "recall": 0.443,
+        "precision": 0.388,
         "thresholds_chosen": [
           0.14,
+          0.18,
           0.2
+        ],
+        "folds_without_threshold": 0
+      },
+      "watch": {
+        "caught": 34,
+        "false": 96,
+        "onsets": 70,
+        "recall": 0.486,
+        "precision": 0.262,
+        "thresholds_chosen": [
+          0.04,
+          0.06,
+          0.08,
+          0.18
         ],
         "folds_without_threshold": 0
       }
