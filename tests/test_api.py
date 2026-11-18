@@ -225,3 +225,11 @@ def test_extra_demos_listed_and_openable():
         assert demo["session"]["contract"].startswith("hanoiflow-forecast-session/")
         assert abs(demo["video"]["duration"] - demo["session"]["video"]["duration_seconds"]) < 5
     assert client.get("/api/demo", params={"id": "nope"}).status_code == 404
+
+
+def test_text_is_compressed_and_videos_are_cached_without_compression():
+    css = client.get("/static/app.css", headers={"accept-encoding": "gzip"})
+    assert css.headers.get("content-encoding") == "gzip" and css.headers["cache-control"] == "no-cache"
+    video = client.get("/static/demo/xuan_dieu.mp4", headers={"accept-encoding": "gzip", "range": "bytes=0-99"})
+    assert video.status_code == 206 and "content-encoding" not in video.headers
+    assert "max-age" in video.headers["cache-control"]

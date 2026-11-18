@@ -40,7 +40,7 @@ tải 6 file `traffic_016_cam1.mp4` … `traffic_021_cam1.mp4` từ thư mục D
 | Kết quả đã lưu | Video cần mở kèm |
 | --- | --- |
 | `artifacts/demo_hanoi_tdh_htm.hanoiflow.json` | Thư mục Drive "Hanoi Flow" → Tran Duy Hung, ghép `traffic_016_cam1.mp4` … `traffic_021_cam1.mp4` (28 phút 50 giây; Hồ Tùng Mậu ~9 phút rồi Trần Duy Hưng ~20 phút) |
-| `artifacts/demo_aic21_cam_6.hanoiflow.json` | `cam_6.mp4` của AI City Challenge 2021 Track 1, Dataset A |
+| `artifacts/demo_<tên>.hanoiflow.json` (8 file) | Video demo đã nén có sẵn trong `static/demo/`; chọn ở mục 1 của trang Dự báo, không cần tải gì |
 
 Trang chủ → **Mở kết quả đã lưu** → chọn file `.json`, rồi chọn video ở mục 1. Video demo Hà Nội không
 có trong dữ liệu học.
@@ -77,19 +77,20 @@ liệu cũ (tối đa 3 giờ) và ghi rõ.
    đổi mức, đông nhất, thông thoáng nhất và các mốc định kỳ, vẽ khung quanh xe nhận diện kèm giờ và CI. Ảnh giữ
    khoảng 1 giờ trên máy chủ và không nằm trong file kết quả tải về. Bộ nhận diện vẫn bỏ sót xe ở rất xa và xe máy chen dày
    khi đường rất đông (ảnh minh chứng cho thấy rõ điều này), nên CI có thể thấp hơn thực tế.
-4. **Học** (`models/forecast_library/`): chuỗi CI của 3 video AIC21, 19 chuỗi camera Hà Nội và 8 clip camera cố định (thư mục Drive "Mới") (không lưu
+4. **Học** (`models/forecast_library/`): chuỗi CI của 8 clip camera cố định Hà Nội 30 phút (thư mục Drive "Mới"), đo bằng cùng bộ nhận diện (không lưu
    hình ảnh). Video đã phân tích trên máy bạn cũng được lưu thành chuỗi số vào `data/forecast_library/`
    để lần sau học thêm. Một video không bao giờ học từ chính nó.
 
-Kiểm tra chéo bỏ-một-video trên 15 video (3 AIC21, 4 bản ghi Hà Nội dài 80–109 phút, 8 clip camera cố định 30 phút), so
-với "giữ nguyên mức hiện tại": **tốt hơn 22,4% ở +5 phút, 17,8% ở +10 phút, 18,4% ở +15 phút** (1521 / 1150 / 836
-lần kiểm chứng; khoảng tin cậy 95% đều dương). Cảnh báo tắc, với ngưỡng chọn mà không nhìn video đang chấm: trước 5
-phút bắt 50/104 lần chuyển sang tắc (báo nhầm 35); trước 10 phút bắt 33/90 (nhầm 34); trước 15 phút bắt 31/70 nhưng
-nhầm 49, nên chỉ nên xem như tham khảo. Các clip cùng thư mục có thể được ghi cùng lúc nên không hoàn toàn độc lập. Chi tiết: `models/forecast_library/README.md` và trang **Đánh giá mô hình**.
+Kiểm tra chéo bỏ-một-video trên 8 clip camera cố định 30 phút, so với "giữ nguyên mức hiện tại": **tốt hơn 21,1% ở +5 phút,
+10,3% ở +10 phút, 16,5% ở +15 phút** (666 / 506 / 346 lần kiểm chứng; ở +15 phút khoảng tin cậy 95% còn chạm 0).
+Cảnh báo tắc, với ngưỡng chọn mà không nhìn video đang chấm (`artifacts/honest_eval.json`): trước 5 phút bắt 45/48 lần
+chuyển sang tắc nhưng báo nhầm 61; trước 10 phút bắt 63/63 (nhầm 64); trước 15 phút bắt 53/53 (nhầm 41). Chỉ 3 trong 8 clip
+có lúc tắc bắt đầu và ngưỡng được chọn rất thấp, nên cảnh báo chỉ nên xem như tham khảo. Các clip cùng thư mục có thể được ghi
+cùng lúc nên không hoàn toàn độc lập. Chi tiết: `models/forecast_library/README.md` và trang **Đánh giá mô hình**.
 
-**Giới hạn.** "Thực tế" dùng để chấm là CI thị giác do chính hệ thống đo, không phải nhãn chuyên gia; số
-lần kiểm chứng trên Hà Nội còn ít; các lần chuyển sang tắc (52 lần) tập trung ở 5 video; cấu trúc mô hình và
-ngưỡng "theo dõi" được chọn sau khi xem chính các kết quả kiểm tra chéo này nên con số có thể hơi lạc quan; mô hình chưa được kiểm định trên luồng camera trực tiếp.
+**Giới hạn.** "Thực tế" dùng để chấm là CI thị giác do chính hệ thống đo, không phải nhãn chuyên gia; thang CI là phán đoán
+sau khi đổi bộ nhận diện, chưa hiệu chuẩn bằng nhãn người; thư viện chỉ có 8 clip; ngưỡng "theo dõi" được chọn sau khi xem
+chính các kết quả kiểm tra chéo này nên con số có thể hơi lạc quan; mô hình chưa được kiểm định trên luồng camera trực tiếp.
 
 **Kiểm chứng CI bằng nhãn của người** (để không chỉ "tự chấm mình"):
 

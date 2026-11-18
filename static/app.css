@@ -476,9 +476,9 @@ h1, h2, h3, .brand-copy strong, .verdict strong, .weather-temperature strong, .r
 .panel { border: 1px solid #efe4d0; background: linear-gradient(180deg, #fff 0%, #fffdf9 100%); position: relative; }
 .panel::after { content: ""; position: absolute; top: 0; left: 28px; width: 56px; height: 3px; border-radius: 0 0 4px 4px; background: var(--gold-leaf); }
 .page-heading h1 { font-size: 34px; color: var(--brand); }
-.file-drop, .upload-card { border-radius: 20px; }
+.file-drop { border-radius: 20px; }
 video, #player { border-radius: 16px; }
-.video-box, .player-wrap { border-radius: 18px; overflow: hidden; box-shadow: 0 0 0 1px #e8d9bb, 0 20px 40px -22px rgba(60,30,10,.5); }
+.video-wrap { border-radius: 18px; overflow: hidden; box-shadow: 0 0 0 1px #e8d9bb, 0 20px 40px -22px rgba(60,30,10,.5); }
 .level { border-radius: 99px; }
 .verdict { border-radius: 18px; }
 .proof-stat { background: linear-gradient(180deg, #fff, #fffaf0); border-color: #efe0bd; border-radius: 16px; }
