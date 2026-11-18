@@ -25,12 +25,13 @@ function isRainy(code) {
 
 if (typeof module !== 'undefined') module.exports = { fmt, hourLabel, dayLabel, isRainy };
 
-if (typeof document !== 'undefined' && typeof L !== 'undefined') {
+if (typeof document !== 'undefined') {
   const $ = id => document.getElementById(id);
   const escapeHtml = text => String(text ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   /** Base tiles with an automatic switch to the fallback server when the main one refuses requests. */
   window.hanoiFlowTiles = (target, config) => {
+    if (typeof L === 'undefined') return;
     const base = L.tileLayer(config.tile_url_template, { maxZoom: 19, attribution: config.attribution }).addTo(target);
     let loaded = 0, failed = 0;
     base.on('tileload', () => { loaded += 1; });
@@ -57,33 +58,56 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') {
     started = true;
     const now = new Date();
     $('dateToday').textContent = now.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
-    config = await getJson('/api/map/config');
-    map = L.map('map', { zoomControl: false }).setView(config.center, 10);
-    window.hanoiFlowTiles(map, config);
-    try {
-      const boundary = await getJson(config.boundary_url);
-      boundaryLayer = L.geoJSON(boundary, { style: { color: '#b52226', weight: 2, fillOpacity: 0.03, fillColor: '#c49a38' }, interactive: false }).addTo(map);
-      map.fitBounds(boundaryLayer.getBounds(), { padding: [10, 10] });
-    } catch { /* the map still works without the outline */ }
-    pinLayer = L.layerGroup().addTo(map);
-    const zoomClass = () => $('map').classList.toggle('zoomed-out', map.getZoom() < 11);
-    map.on('zoomend', zoomClass);
-    zoomClass();
-    map.on('click', e => showPoint(e.latlng.lat, e.latlng.lng, 'Điểm đã chọn'));
-    $('mapZoomIn').addEventListener('click', () => map.zoomIn());
-    $('mapZoomOut').addEventListener('click', () => map.zoomOut());
-    $('mapHanoiFit').addEventListener('click', () => boundaryLayer ? map.fitBounds(boundaryLayer.getBounds(), { padding: [10, 10] }) : map.setView(config.center, 10));
-    $('mapReset').addEventListener('click', () => map.setView(config.center, 13));
-    $('refreshBtn').addEventListener('click', () => { loadOverview(); });
+    try { config = await getJson('/api/map/config'); } catch { config = { center: [21.0285, 105.8542] }; }
+    buildMap();
     loadOverview();
     showPoint(config.center[0], config.center[1], 'Hoàn Kiếm');
+    // Leaflet comes from a CDN: if it arrives late (or from the backup CDN) the map is built then, weather is already shown.
+    window.addEventListener('leaflet-ready', () => { buildMap(); loadOverview(); });
+    $('refreshBtn').addEventListener('click', () => { loadOverview(); });
+  }
+
+  function buildMap() {
+    if (map || typeof L === 'undefined') return;
+    try {
+      map = L.map('map', { zoomControl: false }).setView(config.center, 10);
+      $('map').classList.remove('no-map');
+      $('map').replaceChildren(...[]);
+      window.hanoiFlowTiles(map, config);
+      pinLayer = L.layerGroup().addTo(map);
+      getJson(config.boundary_url || '/static/hanoi_boundary.geojson').then(boundary => {
+        boundaryLayer = L.geoJSON(boundary, { style: { color: '#b52226', weight: 2, fillOpacity: 0.03, fillColor: '#c49a38' }, interactive: false }).addTo(map);
+        map.fitBounds(boundaryLayer.getBounds(), { padding: [10, 10] });
+      }).catch(() => { /* the map still works without the outline */ });
+      const zoomClass = () => $('map').classList.toggle('zoomed-out', map.getZoom() < 11);
+      map.on('zoomend', zoomClass);
+      zoomClass();
+      map.on('click', e => showPoint(e.latlng.lat, e.latlng.lng, 'Điểm đã chọn'));
+      $('mapZoomIn').onclick = () => map.zoomIn();
+      $('mapZoomOut').onclick = () => map.zoomOut();
+      $('mapHanoiFit').onclick = () => boundaryLayer ? map.fitBounds(boundaryLayer.getBounds(), { padding: [10, 10] }) : map.setView(config.center, 10);
+      $('mapReset').onclick = () => map.setView(config.center, 13);
+    } catch (error) {
+      map = null;
+      $('overviewMeta').textContent = `Không dựng được bản đồ: ${error.message}`;
+    }
+  }
+
+  /** Without the map library the areas are still listed, so the weather section never looks broken. */
+  function renderAreaList(areas) {
+    if (map) return;
+    const box = $('map');
+    box.classList.add('no-map');
+    box.innerHTML = `<div class="area-list">${areas.map(a => `<button type="button" class="area-card" data-lat="${a.latitude}" data-lng="${a.longitude}" data-name="${escapeHtml(a.name)}"><strong>${escapeHtml(a.name)}</strong><span>${fmt(a.temperature_c, '°')} · ${escapeHtml(a.description)}</span><em>Mưa ${fmt(a.today_rain_probability_pct, '%')}</em></button>`).join('')}</div>`;
+    box.querySelectorAll('.area-card').forEach(btn => btn.addEventListener('click', () => showPoint(Number(btn.dataset.lat), Number(btn.dataset.lng), btn.dataset.name)));
   }
 
   async function loadOverview() {
     try {
       const data = await getJson('/api/weather/overview');
-      pinLayer.clearLayers();
-      for (const area of data.areas) {
+      if (pinLayer) pinLayer.clearLayers();
+      renderAreaList(data.areas);
+      for (const area of (map ? data.areas : [])) {
         const rainy = isRainy(area.weather_code) || (area.today_rain_probability_pct ?? 0) >= 60;
         const icon = L.divIcon({ className: '', html: `<span class="area-pin${rainy ? ' rain' : ''}${area.inner ? ' inner' : ''}"><b>${escapeHtml(area.name)} </b>${fmt(area.temperature_c, '°')}</span>` });
         L.marker([area.latitude, area.longitude], { icon })
@@ -101,8 +125,8 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') {
   }
 
   async function showPoint(lat, lng, name, retry = false) {
-    if (clickMarker) clickMarker.remove();
-    clickMarker = L.circleMarker([lat, lng], { radius: 7, color: '#b52226', weight: 3, fillColor: '#c49a38', fillOpacity: 0.7 }).addTo(map);
+    if (clickMarker) { clickMarker.remove(); clickMarker = null; }
+    if (map) clickMarker = L.circleMarker([lat, lng], { radius: 7, color: '#b52226', weight: 3, fillColor: '#c49a38', fillOpacity: 0.7 }).addTo(map);
     $('placeKicker').textContent = name;
     $('placeMeta').textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)} · Dữ liệu từ Open-Meteo; không thay thế cảnh báo khí tượng chính thức.`;
     const chip = $('weatherChip');

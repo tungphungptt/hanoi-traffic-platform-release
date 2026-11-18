@@ -46,7 +46,9 @@ const KNOWN_CAMERAS = [
 
 if (typeof module !== 'undefined') module.exports = { fmtDuration, fmtDistance, distanceToLine, rankRoutes, KNOWN_CAMERAS };
 
-if (typeof document !== 'undefined' && typeof L !== 'undefined') {
+function bootRoutes() {
+  if (typeof document === 'undefined' || typeof L === 'undefined' || bootRoutes.done) return;
+  bootRoutes.done = true;
   const $ = id => document.getElementById(id);
   const escapeHtml = text => String(text ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const COLORS = ['#b52226', '#597e9b', '#c49a38'];
@@ -166,3 +168,5 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') {
   });
   if (window.hanoiFlow.page === 'video') init().catch(() => {});
 }
+bootRoutes();
+if (typeof window !== 'undefined') window.addEventListener('leaflet-ready', bootRoutes);
