@@ -1,10 +1,11 @@
 /* hanoiFlow — sidebar navigation (one page per hash), mobile menu, and the model report page. */
 'use strict';
 
-const PAGES = { video: 'Dự báo & phương án', overview: 'Bản đồ & thời tiết', live: 'Trực tiếp', report: 'Đánh giá mô hình' };
+const PAGES = { intro: 'Giới thiệu', video: 'Dự báo & phương án', overview: 'Bản đồ & thời tiết', live: 'Trực tiếp', report: 'Đánh giá mô hình' };
 
 function pageFromHash(hash) {
   const key = String(hash || '').replace(/^#/, '');
+  if (key === '') return 'intro';
   if (key === 'how') return 'video';
   return Object.prototype.hasOwnProperty.call(PAGES, key) ? key : 'video';
 }

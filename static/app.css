@@ -306,3 +306,18 @@ td.bad { color: var(--jam-text); font-weight: 700; }
 .no-video{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;text-align:center;background:rgba(20,20,20,.88);color:#fff;border-radius:inherit;z-index:2}
 .no-video[hidden]{display:none}
 .no-video p{margin:0;max-width:34em}
+
+/* Giới thiệu */
+.intro-hero { padding: 34px 34px 30px; background: linear-gradient(135deg, #fff 0%, var(--brand-soft) 100%); }
+.intro-hero h1 { font-size: 30px; line-height: 1.22; letter-spacing: -1.2px; font-weight: 800; color: var(--brand); max-width: 900px; }
+.intro-lead { font-size: 14px; line-height: 1.7; color: var(--ink-2); max-width: 820px; margin: 14px 0 0; }
+.intro-cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.intro-cta .btn { padding: 11px 16px; font-size: 12px; }
+.intro-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.intro-card h2 { margin: 10px 0 8px; }
+.intro-card p { margin: 0; color: var(--ink-2); font-size: 12px; line-height: 1.65; }
+.intro-num { display: inline-flex; width: 26px; height: 26px; border-radius: 50%; align-items: center; justify-content: center; background: var(--brand); color: #fff; font-weight: 800; font-size: 12px; }
+.intro-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.intro-list, .intro-steps { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 12px; line-height: 1.7; }
+.intro-list li, .intro-steps li { margin-bottom: 6px; }
+@media (max-width: 700px) { .intro-hero { padding: 22px 18px; } .intro-hero h1 { font-size: 23px; } }

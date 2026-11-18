@@ -11,17 +11,18 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <link rel="stylesheet" href="/static/app.css?v=9.7" />
+  <link rel="stylesheet" href="/static/app.css?v=9.8" />
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
-      <a class="brand" href="#video" aria-label="hanoiFlow">
+      <a class="brand" href="#intro" aria-label="hanoiFlow">
         <span class="brand-mark"><img src="/static/vietnam-flag.svg" width="30" height="20" alt="Quốc kỳ Việt Nam" /></span>
         <span class="brand-copy"><strong>hanoi<span>Flow</span></strong><small>TRUNG TÂM ĐIỀU HÀNH</small></span>
       </a>
       <div class="side-label">KHÔNG GIAN LÀM VIỆC</div>
       <nav class="side-nav" aria-label="Điều hướng chính">
+        <a class="nav-item" href="#intro" data-page="intro"><span class="nav-icon">⌂</span><span>Giới thiệu</span></a>
         <a class="nav-item" href="#video" data-page="video"><span class="nav-icon">⌁</span><span>Dự báo &amp; phương án</span></a>
         <a class="nav-item" href="#overview" data-page="overview"><span class="nav-icon">▦</span><span>Bản đồ &amp; thời tiết</span></a>
         <a class="nav-item" href="#live" data-page="live"><span class="nav-icon">◉</span><span>Trực tiếp</span></a>
@@ -38,11 +39,61 @@
 
     <main class="main-content">
       <header class="topbar">
-        <div class="crumb-wrap"><button class="mobile-menu" id="mobileMenu" type="button" aria-label="Mở menu">☰</button><div class="breadcrumb"><span>Hà Nội</span><span class="crumb-slash">/</span><strong id="pageCrumb">Dự báo &amp; phương án</strong></div></div>
+        <div class="crumb-wrap"><button class="mobile-menu" id="mobileMenu" type="button" aria-label="Mở menu">☰</button><div class="breadcrumb"><span>Hà Nội</span><span class="crumb-slash">/</span><strong id="pageCrumb">Giới thiệu</strong></div></div>
         <div class="top-actions"><div class="system-pill"><span class="status-pulse"></span><span id="serverChip">Đang kiểm tra máy chủ</span></div><div class="top-sep"></div><button class="icon-button" id="reloadBtn" type="button" title="Tải lại" aria-label="Tải lại">↻</button><div class="top-avatar">ĐH</div></div>
       </header>
 
       <div class="page-wrap">
+        <!-- ===================== Giới thiệu ===================== -->
+        <section class="page" id="page-intro">
+          <div class="intro-hero panel">
+            <div class="eyebrow">GIỚI THIỆU SẢN PHẨM</div>
+            <h1>hanoiFlow: nhìn trước ùn tắc 5 phút, từ chính video camera giao thông</h1>
+            <p class="intro-lead">hanoiFlow đo mức ùn tắc từ hình ảnh camera, dự báo 5, 10 và 15 phút tới, rồi cho người điều hành tua lại video để tự kiểm chứng từng dự báo. Hệ thống đặt thêm bản đồ, thời tiết và tuyến thay thế của Hà Nội trong cùng một màn hình.</p>
+            <div class="intro-cta">
+              <a class="btn btn-primary" href="#video" id="introDemo">▶ Xem demo dự báo</a>
+              <a class="btn btn-outline" href="#overview">Bản đồ &amp; thời tiết</a>
+              <a class="btn btn-outline" href="#report">Đánh giá mô hình</a>
+            </div>
+          </div>
+
+          <div class="intro-grid">
+            <article class="panel intro-card"><span class="intro-num">1</span><h2>Đo ùn tắc từ video</h2><p>Mỗi khung hình được đếm xe, đo độ lấp đầy mặt đường và tỷ lệ xe đứng yên. Ba số này gộp thành chỉ số ùn tắc CI từ 0 đến 1: dưới 0,30 thông thoáng, từ 0,30 đông đúc, từ 0,55 ùn tắc nặng.</p></article>
+            <article class="panel intro-card"><span class="intro-num">2</span><h2>Dự báo không nhìn trước</h2><p>Tại mỗi thời điểm, hệ thống chỉ dùng phần video đã qua để dự báo CI sau 5, 10 và 15 phút, kèm xác suất ùn tắc. Dự báo được lập trước, không sửa lại sau khi biết kết quả.</p></article>
+            <article class="panel intro-card"><span class="intro-num">3</span><h2>Tua để kiểm chứng</h2><p>Bấm vào một dự báo để nhảy tới đúng thời điểm được dự báo và xem thực tế có ùn tắc hay không. Chế độ "Ẩn tương lai" giữ cho người xem không bị lộ đáp án.</p></article>
+            <article class="panel intro-card"><span class="intro-num">4</span><h2>Bản đồ, thời tiết, tuyến thay thế</h2><p>Bản đồ toàn Hà Nội với thời tiết từng khu vực (Open-Meteo), cùng công cụ so sánh các tuyến thay thế trên mạng đường thật.</p></article>
+          </div>
+
+          <div class="intro-split">
+            <section class="panel">
+              <div class="panel-heading"><div><h2>Độ chính xác hiện tại, nói thẳng</h2><p class="panel-subtitle">Kết quả kiểm chứng bỏ lại từng video, chỉ dùng video chưa từng học.</p></div></div>
+              <ul class="intro-list">
+                <li><strong>+5 phút:</strong> bắt được khoảng 44% số lần bắt đầu ùn tắc (23 trên 52). Đây là mức dùng được để cảnh báo sớm.</li>
+                <li><strong>+10 và +15 phút:</strong> cảnh báo sai nhiều hơn cảnh báo đúng, nên chỉ nên xem như tham khảo.</li>
+                <li><strong>Số liệu chi tiết</strong> nằm ở trang <a href="#report">Đánh giá mô hình</a>, kèm khoảng tin cậy 95%.</li>
+              </ul>
+            </section>
+            <section class="panel">
+              <div class="panel-heading"><div><h2>Phạm vi hiện tại</h2><p class="panel-subtitle">Để bạn biết đang xem gì.</p></div></div>
+              <ul class="intro-list">
+                <li><strong>Dữ liệu là video ghi sẵn,</strong> chưa phải camera trực tiếp. Trang "Trực tiếp" chỉ hoạt động khi có bộ thu gửi số liệu về.</li>
+                <li><strong>Thời tiết được hiển thị</strong> nhưng chưa là đầu vào của dự báo ùn tắc.</li>
+                <li><strong>Ảnh bằng chứng được làm mờ</strong> người đi bộ trước khi hiển thị.</li>
+              </ul>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-heading"><div><h2>Bắt đầu nhanh</h2></div></div>
+            <ol class="intro-steps">
+              <li>Vào <a href="#video">Dự báo &amp; phương án</a> và bấm "Xem demo Hà Nội": video và kết quả mở ngay.</li>
+              <li>Bấm Play, hoặc bấm lên biểu đồ để xem dự báo ở từng thời điểm.</li>
+              <li>Bấm "Tua tới" ở một dự báo để kiểm tra thực tế sau 5, 10 hoặc 15 phút.</li>
+              <li>Muốn dùng video của bạn: chọn file ở mục 1 và bấm phân tích.</li>
+            </ol>
+          </section>
+        </section>
+
         <!-- ===================== Dự báo & phương án ===================== -->
         <section class="page" id="page-video">
           <div class="page-heading"><div><div class="eyebrow">DỰ BÁO TUYẾN ĐƯỜNG</div><h1>Dự báo ùn tắc +5 / +10 / +15 phút &amp; chọn tuyến thay thế</h1><p class="page-subtitle">Nạp video giao thông: tại mỗi thời điểm hệ thống dự báo mức ùn tắc 5, 10, 15 phút sau, chỉ dùng phần video đã qua. Tua tới thời điểm được dự báo để tự kiểm chứng, rồi so sánh các tuyến thay thế trên mạng đường Hà Nội.</p></div></div>
@@ -241,8 +292,8 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="/static/shell.js?v=9.2"></script>
-  <script src="/static/app.js?v=9.7"></script>
+  <script src="/static/shell.js?v=9.8"></script>
+  <script src="/static/app.js?v=9.8"></script>
   <script src="/static/map.js?v=9.1"></script>
   <script src="/static/live.js?v=9.2"></script>
   <script src="/static/routes.js?v=9.1"></script>
