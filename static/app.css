@@ -405,3 +405,6 @@ body { font-size: 15px; line-height: 1.6; }
 @media (prefers-reduced-motion: reduce) {
   .fig-line, .fig-forecast, .fig-pin, .page { animation: none; }
 }
+
+.demo-picks{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;font-size:14px;color:var(--muted,#5b6470)}
+.demo-picks .btn-sm{padding:6px 12px;font-size:14px}

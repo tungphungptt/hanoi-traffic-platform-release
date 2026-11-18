@@ -39,5 +39,32 @@
     "url": "/static/demo/hanoi_demo.mp4",
     "duration": 1730.0,
     "note": "Bản xem thử đã nén (640 px, không tiếng) của cùng bản ghi; kết quả phân tích lấy từ video gốc."
-  }
+  },
+  "label": "Hồ Tùng Mậu → Trần Duy Hưng",
+  "extras": [
+    {
+      "id": "ho_tung_mau",
+      "label": "Hồ Tùng Mậu",
+      "title": "Hà Nội · Hồ Tùng Mậu (30 phút)",
+      "session_file": "demo_ho_tung_mau.hanoiflow.json",
+      "note": "Camera Hồ Tùng Mậu (30 phút). Clip này nằm trong thư viện học, nhưng khi dự báo hệ thống loại chính nó ra (so khớp theo dấu vân tay video) nên không tự đoán lại chính mình. Tua tới một thời điểm bất kỳ: dự báo chỉ dùng dữ liệu đến lúc đó, phần tương lai bị ẩn; so với đường thực tế để kiểm chứng.",
+      "video": {
+        "url": "/static/demo/ho_tung_mau.mp4",
+        "duration": 1800.0,
+        "note": "Bản xem thử đã nén (640 px, không tiếng); kết quả phân tích lấy từ video gốc."
+      }
+    },
+    {
+      "id": "xuan_dieu",
+      "label": "109 Xuân Diệu",
+      "title": "Hà Nội · 109 Xuân Diệu (30 phút)",
+      "session_file": "demo_xuan_dieu.hanoiflow.json",
+      "note": "Camera 109 Xuân Diệu (30 phút). Clip này nằm trong thư viện học, nhưng khi dự báo hệ thống loại chính nó ra (so khớp theo dấu vân tay video) nên không tự đoán lại chính mình. Tua tới một thời điểm bất kỳ: dự báo chỉ dùng dữ liệu đến lúc đó, phần tương lai bị ẩn; so với đường thực tế để kiểm chứng.",
+      "video": {
+        "url": "/static/demo/xuan_dieu.mp4",
+        "duration": 1800.0,
+        "note": "Bản xem thử đã nén (640 px, không tiếng); kết quả phân tích lấy từ video gốc."
+      }
+    }
+  ]
 }

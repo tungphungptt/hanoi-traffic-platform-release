@@ -215,3 +215,13 @@ def test_report_endpoint_rejects_bad_requests():
     assert client.post("/api/report/docx", json={"session": {}}).status_code == 404
     assert client.post("/api/report/pdf", json={"session": {"contract": "other"}}).status_code == 422
     assert client.post("/api/report/pdf", json={}).status_code == 422
+
+
+def test_extra_demos_listed_and_openable():
+    listing = client.get("/api/demos").json()["demos"]
+    assert listing[0]["id"] == "main" and len(listing) >= 3
+    for item in listing[1:]:
+        demo = client.get("/api/demo", params={"id": item["id"]}).json()
+        assert demo["session"]["contract"].startswith("hanoiflow-forecast-session/")
+        assert abs(demo["video"]["duration"] - demo["session"]["video"]["duration_seconds"]) < 5
+    assert client.get("/api/demo", params={"id": "nope"}).status_code == 404

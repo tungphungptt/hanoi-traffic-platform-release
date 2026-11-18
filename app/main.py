@@ -378,24 +378,49 @@ def model_report() -> dict[str, Any]:
         raise HTTPException(404, "Chưa có báo cáo đánh giá mô hình.") from exc
 
 
+def _demo_video(entry: dict[str, Any]) -> dict[str, Any] | None:
+    video = entry.get("video")
+    if video and not (STATIC_DIR / Path(video["url"]).relative_to("/static")).is_file():
+        return None
+    return video
+
+
+@app.get("/api/demos")
+def demo_list() -> dict[str, Any]:
+    """Short list of the ready-made demos for the picker."""
+    try:
+        config = json.loads((ROOT / "artifacts" / "demo.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise HTTPException(404, "Chưa cấu hình demo.") from exc
+    items = [{"id": "main", "title": config["title"], "minutes": round(sum(s["duration"] for s in config["segments"]) / 60)}]
+    for extra in config.get("extras", []):
+        if _demo_video(extra):
+            items.append({"id": extra["id"], "title": extra["title"], "label": extra.get("label", extra["title"]),
+                          "minutes": round(extra["video"]["duration"] / 60)})
+    items[0]["label"] = config.get("label", "Hồ Tùng Mậu → Trần Duy Hưng")
+    return {"demos": items}
+
+
 @app.get("/api/demo")
-def demo() -> dict[str, Any]:
+def demo(id: str = "main") -> dict[str, Any]:
     """Saved analysis of a held-out Hanoi recording, played from its source segments."""
     try:
         config = json.loads((ROOT / "artifacts" / "demo.json").read_text(encoding="utf-8"))
-        session = json.loads((ROOT / "artifacts" / config["session_file"]).read_text(encoding="utf-8"))
+        entry = config
+        if id != "main":
+            entry = next((e for e in config.get("extras", []) if e["id"] == id), None)
+            if entry is None:
+                raise HTTPException(404, "Không có demo này.")
+        session = json.loads((ROOT / "artifacts" / entry["session_file"]).read_text(encoding="utf-8"))
     except (OSError, ValueError, KeyError) as exc:
         raise HTTPException(404, "Chưa cấu hình demo.") from exc
     start, segments = 0.0, []
-    for seg in config["segments"]:
+    for seg in entry.get("segments", []):
         segments.append({"name": seg["name"], "start": start, "duration": seg["duration"],
                          "download_url": f"https://drive.google.com/file/d/{seg['drive_id']}/view"})
         start += float(seg["duration"])
-    video = config.get("video")
-    if video and not (STATIC_DIR / Path(video["url"]).relative_to("/static")).is_file():
-        video = None
-    return {"title": config["title"], "note": config["note"], "source": config.get("source"),
-            "segments": segments, "session": session, "video": video}
+    return {"title": entry["title"], "note": entry["note"], "source": entry.get("source"),
+            "segments": segments, "session": session, "video": _demo_video(entry)}
 
 
 def _weather_now(lat: float, lng: float) -> dict[str, Any] | None:
