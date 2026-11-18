@@ -1,5 +1,5 @@
 /* hanoiFlow — Vietnamese public-service palette (red #b52226, gold #c49a38, warm paper),
-   Be Vietnam Pro body, Fraunces headings, traffic-state colours green / amber / red. */
+   Be Vietnam Pro for all text, traffic-state colours green / amber / red. */
 :root {
   --ink: #332b26; --ink-2: #55463d; --muted: #817467; --muted-2: #9b8e82;
   --line: #ece2d4; --line-2: #ded0bd; --paper: #faf7f0; --panel-subtle: #fffaf0; --white: #fff;
@@ -421,11 +421,11 @@ body { font-size: 15px; line-height: 1.6; }
 @media(max-width:760px){.proof-cols{grid-template-columns:1fr}}
 
 /* =====================================================================
-   Giao diện 11 — giấy dó, sơn mài đỏ, dát vàng.
-   Chữ: Fraunces (tiêu đề, số lớn) + Be Vietnam Pro (nội dung). Màu và chức năng giữ nguyên.
+   Giao diện 12 — giấy dó, sơn mài đỏ, dát vàng; một họ chữ Be Vietnam Pro.
+   Chữ: Be Vietnam Pro cho toàn bộ. Màu và chức năng giữ nguyên.
    ===================================================================== */
 :root {
-  --display: Fraunces, 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+  --display: 'Be Vietnam Pro', -apple-system, 'Segoe UI', sans-serif;
   --sans: 'Be Vietnam Pro', 'Be Vietnam Pro', -apple-system, 'Segoe UI', sans-serif;
   --lacquer: linear-gradient(135deg, #c32a2e 0%, #a51c20 58%, #8d1519 100%);
   --gold-leaf: linear-gradient(120deg, #e7c46a, #c49a38 55%, #dfbb5c);
@@ -443,7 +443,7 @@ body {
 }
 h1, h2, h3, .brand-copy strong, .verdict strong, .weather-temperature strong, .route-option strong,
 .now-row strong, .htitle, .proof-stat strong, .trust-card h3 {
-  font-family: var(--display); font-weight: 600; font-variation-settings: 'opsz' 72, 'SOFT' 60; letter-spacing: -.02em;
+  font-family: var(--display); font-weight: 700; letter-spacing: -.015em;
 }
 .panel h2 { font-size: 21px; line-height: 1.25; }
 .section-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 3px 12px 3px 10px; border-radius: 99px;
@@ -538,3 +538,12 @@ video, #player { border-radius: 16px; }
 @media (max-width: 900px) { .breadcrumb > span { display: none; } .topbar { padding: 0 16px; } .crumb-wrap { min-width: 0; } .top-actions { gap: 10px; } }
 .main-content, .page-wrap { overflow-x: clip; }
 .flow-step { padding-left: 8px; }
+
+/* một họ chữ duy nhất: Be Vietnam Pro */
+.intro-hero h1 { font-weight: 700; letter-spacing: -.03em; }
+.intro-end h2 { font-weight: 700; }
+.area-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 12px; }
+.area-card { text-align: left; border: 1px solid var(--line-2); background: #fff; border-radius: 14px; padding: 10px 12px; display: grid; gap: 2px; font: inherit; cursor: pointer; transition: transform .15s, box-shadow .15s; }
+.area-card:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -14px rgba(80,48,28,.5); }
+.area-card span { color: var(--ink-2); font-size: 13.5px; } .area-card em { font-style: normal; color: var(--blue); font-size: 13px; }
+#map.no-map { height: auto; min-height: 0; overflow: auto; }
