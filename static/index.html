@@ -275,7 +275,7 @@
             <summary><span class="section-kicker">Hướng dẫn</span><h2>Cách hệ thống dự báo và giới hạn</h2></summary>
             <div class="how-body">
               <ol>
-                <li><strong>Đo hiện trạng.</strong> Mỗi giây lấy 1 khung hình, nhận diện ô tô, xe máy, buýt, tải (YOLOv8n), tính chỉ số ùn tắc CI từ số xe, phần diện tích xe chiếm và mức độ đứng yên. CI quan sát là trung bình 60 giây, cập nhật mỗi 15 giây.</li>
+                <li><strong>Đo hiện trạng.</strong> Mỗi giây lấy 1 khung hình, nhận diện ô tô, xe máy, buýt, tải (YOLOX-s, chia khung hình làm 2 ô để thấy xe nhỏ ở xa), tính chỉ số ùn tắc CI từ số xe, phần diện tích xe chiếm và mức độ đứng yên. CI quan sát là trung bình 60 giây, cập nhật mỗi 15 giây.</li>
                 <li><strong>Dự báo không nhìn trước.</strong> Tại mỗi thời điểm t, mức CI sau 5/10/15 phút = mức hiện tại cộng tổ hợp ba xu hướng: kéo về mức trung bình của camera, kéo về mức trung bình 10 phút gần nhất và xu hướng 3 phút gần đây. Trọng số học từ thư viện huấn luyện đi kèm (video AIC21 và camera Hà Nội), các video đã phân tích trước và phần video trước t. “⚠ Cảnh báo sắp tắc” khi khả năng tắc từ 40%; “◔ Theo dõi” khi từ 20%.</li>
                 <li><strong>Video nhiều camera.</strong> Với bản ghi chương trình truyền hình chuyển qua lại giữa các camera, mỗi khung hình được gán vào một camera theo ảnh thu nhỏ; cảnh trường quay và băng rôn bị bỏ qua. Mỗi camera có chuỗi CI riêng, đứt quãng khi không lên sóng; dự báo chỉ được chấm khi camera đang lên sóng ở thời điểm đích.</li>
                 <li><strong>Kiểm chứng.</strong> Phần video sau t được dùng để chấm điểm. Cảnh báo tắc được phát khi xác suất CI ≥ 0,55 từ 40% trở lên; ngưỡng này cố định trước khi chấm.</li>
