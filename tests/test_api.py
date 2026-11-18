@@ -199,3 +199,19 @@ def test_live_export_is_token_gated_and_needs_a_history_file(monkeypatch, tmp_pa
     assert client.get("/api/live/export?limit=0", headers={"X-Live-Token": "thu-nhan"}).status_code == 422
     # "export" and "history" are routes, not camera ids.
     assert client.post("/api/live/export/samples", json=body, headers={"X-Live-Token": "thu-nhan"}).status_code == 422
+
+
+def test_report_endpoint_builds_pdf_and_xlsx_from_a_session():
+    session = client.get("/api/demo").json()["session"]
+    pdf = client.post("/api/report/pdf", json={"session": session})
+    assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF") and pdf.headers["content-type"] == "application/pdf"
+    xlsx = client.post("/api/report/xlsx", json={"session": session})
+    assert xlsx.status_code == 200 and xlsx.content[:2] == b"PK"
+    only_one = client.post("/api/report/xlsx", json={"session": session, "camera": 1})
+    assert only_one.status_code == 200
+
+
+def test_report_endpoint_rejects_bad_requests():
+    assert client.post("/api/report/docx", json={"session": {}}).status_code == 404
+    assert client.post("/api/report/pdf", json={"session": {"contract": "other"}}).status_code == 422
+    assert client.post("/api/report/pdf", json={}).status_code == 422

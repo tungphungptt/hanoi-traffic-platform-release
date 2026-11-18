@@ -731,6 +731,26 @@ if (typeof document !== 'undefined') {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  async function exportReport(kind, button) {
+    if (!state.session || button.disabled) return;
+    const label = button.textContent;
+    button.disabled = true; button.textContent = 'Đang tạo báo cáo…';
+    try {
+      const response = await fetch(`/api/report/${kind}`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session: state.session }) });
+      if (!response.ok) {
+        let detail = `Không tạo được báo cáo (HTTP ${response.status}).`;
+        try { const payload = await response.json(); if (typeof payload.detail === 'string') detail = payload.detail; } catch {}
+        throw new Error(detail);
+      }
+      download(`${baseName()}-bao-cao.${kind}`, await response.blob(), response.headers.get('Content-Type') || 'application/octet-stream');
+    } catch (error) {
+      notice(error.message, 'error');
+    } finally {
+      button.disabled = false; button.textContent = label;
+    }
+  }
+
   function baseName() {
     return (state.session?.filename || 'video').replace(/\.[^.]+$/, '').replace(/[^\w.-]+/g, '_').slice(0, 60);
   }
@@ -794,6 +814,8 @@ if (typeof document !== 'undefined') {
   $('blindMode').addEventListener('change', e => { state.blind = e.target.checked; if (state.session) { renderHighlights(); renderEvidence(); } scheduleRender(); });
   $('unlockBtn').addEventListener('click', () => { state.locked = null; scheduleRender(); });
   $('exportJson').addEventListener('click', () => state.session && download(`${baseName()}.hanoiflow.json`, JSON.stringify({ ...state.session, evidence: undefined }), 'application/json'));
+  $('exportXlsx').addEventListener('click', e => exportReport('xlsx', e.currentTarget));
+  $('exportPdf').addEventListener('click', e => exportReport('pdf', e.currentTarget));
   $('exportCsv').addEventListener('click', () => state.session && download(`${baseName()}-du-bao.csv`, forecastCsv(forecast().anchors), 'text/csv'));
   chart.addEventListener('click', seekFromChart);
   ['timeupdate', 'seeked', 'loadedmetadata'].forEach(name => player.addEventListener(name, scheduleRender));

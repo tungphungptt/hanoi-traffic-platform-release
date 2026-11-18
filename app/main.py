@@ -28,7 +28,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app import weather
 from app.hanoi_scope import is_hanoi_coordinate
-from traffic_brain import routing
+from traffic_brain import report, routing
 from traffic_brain.history import History
 from traffic_brain.live import LiveError, LiveStore
 from traffic_brain.detector import Detector
@@ -70,6 +70,8 @@ JOB_RETENTION_SECONDS = 3600
 UPLOAD_TOKEN = os.getenv("UPLOAD_TOKEN", "").strip()
 LIVE_TOKEN = os.getenv("LIVE_TOKEN", "").strip()  # empty: live intake is switched off
 LIVE_BODY_LIMIT = 256 * 1024
+REPORT_BODY_LIMIT = 24 * 1024 * 1024  # a saved result with several cameras
+_REPORT_SLOTS = threading.BoundedSemaphore(2)  # reports are built in memory: two at a time
 UPLOADS_PER_HOUR = _env_int("UPLOADS_PER_HOUR", 20, 1, 1000)
 _upload_times: list[float] = []
 DISK_RESERVE_BYTES = 64 * 1024 * 1024
@@ -115,6 +117,11 @@ class RequestGuard:
                     return limit, too_big[1], (429, "Đã đạt giới hạn số lượt tải video trong giờ này. Vui lòng thử lại sau.")
                 _upload_times.append(now)
             return limit, too_big[1], None
+        if path.startswith("/api/report/"):
+            too_big = (413, "Kết quả quá lớn để xuất báo cáo.")
+            if headers.get("content-length", "").isdigit() and int(headers["content-length"]) > REPORT_BODY_LIMIT:
+                return REPORT_BODY_LIMIT, too_big[1], too_big
+            return REPORT_BODY_LIMIT, too_big[1], None
         too_big = (413, "Gói số liệu quá lớn.")
         if not LIVE_TOKEN:
             return LIVE_BODY_LIMIT, too_big[1], (503, "Máy chủ chưa bật nhận số liệu trực tiếp (LIVE_TOKEN).")
@@ -129,7 +136,7 @@ class RequestGuard:
         guarded = scope["type"] == "http" and (
             (scope["method"] == "GET" and path == "/api/live/export")
             or (scope["method"] in ("POST", "DELETE") and (
-                (scope["method"] == "POST" and path == "/api/analyze")
+                (scope["method"] == "POST" and (path == "/api/analyze" or path.startswith("/api/report/")))
                 or (path.startswith("/api/live/") and (path.endswith("/samples") or scope["method"] == "DELETE")))))
         if not guarded:
             return await self.app(scope, receive, send)
@@ -403,6 +410,30 @@ HISTORY = History(LIVE_DB) if LIVE_DB else None
 LIVE = LiveStore(lambda: load_library(None), location_ok=is_hanoi_coordinate, history=HISTORY,
                  weather_provider=_weather_now)
 LIVE.restore()
+
+
+REPORT_TYPES = {
+    "xlsx": ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", report.build_xlsx),
+    "pdf": ("application/pdf", report.build_pdf),
+}
+
+
+@app.post("/api/report/{kind}")
+def make_report(kind: str, body: dict[str, Any] = Body(...)) -> Response:
+    """Excel or PDF report built from the forecast session the page already holds."""
+    if kind not in REPORT_TYPES:
+        raise HTTPException(404, "Chỉ xuất được báo cáo .xlsx và .pdf.")
+    if not _REPORT_SLOTS.acquire(blocking=False):
+        raise HTTPException(429, "Máy chủ đang dựng báo cáo khác. Thử lại sau vài giây.")
+    try:
+        media_type, build = REPORT_TYPES[kind]
+        kwargs = {"evidence_dir": EVIDENCE_DIR} if kind == "pdf" else {}
+        data = build(body.get("session"), body.get("camera"), **kwargs)
+    except report.ReportError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    finally:
+        _REPORT_SLOTS.release()
+    return Response(data, media_type=media_type, headers={"Content-Disposition": f'attachment; filename="bao-cao.{kind}"', "Cache-Control": "no-store"})
 
 
 @app.post("/api/live/{camera_id}/samples")
