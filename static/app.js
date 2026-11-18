@@ -572,7 +572,7 @@ if (typeof document !== 'undefined') {
       }
       return `<article class="hcard${item.warning ? ' warning' : ''}">
         <div class="hrow"><span class="htitle">+${item.horizon_minutes} phút</span><span class="htime">→ ${fmtTime(item.target_t)}</span></div>
-        <div class="hrow">${levelChip(item.ci)}${item.warning ? '<span class="warn-flag">⚠ Cảnh báo sắp tắc</span>' : item.watch ? '<span class="watch-flag">◔ Theo dõi: có thể tắc</span>' : ''}</div>
+        <div class="hrow">${levelChip(item.ci)}${item.warning ? '<span class="warn-flag">⚠ Cảnh báo sắp tắc</span>' : item.watch ? '<span class="watch-flag">Theo dõi: có thể tắc</span>' : ''}</div>
         <div class="hmeta">CI dự báo <strong>${num(item.ci)}</strong> (${num(item.lower)}–${num(item.upper)}) · khả năng tắc ${pct(item.p_gridlock)}</div>
         <div class="pbar" aria-hidden="true"><span style="width:${Math.round(item.p_gridlock * 100)}%"></span></div>
         ${verify}
@@ -815,6 +815,8 @@ if (typeof document !== 'undefined') {
         syncVideoState();
         notice(demo.video.note);
         scheduleRender();
+      } else if (!hadParts && !demo.segments.length) {
+        notice(`${demo.note} Video xem thử của demo này hiện chưa có; kết quả phân tích vẫn xem được ở biểu đồ.`);
       } else if (!hadParts) {
         notice(`${demo.note} Để xem hình ảnh: tải ${demo.segments.length} file (${parts}) từ thư mục Drive, rồi chọn cả ${demo.segments.length} file cùng lúc ở mục 1.`);
         $('demoSource').href = demo.source; $('demoSource').hidden = false;
