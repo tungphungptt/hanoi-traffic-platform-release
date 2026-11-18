@@ -385,7 +385,7 @@ if (typeof document !== 'undefined') {
     const session = state.session;
     const mf = forecast();
     state.locked = null;
-    state.panelKey = null;
+    state.panelKey = null; state.proofKey = null;
     document.querySelectorAll('.camera-tab').forEach(b => b.setAttribute('aria-selected', String(Number(b.dataset.camera) === state.camera)));
     if (!mf.available) {
       notice(mf.message || 'Video chưa đủ dài để dự báo theo phút.', 'error');
@@ -457,11 +457,50 @@ if (typeof document !== 'undefined') {
     return true;
   }
 
+  // Every forecast made so far is locked at its own time: its target is in the future of the playhead
+  // until the video gets there. This ledger shows both lists and the running score, from the same data.
+  function renderProof(t) {
+    const anchors = (forecast()?.anchors || []).filter(a => a.t <= t + 0.5);
+    const pending = [], done = [];
+    for (const a of anchors) {
+      for (const h of a.horizons) {
+        if (h.actual_ci === null || h.actual_ci === undefined) continue;
+        (h.target_t <= t + 0.5 ? done : pending).push({ a, h });
+      }
+    }
+    const blind = blindNow();
+    const key = [Math.floor(done.length / 1), pending.length, blind, anchors.length].join('|');
+    if (key === state.proofKey) return;
+    state.proofKey = key;
+    $('proofTitle').textContent = `Lúc ${fmtTime(t)}, hệ thống chỉ biết dữ liệu từ 0:00 đến ${fmtTime(t)}`;
+    $('proofSub').textContent = blind
+      ? 'Mỗi dự báo được tính chỉ từ dữ liệu trước giờ đưa ra. Kết quả thực tế chỉ hiện khi video chạy tới giờ đích; tua tới đâu, bảng cập nhật tới đó.'
+      : 'Đang tắt chế độ ẩn tương lai: bảng cho thấy cả kết quả chưa tới giờ.';
+    const levelHit = done.filter(({ h }) => levelKey(h.ci) === levelKey(h.actual_ci)).length;
+    const mae = f => done.reduce((n, { h }) => n + Math.abs(f(h) - h.actual_ci), 0) / Math.max(1, done.length);
+    const model = mae(h => h.ci), keep = mae(h => h.persistence_ci);
+    const stat = (v, l) => `<div class="proof-stat"><strong>${v}</strong><span>${l}</span></div>`;
+    $('proofStats').innerHTML = done.length
+      ? stat(done.length + pending.length, 'dự báo đã đưa ra') + stat(pending.length, 'đang chờ kết quả')
+        + stat(`${Math.round(100 * levelHit / done.length)}%`, `đúng mức (${levelHit}/${done.length})`)
+        + stat(num(model, 3), 'sai số của mô hình') + stat(num(keep, 3), 'sai số nếu giữ nguyên hiện tại')
+      : stat(pending.length, 'dự báo đã đưa ra, đang chờ kết quả');
+    const row = ({ a, h }, withResult) => {
+      const head = `<b>${fmtTime(a.t)} → ${fmtTime(h.target_t)}</b> (+${h.horizon_minutes} phút): dự báo ${LEVEL_LABEL[levelKey(h.ci)]}, CI ${num(h.ci)}`;
+      if (!withResult) return `<li class="locked">🔒 ${head}</li>`;
+      const ok = levelKey(h.ci) === levelKey(h.actual_ci);
+      return `<li class="${ok ? 'hit' : 'miss'}">${ok ? '✓' : '✗'} ${head}. Thực tế: ${LEVEL_LABEL[levelKey(h.actual_ci)]}, CI ${num(h.actual_ci)}</li>`;
+    };
+    $('proofPending').innerHTML = pending.slice(-6).reverse().map(x => row(x, false)).join('') || '<li class="muted">Chưa có.</li>';
+    $('proofDone').innerHTML = done.slice(-6).reverse().map(x => row(x, true)).join('') || '<li class="muted">Chưa tới giờ đích của dự báo nào; hãy cho video chạy tiếp hoặc tua tới.</li>';
+  }
+
   function render() {
     if (!forecast()?.available) return;
     if (followOnAirCamera(videoTime())) return;
     const t = videoTime();
     const anchor = currentAnchor(t);
+    renderProof(t);
     renderPanel(anchor, t);
     renderChart(anchor, t);
     renderBadge(t);
