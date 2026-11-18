@@ -118,9 +118,9 @@ if (typeof document !== 'undefined') {
   function buildMap() {
     if (map || typeof L === 'undefined') return;
     try {
-      map = L.map('map', { zoomControl: false }).setView(config.center, 10);
       $('map').classList.remove('no-map');
-      $('map').replaceChildren(...[]);
+      $('map').replaceChildren();
+      map = L.map('map', { zoomControl: false }).setView(config.center, 10);
       window.hanoiFlowTiles(map, config);
       pinLayer = L.layerGroup().addTo(map);
       getJson(config.boundary_url || '/static/hanoi_boundary.geojson').then(boundary => {
