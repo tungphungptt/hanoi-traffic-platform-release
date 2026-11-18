@@ -24,8 +24,9 @@ function distanceToLine(p, coords) {
 function rankRoutes(routes, cameraPoint, forecastCi, radius = 300) {
   return routes.map((r, i) => {
     const passes = Boolean(cameraPoint) && distanceToLine(cameraPoint, r.geometry.coordinates) <= radius;
-    const penalty = passes && Number.isFinite(forecastCi) && forecastCi >= 0.30 ? 0.35 * forecastCi : 0;
-    return { ...r, index: i, passes, adjusted_seconds: r.duration_seconds * (1 + penalty) };
+    const forecastApplied = passes && Number.isFinite(forecastCi) && forecastCi >= 0.30;
+    const penalty = forecastApplied ? 0.35 * forecastCi : 0;
+    return { ...r, index: i, passes, forecastApplied, adjusted_seconds: r.duration_seconds * (1 + penalty) };
   }).sort((a, b) => a.adjusted_seconds - b.adjusted_seconds);
 }
 
@@ -211,10 +212,11 @@ function bootRoutes() {
       layers.slice().reverse().forEach(l => l.bringToFront());
       if (layers.length) map.fitBounds(L.featureGroup(layers).getBounds(), { padding: [20, 20] });
       $('routeList').innerHTML = payload.routes.map((r, i) => `<button class="route-option${i === 0 ? ' recommended selected' : ''}" type="button" data-route="${i}">
-          ${i === 0 ? `<span class="tag">${r.adjusted_seconds > r.duration_seconds || payload.routes.some(x => x.passes) ? 'Đề xuất (đã tính dự báo)' : 'Nhanh nhất theo mạng đường'}</span>` : ''}
+          ${i === 0 ? `<span class="tag">${payload.routes.some(x => x.forecastApplied) ? 'Đề xuất (đã tính dự báo)' : 'Nhanh nhất theo mạng đường'}</span>` : ''}
           <strong style="color:${COLORS[i % COLORS.length]}">Tuyến ${i + 1} · ${fmtDuration(r.adjusted_seconds)}</strong>
           <span>${fmtDistance(r.distance_m)} · theo mạng đường ${fmtDuration(r.duration_seconds)}</span>
-          ${r.passes ? `<span class="warn">Đi qua camera dự báo ${r.adjusted_seconds > r.duration_seconds ? `đông/tắc: +${fmtDuration(r.adjusted_seconds - r.duration_seconds)}` : 'thông thoáng'}</span>` : ''}
+          ${r.search_method === 'via_waypoint' ? '<span class="fine">Phương án bổ sung qua điểm trung gian</span>' : ''}
+          ${r.passes ? `<span class="warn">${r.forecastApplied ? `Đi qua camera dự báo đông/tắc: +${fmtDuration(r.adjusted_seconds - r.duration_seconds)}` : 'Đi qua vùng camera; chưa cộng thời gian dự báo.'}</span>` : ''}
         </button>`).join('') + `<p class="fine">${escapeHtml(payload.note)}</p>`;
       $('routeList').querySelectorAll('[data-route]').forEach(btn => btn.addEventListener('click', () => {
         $('routeList').querySelectorAll('.route-option').forEach(b => b.classList.toggle('selected', b === btn));

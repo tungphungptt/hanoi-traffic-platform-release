@@ -388,11 +388,19 @@ def routes(from_: str = Query(..., alias="from"), to: str = Query(...)) -> dict[
     """Up to three driving routes between two points in Hanoi, fastest first (OSRM, no live traffic)."""
     origin, destination = _point(from_, "Điểm đi"), _point(to, "Điểm đến")
     try:
-        found = routing.route_alternatives(origin, destination)
+        found = routing.route_alternatives(origin, destination, waypoint_is_valid=is_hanoi_coordinate)
     except routing.RouteError as exc:
         raise HTTPException(502, str(exc)) from exc
+    if len(found) == 1:
+        count_note = "Chỉ tìm được 1 tuyến khả thi; chưa có tuyến thay thế để so sánh."
+    else:
+        count_note = f"Tìm được {len(found)} tuyến; phương án nhanh nhất được xếp đầu."
+    via_note = " Tuyến bổ sung được tìm qua điểm trung gian." if any(
+        route.get("search_method") == "via_waypoint" for route in found
+    ) else ""
     return {"routes": found, "source": "OSRM · OpenStreetMap",
-            "note": "Thời gian theo mạng đường OSRM/OpenStreetMap, chưa tính tắc đường thời gian thực."}
+            "note": f"{count_note}{via_note} Thời gian theo mạng đường OSRM/OpenStreetMap, "
+                    "chưa tính tắc đường thời gian thực."}
 
 
 @app.get("/api/model/report")

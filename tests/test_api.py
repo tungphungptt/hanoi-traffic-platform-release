@@ -87,9 +87,9 @@ def test_routes_and_model_report(monkeypatch):
     assert client.get("/api/routes", params={"from": "10.77,106.70", "to": "21.03,105.85"}).status_code == 422
     assert client.get("/api/routes", params={"from": "abc", "to": "21.03,105.85"}).status_code == 422
     fake = [{"distance_m": 5000.0, "duration_seconds": 600.0, "geometry": {"type": "LineString", "coordinates": [[105.85, 21.03], [105.80, 21.04]]}}]
-    monkeypatch.setattr(main.routing, "route_alternatives", lambda a, b: fake)
+    monkeypatch.setattr(main.routing, "route_alternatives", lambda a, b, **kwargs: fake)
     body = client.get("/api/routes", params={"from": "21.0285,105.8542", "to": "21.0362,105.7906"}).json()
-    assert body["routes"] == fake and "thời gian thực" in body["note"]
+    assert body["routes"] == fake and "1 tuyến khả thi" in body["note"] and "thời gian thực" in body["note"]
     report = client.get("/api/model/report").json()
     assert {s["horizon_minutes"] for s in report["summary"]} == {5, 10, 15}
 
@@ -104,6 +104,36 @@ def test_osrm_payload_is_parsed_fastest_first():
     import pytest
     with pytest.raises(main.routing.RouteError):
         main.routing.parse_routes({"code": "NoRoute"})
+
+
+def test_route_search_supplements_osrm_with_distinct_waypoint_routes(monkeypatch):
+    routing = main.routing
+    monkeypatch.setattr(routing, "_cache", {})
+    direct = {"distance_m": 5000.0, "duration_seconds": 600.0,
+              "search_method": "osrm_alternative",
+              "geometry": {"type": "LineString", "coordinates": [[105.80, 21.00], [105.84, 21.00]]}}
+    calls = []
+
+    def fake_request(points, timeout, alternatives):
+        calls.append((points, alternatives))
+        if len(points) == 2:
+            return [dict(direct)]
+        origin, waypoint, destination = points
+        duration = 800.0 if waypoint[0] < origin[0] else 700.0
+        return [{"distance_m": 6500.0, "duration_seconds": duration,
+                 "geometry": {"type": "LineString", "coordinates": [
+                     [origin[1], origin[0]], [waypoint[1], waypoint[0]], [destination[1], destination[0]]
+                 ]}}]
+
+    monkeypatch.setattr(routing, "_request_routes", fake_request)
+    routes = routing.route_alternatives((21.0, 105.80), (21.0, 105.84), waypoint_is_valid=lambda lat, lon: True)
+
+    assert len(routes) == 3
+    assert [route["duration_seconds"] for route in routes] == [600.0, 700.0, 800.0]
+    assert [route["search_method"] for route in routes] == [
+        "osrm_alternative", "via_waypoint", "via_waypoint"
+    ]
+    assert [call[1] for call in calls] == ["3", "false", "false"]
 
 
 def test_upload_token_and_hourly_limit(monkeypatch):

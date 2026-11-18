@@ -51,10 +51,12 @@ Giữ giao diện "hanoiFlow · Trung tâm điều hành" (đỏ #b52226, vàng 
 **Dự báo & phương án** (video → dự báo → tuyến thay thế), **Bản đồ & thời tiết**, **Đánh giá mô hình**.
 
 **Tuyến thay thế dùng dự báo.** Chọn điểm đi/đến (danh sách khu vực hoặc bấm bản đồ), hệ thống lấy tối đa 3 tuyến
-từ OSRM trên OpenStreetMap. Chọn thêm vị trí camera của video (danh sách vị trí gần đúng của các camera Hà Nội hoặc
-bấm bản đồ): tuyến nào đi qua camera trong 300 m mà dự báo +10 phút ở thời điểm đang xem cho CI ≥ 0,30 thì thời gian
-được nhân `1 + 0,35 × CI dự báo`, rồi xếp lại. Đây là quy tắc tham khảo, không phải đo tắc thời gian thực
-(đổi máy chủ chỉ đường bằng `ROUTING_API_BASE_URL`).
+từ OSRM trên OpenStreetMap. Nếu OSRM trả ít hơn 3 tuyến, hệ thống thử bổ sung phương án qua các điểm trung gian
+ở hai phía hành lang tuyến; giao diện ghi rõ các phương án được tạo theo cách này và hiển thị nếu chỉ tìm được dưới
+3 tuyến. Chọn thêm vị trí camera của video (danh sách vị trí gần đúng của các camera Hà Nội hoặc bấm bản đồ): tuyến
+nào đi qua camera trong 300 m mà dự báo +10 phút ở thời điểm đang xem cho CI ≥ 0,30 thì thời gian được nhân
+`1 + 0,35 × CI dự báo`, rồi xếp lại để phương án nhanh nhất sau điều chỉnh đứng đầu. Đây là quy tắc tham khảo,
+không phải đo tắc thời gian thực (đổi máy chủ chỉ đường bằng `ROUTING_API_BASE_URL`).
 
 ## Bản đồ và thời tiết Hà Nội
 
