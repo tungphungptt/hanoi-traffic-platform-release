@@ -756,12 +756,13 @@ if (typeof document !== 'undefined') {
   }
 
   // Wire up events.
-  async function openDemo() {
+  async function openDemo(demoId) {
+    demoId = typeof demoId === 'string' ? demoId : 'main';
     try {
       $('demoBtn').disabled = true;
       setProgress(null, 'Đang mở demo…');
-      const demo = await getJson('/api/demo', 30000);
-      const hadParts = Boolean(clip.segments);
+      const demo = await getJson('/api/demo?id=' + encodeURIComponent(demoId), 30000);
+      const hadParts = Boolean(clip.segments) && demoId === 'main' && !String(clip.segments[0]?.url || '').startsWith('/static/demo/');
       loadSession(validateSession(demo.session));
       const parts = demo.segments.map(s => s.name).join(', ');
       if (demo.video && !hadParts) {
@@ -770,7 +771,7 @@ if (typeof document !== 'undefined') {
         state.file = null;
         clip.segments = [{ url: demo.video.url, start: 0, duration: demo.video.duration }];
         loadSegment(0, 0, false);
-        $('fileName').textContent = 'Video demo Hà Nội (bản xem thử đã nén)';
+        $('fileName').textContent = `Video demo: ${demo.title} (bản xem thử đã nén)`;
         renderInputs();
         syncVideoState();
         notice(demo.video.note);
@@ -785,7 +786,19 @@ if (typeof document !== 'undefined') {
       $('demoBtn').disabled = false; renderInputs();
     }
   }
-  $('demoBtn').addEventListener('click', openDemo);
+  $('demoBtn').addEventListener('click', () => openDemo('main'));
+  getJson('/api/demos', 10000).then(({ demos }) => {
+    const extra = (demos || []).filter(d => d.id !== 'main');
+    if (!extra.length) return;
+    extra.forEach(d => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn btn-outline btn-sm';
+      b.textContent = `${d.label} (${d.minutes} phút)`;
+      b.addEventListener('click', () => openDemo(d.id));
+      $('demoPicks').appendChild(b);
+    });
+    $('demoPicks').hidden = false;
+  }).catch(() => {});
   // The intro page's main button opens the demo straight away.
   ['introDemo', 'introDemo2'].forEach(id => $(id).addEventListener('click', () => { if (!state.session && !$('demoBtn').disabled) setTimeout(openDemo, 0); }));
   // Lets the route planner use the forecast shown at the current playback time.

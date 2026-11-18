@@ -28,3 +28,5 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 !static/demo/hanoi_demo.mp4
+!static/demo/ho_tung_mau.mp4
+!static/demo/xuan_dieu.mp4
