@@ -265,3 +265,9 @@ def test_text_is_compressed_and_videos_are_cached_without_compression():
     video = client.get("/static/demo/xuan_dieu.mp4", headers={"accept-encoding": "gzip", "range": "bytes=0-99"})
     assert video.status_code == 206 and "content-encoding" not in video.headers
     assert "max-age" in video.headers["cache-control"]
+
+
+def test_b2b_overview_and_console_page():
+    data = client.get("/api/b2b/overview").json()
+    assert data["totals"]["cameras"] == len(data["cameras"]) >= 9
+    assert client.get("/static/b2b.html").status_code == 200

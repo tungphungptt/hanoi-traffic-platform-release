@@ -29,7 +29,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app import weather
 from app.hanoi_scope import is_hanoi_coordinate
-from traffic_brain import report, routing
+from traffic_brain import b2b, report, routing
 from traffic_brain.history import History
 from traffic_brain.live import LiveError, LiveStore
 from traffic_brain.detector import Detector
@@ -411,6 +411,15 @@ def model_report() -> dict[str, Any]:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise HTTPException(404, "Chưa có báo cáo đánh giá mô hình.") from exc
+
+
+@app.get("/api/b2b/overview")
+def b2b_overview() -> dict[str, Any]:
+    """Per-camera summary (now, +5/10/15 min, sparkline) of the saved analyses, for the business console."""
+    try:
+        return b2b.overview(ROOT / "artifacts")
+    except (OSError, ValueError, KeyError) as exc:
+        raise HTTPException(404, "Chưa có dữ liệu tổng hợp.") from exc
 
 
 def _demo_video(entry: dict[str, Any]) -> dict[str, Any] | None:
