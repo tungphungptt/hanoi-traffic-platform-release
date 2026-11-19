@@ -26,7 +26,6 @@
         <a class="nav-item" href="#video" data-page="video"><span class="nav-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 3 5-8 4 5"/><path d="M3 21h18"/></svg></span><span>Dự báo &amp; phương án</span></a>
         <a class="nav-item" href="#overview" data-page="overview"><span class="nav-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span><span>Bản đồ &amp; thời tiết</span></a>
         <a class="nav-item" href="#live" data-page="live"><span class="nav-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M6.3 6.3a8 8 0 000 11.4M17.7 6.3a8 8 0 010 11.4"/></svg></span><span>Trực tiếp</span></a>
-        <a class="nav-item" href="#report" data-page="report"><span class="nav-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg></span><span>Đánh giá mô hình</span></a>
       </nav>
       <div class="sidebar-spacer"></div>
       <div class="support-card">
@@ -343,17 +342,6 @@
           </section>
         </section>
 
-        <!-- ===================== Đánh giá mô hình ===================== -->
-        <section class="page" id="page-report">
-          <div class="page-heading"><div><div class="eyebrow">Góc nhìn dữ liệu</div><h1>Đánh giá mô hình dự báo</h1><p class="page-subtitle">Kiểm tra chéo bỏ-một-video: mỗi video được dự báo chỉ bằng dữ liệu của các video khác, rồi chấm với những gì video đó cho thấy sau đó.</p></div></div>
-          <div class="metric-grid" id="reportSummary"></div>
-          <section class="panel table-panel">
-            <div class="table-tools"><div class="table-title"><h2>Kết quả theo từng video / camera</h2><span class="table-count" id="reportCount">—</span></div></div>
-            <div class="table-wrap"><table><thead><tr><th>VIDEO</th><th>CAMERA</th><th>+5 PHÚT</th><th>+10 PHÚT</th><th>+15 PHÚT</th></tr></thead><tbody id="reportRows"></tbody></table></div>
-            <div class="table-bottom"><span>Mỗi ô: cải thiện so với giữ nguyên mức hiện tại (số lần kiểm chứng). Sai số trên thang CI 0–1.</span><span class="data-caption" id="reportDate"></span></div>
-          </section>
-        </section>
-
         <footer class="page-footer"><span>© 2026 hanoiFlow</span><span>Chỉ báo tham khảo từ dữ liệu hiện có</span><span class="footer-version">Bản vận hành 12.0</span></footer>
       </div>
     </main>
@@ -361,7 +349,7 @@
 
   <div class="toast" id="toast" role="status" hidden></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';s.onload=function(){window.dispatchEvent(new Event('leaflet-ready'))};document.head.appendChild(s)"></script>
-  <script src="/static/shell.js?v=9.8"></script>
+  <script src="/static/shell.js?v=12.0"></script>
   <script src="/static/app.js?v=12.0"></script>
   <script src="/static/map.js?v=12.3"></script>
   <script src="/static/live.js?v=9.2"></script>
