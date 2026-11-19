@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#0b1517" />
+  <meta name="theme-color" content="#14161a" />
   <meta name="description" content="hanoiFlow cho doanh nghiệp: theo dõi camera giao thông Hà Nội, dự báo ùn tắc +5/+10/+15 phút, tuyến thay thế và dữ liệu xuất cho hệ thống vận tải." />
   <title>hanoiFlow · Doanh nghiệp</title>
   <link rel="icon" type="image/png" href="/static/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/b2b.css?v=1.0" />
+  <link rel="stylesheet" href="/static/b2b.css?v=1.1" />
 </head>
 <body>
   <div class="shell">
@@ -20,12 +20,12 @@
         <span><strong>hanoi<em>Flow</em></strong><small>Doanh nghiệp</small></span>
       </a>
       <nav aria-label="Điều hướng">
-        <p class="grp">// Giám sát</p>
+        <p class="grp">Giám sát</p>
         <a href="#overview" data-page="overview">Tổng quan</a>
         <a href="#cameras" data-page="cameras">Camera <span class="count" id="camCount">—</span></a>
-        <p class="grp">// Vận hành</p>
+        <p class="grp">Vận hành</p>
         <a href="#routes" data-page="routes">Tuyến thay thế</a>
-        <p class="grp">// Tích hợp</p>
+        <p class="grp">Tích hợp</p>
         <a href="#api" data-page="api">API &amp; xuất dữ liệu</a>
       </nav>
       <div class="side-foot">
@@ -42,14 +42,16 @@
       </header>
 
       <section class="page" id="page-overview">
-        <div class="head"><p class="kick">// Hà Nội · mạng lưới camera</p><h1>Tình hình mạng lưới</h1>
-          <p class="sub">Tổng hợp từ các bản ghi camera đã phân tích. Mỗi dòng là một camera: mức hiện tại và dự báo +5, +10, +15 phút.</p></div>
+        <div class="head"><p class="kick">Hà Nội · mạng lưới camera</p><h1>Tình hình mạng lưới</h1>
+          <p class="sub">Tổng hợp từ các bản ghi camera đã phân tích. Mỗi dòng là một camera: đang thế nào và dự báo sẽ ra sao sau 5, 10, 15 phút.</p></div>
+        <div class="summary" id="summary"><span class="mood"></span><div><p id="sumText">Đang tải tình hình…</p><small id="sumSub"></small></div></div>
+        <div class="guide"><div><strong><i style="background:var(--free)"></i>Thông thoáng</strong>Xe chạy bình thường, ít chiếm đường.</div><div><strong><i style="background:var(--busy)"></i>Đông</strong>Xe nhiều, tốc độ chậm lại. Nên theo dõi.</div><div><strong><i style="background:var(--gridlock)"></i>Ùn tắc</strong>Nhiều xe đứng yên. Nên chọn đường khác.</div></div>
         <div class="kpis" id="kpis"></div>
         <div class="grid2">
           <div class="card">
-            <div class="card-head"><h2>Camera theo mức tải</h2><span class="legend"><i class="l free"></i>Thông thoáng <i class="l busy"></i>Đông <i class="l gridlock"></i>Ùn tắc</span></div>
+            <div class="card-head"><h2>Camera, đông nhất lên đầu</h2><span class="legend">Số 0–1 là chỉ số CI: càng cao càng đông</span></div>
             <div class="table-wrap"><table>
-              <thead><tr><th>Camera</th><th>Hiện tại</th><th>Diễn biến</th><th>+5′</th><th>+10′</th><th>+15′</th></tr></thead>
+              <thead><tr><th>Camera</th><th>Bây giờ</th><th>Diễn biến</th><th>+5 phút</th><th>+10 phút</th><th>+15 phút</th></tr></thead>
               <tbody id="rows"><tr><td colspan="6" class="muted">Đang tải…</td></tr></tbody>
             </table></div>
           </div>
@@ -61,13 +63,13 @@
       </section>
 
       <section class="page" id="page-cameras">
-        <div class="head"><p class="kick">// Giám sát</p><h1>Camera</h1>
+        <div class="head"><p class="kick">Giám sát</p><h1>Camera</h1>
           <p class="sub">Chọn camera để xem diễn biến CI toàn bản ghi và xác suất ùn tắc nặng ở từng mốc dự báo.</p></div>
         <div class="cams" id="cams"></div>
       </section>
 
       <section class="page" id="page-routes">
-        <div class="head"><p class="kick">// Vận hành</p><h1>Tuyến thay thế</h1>
+        <div class="head"><p class="kick">Vận hành</p><h1>Tuyến thay thế</h1>
           <p class="sub">So sánh tối đa 3 tuyến giữa hai điểm trong Hà Nội. Thời gian theo mạng đường OSRM, chưa tính tắc đường thời gian thực.</p></div>
         <div class="card route-form">
           <label>Điểm đi<select id="from"></select></label>
@@ -81,7 +83,7 @@
       </section>
 
       <section class="page" id="page-api">
-        <div class="head"><p class="kick">// Tích hợp</p><h1>API &amp; xuất dữ liệu</h1>
+        <div class="head"><p class="kick">Tích hợp</p><h1>API &amp; xuất dữ liệu</h1>
           <p class="sub">Đưa số liệu vào hệ thống điều phối, kho hoặc báo cáo của doanh nghiệp.</p></div>
         <div class="card">
           <div class="card-head"><h2>Xuất nhanh</h2></div>
@@ -106,6 +108,6 @@
       <footer class="foot"><span>© 2026 hanoiFlow</span><span>Chỉ báo tham khảo từ dữ liệu hiện có</span></footer>
     </main>
   </div>
-  <script src="/static/b2b.js?v=1.0"></script>
+  <script src="/static/b2b.js?v=1.1"></script>
 </body>
 </html>

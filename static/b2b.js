@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const LEVEL = { free: 'Thông thoáng', busy: 'Đông', gridlock: 'Ùn tắc' };
-  const COLOR = { free: '#4fd1a1', busy: '#f2b84b', gridlock: '#ff6b5e' };
+  const COLOR = { free: '#6fcf97', busy: '#f2b84b', gridlock: '#f2766b' };
   const PAGES = { overview: 'Tổng quan', cameras: 'Camera', routes: 'Tuyến thay thế', api: 'API & xuất dữ liệu' };
   const fmt = v => (v == null ? '—' : Number(v).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
   const levelOf = ci => (ci >= 0.55 ? 'gridlock' : ci >= 0.30 ? 'busy' : 'free');
@@ -28,28 +28,35 @@
     if (!series || series.length < 2) return '';
     const x = i => (i / (series.length - 1)) * w, y = v => h - 2 - Math.min(1, Math.max(0, v)) * (h - 4);
     const pts = series.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-    const guide = t => `<line x1="0" x2="${w}" y1="${y(t)}" y2="${y(t)}" stroke="#1e3337" stroke-dasharray="3 3"/>`;
+    const guide = t => `<line x1="0" x2="${w}" y1="${y(t)}" y2="${y(t)}" stroke="#2c3138" stroke-dasharray="3 3"/>`;
     return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Diễn biến CI">${guide(0.30)}${guide(0.55)}<polyline points="${pts}" fill="none" stroke="${COLOR[level]}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
   }
-  const chip = h => `<span class="chip ${h.level}${h.warning ? ' warn' : ''}" title="${LEVEL[h.level]} · xác suất ùn tắc nặng ${Math.round(h.p_gridlock * 100)}%${h.warning ? ' · cảnh báo' : ''}">${fmt(h.ci)}</span>`;
+  const chip = h => `<span class="chip ${h.level}${h.warning ? ' warn' : ''}" title="CI ${fmt(h.ci)} · xác suất ùn tắc nặng ${Math.round(h.p_gridlock * 100)}%${h.warning ? ' · có cảnh báo' : ''}">${LEVEL[h.level]}</span>`;
 
   /* ---------- overview ---------- */
   function render() {
     const t = data.totals, cams = data.cameras.slice().sort((a, b) => b.now_ci - a.now_ci);
     $('camCount').textContent = t.cameras;
     $('statusNote').textContent = `${t.cameras} camera · bản ghi sẵn`;
+    const bad = cams.filter(c => c.level === 'gridlock'), soon = cams.filter(c => c.level !== 'gridlock' && c.horizons.some(h => h.warning));
+    const mood = bad.length ? 'gridlock' : (t.busy_now > t.cameras / 2 || soon.length) ? 'busy' : 'free';
+    $('summary').className = `summary ${mood}`;
+    $('sumText').textContent = bad.length
+      ? `${bad.length}/${t.cameras} camera đang ùn tắc: ${bad.slice(0, 3).map(c => c.camera).join(', ')}${bad.length > 3 ? '…' : ''}.`
+      : soon.length ? `Chưa có camera nào ùn tắc, nhưng ${soon.length} nơi có thể tắc trong 15 phút tới.` : `Mạng lưới đang ổn: ${t.cameras - t.busy_now}/${t.cameras} camera thông thoáng.`;
+    $('sumSub').textContent = bad.length ? 'Với đơn hàng đi qua các điểm này, nên xem tuyến thay thế ở mục "Tuyến thay thế".' : 'Số liệu từ các bản ghi camera đã phân tích, không phải trực tiếp.';
     $('kpis').innerHTML = [
       ['Camera theo dõi', t.cameras, 'ok', 'trong các bản ghi đã phân tích'],
       ['Đang ùn tắc', t.gridlock_now, t.gridlock_now ? 'hot' : 'ok', 'CI từ 0,55 trở lên'],
       ['Đang đông', t.busy_now, 'warm', 'CI từ 0,30 đến dưới 0,55'],
-      ['Cảnh báo dự báo', t.warnings, t.warnings ? 'hot' : 'ok', 'tổng ở các mốc +5, +10, +15 phút'],
+      ['Cảnh báo sắp tới', t.warnings, t.warnings ? 'hot' : 'ok', 'cộng dồn ở các mốc 5, 10, 15 phút'],
     ].map(([k, v, c, s]) => `<div class="kpi ${c}"><span>${k}</span><strong>${v}</strong><small>${s}</small></div>`).join('');
     $('rows').innerHTML = cams.map(c => `<tr><td class="cam">${esc(c.camera)}</td>
-      <td><span class="pill ${c.level}">${fmt(c.now_ci)} <small>${LEVEL[c.level]}</small></span></td>
+      <td><span class="pill ${c.level}">${LEVEL[c.level]} <small>${fmt(c.now_ci)}</small></span></td>
       <td>${spark(c.series, 120, 30, c.level)}</td>${c.horizons.map(h => `<td>${chip(h)}</td>`).join('')}</tr>`).join('');
     const hot = cams.map(c => ({ c, h: c.horizons.filter(x => x.warning || x.watch).sort((a, b) => b.p_gridlock - a.p_gridlock)[0] })).filter(x => x.h).sort((a, b) => b.h.p_gridlock - a.h.p_gridlock).slice(0, 6);
-    $('alerts').innerHTML = hot.length ? hot.map(({ c, h }) => `<li><strong>${esc(c.camera)}</strong><span>${h.warning ? 'Cảnh báo' : 'Theo dõi'} sau ${h.minutes} phút · CI dự báo ${fmt(h.ci)} · xác suất ùn tắc nặng ${Math.round(h.p_gridlock * 100)}%</span></li>`).join('')
-      : '<li class="empty">Không có camera nào cần chú ý.</li>';
+    $('alerts').innerHTML = hot.length ? hot.map(({ c, h }) => `<li><strong>${esc(c.camera)}</strong><span>${h.warning ? 'Cảnh báo' : 'Theo dõi'} · sau ${h.minutes} phút có thể ${LEVEL[h.level].toLowerCase()} (khả năng ùn tắc nặng ${Math.round(h.p_gridlock * 100)}%)</span></li>`).join('')
+      : '<li class="empty">Chưa có camera nào cần chú ý. Mọi thứ đang ổn.</li>';
     $('cams').innerHTML = cams.map(c => `<article class="cam-card"><header><h3>${esc(c.camera)}</h3><span class="pill ${c.level}">${fmt(c.now_ci)}</span></header>
       ${spark(c.series, 300, 70, c.level)}
       <div class="cam-stats"><span>Đỉnh <b>${fmt(c.peak_ci)}</b></span><span>Trung bình <b>${fmt(c.mean_ci)}</b></span><span>${LEVEL[c.level]}</span></div>
@@ -65,7 +72,7 @@
   ];
   const fmtKm = m => `${(m / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} km`;
   const fmtMin = s => { const m = Math.round(s / 60); return m >= 60 ? `${Math.floor(m / 60)} giờ ${m % 60} phút` : `${m} phút`; };
-  const ROUTE_COLORS = ['#c6f04a', '#4fd1c5', '#f2b84b'];
+  const ROUTE_COLORS = ['#f0c35a', '#7fb4e8', '#b79cf0'];
   PLACES.forEach(([n], i) => { $('from').add(new Option(n, i)); $('to').add(new Option(n, i)); });
   $('from').value = 1; $('to').value = 0;
 
@@ -78,8 +85,8 @@
     const px = ([lon, lat]) => [pad + (lon - x0) * k * sy, H - pad - (lat - y0) * sy];
     const line = r => r.geometry.coordinates.map(p => px(p).map(v => v.toFixed(1)).join(',')).join(' ');
     const order = routes.map((_, i) => i).sort((p, q) => (p === sel) - (q === sel));
-    const dot = (p, c) => { const [x, y] = px(p); return `<circle cx="${x}" cy="${y}" r="7" fill="${c}" stroke="#0a1214" stroke-width="3"/>`; };
-    $('routeMap').innerHTML = `<svg viewBox="0 0 ${W} ${H.toFixed(0)}" role="img" aria-label="Các tuyến đường">${order.map(i => `<polyline points="${line(routes[i])}" fill="none" stroke="${ROUTE_COLORS[i % 3]}" stroke-width="${i === sel ? 5 : 3}" opacity="${i === sel ? 1 : .55}" stroke-linejoin="round" stroke-linecap="round"/>`).join('')}${dot([a[1], a[0]], '#fff')}${dot([b[1], b[0]], '#ff6b5e')}</svg>`;
+    const dot = (p, c) => { const [x, y] = px(p); return `<circle cx="${x}" cy="${y}" r="7" fill="${c}" stroke="#101215" stroke-width="3"/>`; };
+    $('routeMap').innerHTML = `<svg viewBox="0 0 ${W} ${H.toFixed(0)}" role="img" aria-label="Các tuyến đường">${order.map(i => `<polyline points="${line(routes[i])}" fill="none" stroke="${ROUTE_COLORS[i % 3]}" stroke-width="${i === sel ? 5 : 3}" opacity="${i === sel ? 1 : .55}" stroke-linejoin="round" stroke-linecap="round"/>`).join('')}${dot([a[1], a[0]], '#fff')}${dot([b[1], b[0]], '#f2766b')}</svg>`;
   }
   $('go').addEventListener('click', async () => {
     const A = PLACES[$('from').value], B = PLACES[$('to').value];
