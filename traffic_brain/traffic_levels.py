@@ -6,7 +6,7 @@ SEVERE_CI = 0.55
 STATE_LABELS = {
     "free": "Thông thoáng",
     "busy": "Đông đúc",
-    "gridlock": "Tắc nghẽn nghiêm trọng",
+    "gridlock": "Ùn tắc",
 }
 
 

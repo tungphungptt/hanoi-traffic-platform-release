@@ -18,7 +18,7 @@ FONT_DIR = Path(__file__).resolve().parent / "fonts"
 BRAND = "B52226"
 LEVEL_FILL = {"free": "EAF3E9", "busy": "FBF2E3", "gridlock": "F8E6E3"}
 LEVEL_INK = {"free": "578263", "busy": "AD7B39", "gridlock": "A14D43"}
-DEFAULT_LABELS = {"free": "Thông thoáng", "busy": "Đông đúc", "gridlock": "Tắc nghẽn nghiêm trọng"}
+DEFAULT_LABELS = {"free": "Thông thoáng", "busy": "Đông đúc", "gridlock": "Ùn tắc"}
 MOMENT_KINDS = (("hits", "Cảnh báo đúng"), ("watch_hits", "Theo dõi đúng"),
                 ("misses", "Bỏ sót"), ("false_alarms", "Báo nhầm"))
 MAX_ROWS = 20000

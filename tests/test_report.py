@@ -21,7 +21,7 @@ def test_xlsx_has_the_sheets_rows_and_charts(session):
     forecasts = wb["Dự báo"]
     expected = sum(len(a["horizons"]) for c in session["cameras"] for a in c["minute_forecast"]["anchors"])
     assert forecasts.max_row == expected + 1
-    assert forecasts["A1"].value == "Camera" and forecasts["N2"].value in ("Thông thoáng", "Đông đúc", "Tắc nghẽn nghiêm trọng", "")
+    assert forecasts["A1"].value == "Camera" and forecasts["N2"].value in ("Thông thoáng", "Đông đúc", "Ùn tắc", "")
     assert len(wb["Biểu đồ"]._charts) == len(session["cameras"])
 
 
