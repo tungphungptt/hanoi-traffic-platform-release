@@ -553,3 +553,7 @@ video, #player { border-radius: 16px; }
 .area-card:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -14px rgba(80,48,28,.5); }
 .area-card span { color: var(--ink-2); font-size: 13.5px; } .area-card em { font-style: normal; color: var(--blue); font-size: 13px; }
 #map.no-map { height: auto; min-height: 0; overflow: auto; }
+
+/* v12.3 logo thật thay quốc kỳ */
+.brand-mark { width: 46px; height: 46px; background: none; box-shadow: none; border-radius: 0; }
+.brand-mark img { width: 46px; height: 46px; box-shadow: none; }
