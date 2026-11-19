@@ -65,6 +65,10 @@ Bản đồ OpenStreetMap toàn Hà Nội (ranh giới hành chính OSM), nhiệ
 hiện tại, 24 giờ tới và 3 ngày tới tại điểm đó. Nguồn: Open-Meteo, cache 10 phút; mất kết nối thì hiện dữ
 liệu cũ (tối đa 3 giờ) và ghi rõ.
 
+Trang khu công nghiệp (`/static/b2b.html`) có mục **Bản đồ KCN** với ranh giới tham khảo KCN Thuận Thành III.
+Polygon được lấy từ [OpenStreetMap way 1467190501](https://www.openstreetmap.org/way/1467190501), theo ODbL;
+không thay thế hồ sơ quy hoạch hoặc địa chính chính thức.
+
 ## Cách hoạt động
 
 1. **Đo** (`traffic_brain/video_analysis.py`): 1 khung hình/giây, YOLOX-s ONNX (chạy thêm trên 2 nửa khung hình để thấy xe nhỏ ở xa) nhận diện ô tô, xe máy, buýt,

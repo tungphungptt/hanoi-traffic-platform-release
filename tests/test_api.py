@@ -270,4 +270,7 @@ def test_text_is_compressed_and_videos_are_cached_without_compression():
 def test_b2b_overview_and_console_page():
     data = client.get("/api/b2b/overview").json()
     assert data["totals"]["cameras"] == len(data["cameras"]) >= 9
-    assert client.get("/static/b2b.html").status_code == 200
+    page = client.get("/static/b2b.html")
+    assert page.status_code == 200 and 'id="page-map"' in page.text
+    geojson = client.get("/static/industrial_park_thuan_thanh_iii.geojson")
+    assert geojson.status_code == 200 and geojson.json()["features"][0]["properties"]["name"] == "Khu công nghiệp Thuận Thành III"

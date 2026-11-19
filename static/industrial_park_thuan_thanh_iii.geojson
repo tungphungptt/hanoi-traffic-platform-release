@@ -1,0 +1,40 @@
+{
+  "type": "FeatureCollection",
+  "name": "Khu công nghiệp Thuận Thành III",
+  "license": "Open Database License (ODbL) 1.0",
+  "source": "OpenStreetMap contributors",
+  "source_url": "https://www.openstreetmap.org/way/1467190501",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Khu công nghiệp Thuận Thành III",
+        "source": "OpenStreetMap way 1467190501",
+        "boundary_status": "Ranh giới tham khảo; không phải ranh quy hoạch hoặc địa chính chính thức."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [106.0648751, 21.0355113],
+            [106.0705228, 21.0351508],
+            [106.0757413, 21.0355995],
+            [106.0804362, 21.0364406],
+            [106.080977, 21.0372898],
+            [106.0811468, 21.0445677],
+            [106.0811842, 21.0467156],
+            [106.0797271, 21.0474548],
+            [106.0804146, 21.0491005],
+            [106.0805192, 21.0512204],
+            [106.0690472, 21.054931],
+            [106.0666475, 21.0454518],
+            [106.0656218, 21.0457642],
+            [106.0656819, 21.0425369],
+            [106.0649352, 21.0421444],
+            [106.0648751, 21.0355113]
+          ]
+        ]
+      }
+    }
+  ]
+}

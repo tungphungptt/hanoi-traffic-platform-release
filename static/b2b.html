@@ -11,7 +11,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="preload" as="image" href="/static/logo.png" />
-  <link rel="stylesheet" href="/static/b2b.css?v=3.1" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" onerror="this.onerror=null;this.removeAttribute('integrity');this.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'" />
+  <link rel="stylesheet" href="/static/b2b.css?v=3.2" />
 </head>
 <body>
   <div class="shell">
@@ -25,6 +26,7 @@
       </label>
       <nav aria-label="Điều hướng">
         <a href="#today" data-page="today">Hôm nay</a>
+        <a href="#map" data-page="map">Bản đồ KCN</a>
         <a href="#report" data-page="report">Báo cáo</a>
         <a href="#gates" data-page="gates">Cổng và camera</a>
         <a href="#shifts" data-page="shifts">Giờ ra vào ca</a>
@@ -59,6 +61,19 @@
         <h2 class="sec">Việc nên làm trước giờ tan ca <small>theo thứ tự thời gian</small></h2>
         <ol class="steps" id="todo"></ol>
         <div class="card" id="alertPreview"></div>
+      </section>
+
+      <!-- Bản đồ KCN -->
+      <section class="page" id="page-map">
+        <div class="head row">
+          <div><p class="kick">Bản đồ khu công nghiệp</p><h1>KCN Thuận Thành III</h1><p class="sub">Ranh giới và đường phố xung quanh khu công nghiệp trên bản đồ OpenStreetMap.</p></div>
+          <div class="actions"><button class="btn ghost" id="parkFit" type="button">Hiện toàn KCN</button><a class="btn" href="https://www.openstreetmap.org/way/1467190501" target="_blank" rel="noopener">Mở OpenStreetMap ↗</a></div>
+        </div>
+        <div class="card park-map-card">
+          <div class="card-head"><h2>Bản đồ KCN Thuận Thành III</h2><span class="muted" id="parkMapStatus">Đang tải bản đồ…</span></div>
+          <div id="parkMap" class="park-map" role="region" aria-label="Bản đồ Khu công nghiệp Thuận Thành III"></div>
+          <p class="park-map-note">Ranh giới tham khảo từ <a href="https://www.openstreetmap.org/way/1467190501" target="_blank" rel="noopener">OpenStreetMap way 1467190501</a>, theo giấy phép ODbL. Không thay thế bản đồ quy hoạch hoặc hồ sơ địa chính chính thức.</p>
+        </div>
       </section>
 
       <!-- Báo cáo -->
@@ -132,6 +147,7 @@
       <footer class="foot"><span>© 2026 hanoiFlow</span><span>Số đo từ bản ghi camera mẫu · chỉ báo tham khảo</span></footer>
     </main>
   </div>
-  <script src="/static/b2b.js?v=3.0"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';s.onload=function(){window.dispatchEvent(new Event('leaflet-ready'))};document.head.appendChild(s)"></script>
+  <script src="/static/b2b.js?v=3.2"></script>
 </body>
 </html>

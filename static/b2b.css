@@ -58,6 +58,13 @@ h2 { margin: 0; font-size: 18px; font-weight: 600; }
 
 .card { background: linear-gradient(180deg, #2a2724, #252220); border: 1px solid var(--line); border-radius: 26px; padding: 28px; margin-bottom: 20px; box-shadow: 0 20px 36px -28px rgba(0,0,0,.8); }
 .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.park-map-card { padding: 20px; }
+.park-map { width: 100%; height: min(68vh, 680px); min-height: 360px; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: #e7e2d7; }
+.park-map-note { margin: 14px 2px 0; color: var(--ink-3); font-size: 13px; }
+.park-map-note a { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
+.leaflet-container { font-family: var(--sans); }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #262320; color: var(--ink); }
+.leaflet-control-attribution { font-size: 11px !important; }
 
 /* timeline */
 .timeline { position: relative; height: 100px; margin: 34px 6px 4px; }
@@ -152,6 +159,8 @@ code { background: var(--panel-2); padding: 2px 7px; border-radius: 7px; font-si
   .next { width: 100%; } .next strong { font-size: 44px; }
   .steps::before { left: 62px; } .steps li { grid-template-columns: 50px 1fr; gap: 28px; } .steps li::before { left: 58px; } .steps time { font-size: 18px; }
   .card { padding: 20px; border-radius: 22px; }
+  .park-map-card { padding: 14px; }
+  .park-map { height: 58vh; min-height: 320px; }
 }
 @media (max-width: 520px) { .top-switch { display: none; } .lede { font-size: 16.5px; } }
 @media (prefers-reduced-motion: reduce) { .side, .gate, .btn, .side nav a { transition: none; } html { scroll-behavior: auto; } }

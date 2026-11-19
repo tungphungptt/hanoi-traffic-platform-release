@@ -9,7 +9,7 @@
   shared in the "Hanoi Flow" Google Drive folder. No video is redistributed. Research/demo use.
 - **Leaflet 1.9.4** (BSD-2-Clause), loaded from unpkg with Subresource Integrity on the map page.
 - **OpenStreetMap**: map tiles from tile.openstreetmap.org (usage policy: https://operations.osmfoundation.org/policies/tiles/)
-  (Humanitarian style tiles from OpenStreetMap France as fallback) and the Hanoi boundary (`static/hanoi_boundary.geojson`, relation 1903516), © OpenStreetMap contributors, ODbL.
+  (Humanitarian style tiles from OpenStreetMap France as fallback), the Hanoi boundary (`static/hanoi_boundary.geojson`, relation 1903516), and KCN Thuận Thành III outline (`static/industrial_park_thuan_thanh_iii.geojson`, way 1467190501), © OpenStreetMap contributors, ODbL.
 - **OSRM** public demo server (router.project-osrm.org) for route alternatives: best-effort, no SLA; run your own for production.
 - **Google Fonts** DM Sans and Manrope (SIL Open Font License).
 - **Open-Meteo** weather data, CC BY 4.0, attributed on the map page.

@@ -62,6 +62,17 @@ test('multi-camera sessions keep every camera and on-air intervals gate verifica
   assert.equal(page.onAir(null, 500), true);
 });
 
+test('Thuận Thành III industrial map is an attributed closed GeoJSON boundary', () => {
+  const asset = JSON.parse(fs.readFileSync(require.resolve('../static/industrial_park_thuan_thanh_iii.geojson'), 'utf8'));
+  const ring = asset.features[0].geometry.coordinates[0];
+  assert.equal(asset.type, 'FeatureCollection');
+  assert.equal(asset.license, 'Open Database License (ODbL) 1.0');
+  assert.equal(asset.features[0].properties.name, 'Khu công nghiệp Thuận Thành III');
+  assert.match(asset.source_url, /openstreetmap\.org\/way\/1467190501/);
+  assert.deepEqual(ring[0], ring[ring.length - 1]);
+  assert.ok(ring.every(([lon, lat]) => lon > 106.06 && lon < 106.09 && lat > 21.03 && lat < 21.06));
+});
+
 test('sidebar pages and route/weather formatting', () => {
   const shell = require('../static/shell.js');
   assert.equal(shell.pageFromHash('#overview'), 'overview');

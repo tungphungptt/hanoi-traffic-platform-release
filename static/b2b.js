@@ -5,7 +5,7 @@
   const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const LEVEL = { free: 'Thông thoáng', busy: 'Đông đúc', gridlock: 'Ùn tắc' };
   const COLOR = { free: '#8fd9a0', busy: '#f0a54a', gridlock: '#f27d70' };
-  const PAGES = { today: 'Hôm nay', report: 'Báo cáo', gates: 'Cổng và camera', shifts: 'Giờ ra vào ca', people: 'Người nhận cảnh báo', api: 'Tích hợp (API)' };
+  const PAGES = { today: 'Hôm nay', map: 'Bản đồ KCN', report: 'Báo cáo', gates: 'Cổng và camera', shifts: 'Giờ ra vào ca', people: 'Người nhận cảnh báo', api: 'Tích hợp (API)' };
   const fmt = v => (v == null ? '—' : Number(v).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
   const pct = v => `${Math.round((v || 0) * 100)}%`;
   const levelOf = ci => (ci >= 0.55 ? 'gridlock' : ci >= 0.30 ? 'busy' : 'free');
@@ -27,6 +27,7 @@
   let shifts = store.get('hf_kcn_shifts', [{ name: 'Nhà máy A', end: '17:00' }, { name: 'Nhà máy B', end: '17:00' }, { name: 'Nhà máy C', end: '17:30' }]);
   let people = store.get('hf_kcn_people', [{ name: 'Trưởng bảo vệ', contact: '' }, { name: 'Phòng hành chính', contact: '' }]);
   let data = null;
+  let parkMap, parkBoundary;
 
   /* ---------- navigation ---------- */
   function show() {
@@ -37,9 +38,39 @@
     $('crumb').textContent = PAGES[page];
     $('side').classList.remove('open'); $('menu').setAttribute('aria-expanded', 'false');
     window.scrollTo(0, 0);
+    if (page === 'map') {
+      initParkMap();
+      if (parkMap) setTimeout(() => parkMap.invalidateSize(), 0);
+    }
   }
   $('menu').addEventListener('click', () => { const open = $('side').classList.toggle('open'); $('menu').setAttribute('aria-expanded', String(open)); });
   window.addEventListener('hashchange', show);
+
+  function initParkMap() {
+    if (parkMap) return;
+    if (typeof L === 'undefined') {
+      $('parkMapStatus').textContent = 'Không tải được thư viện bản đồ. Hãy thử tải lại trang.';
+      return;
+    }
+    parkMap = L.map('parkMap', { scrollWheelZoom: false }).setView([21.0450097, 106.0733952], 14);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+    }).addTo(parkMap);
+    $('parkFit').addEventListener('click', () => parkBoundary && parkMap.fitBounds(parkBoundary.getBounds(), { padding: [28, 28], maxZoom: 16 }));
+    fetch('/static/industrial_park_thuan_thanh_iii.geojson')
+      .then(response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); })
+      .then(data => {
+        parkBoundary = L.geoJSON(data, {
+          style: { color: '#d9b56d', weight: 3, fillColor: '#b08a3e', fillOpacity: 0.3 },
+          onEachFeature: (feature, layer) => layer.bindPopup(`<strong>${esc(feature.properties.name)}</strong><br>Ranh giới tham khảo từ OpenStreetMap.`),
+        }).addTo(parkMap);
+        parkMap.fitBounds(parkBoundary.getBounds(), { padding: [28, 28], maxZoom: 16 });
+        $('parkMapStatus').textContent = 'Thuận Thành, Bắc Ninh · OpenStreetMap';
+      })
+      .catch(error => { $('parkMapStatus').textContent = `Không tải được ranh giới KCN: ${error.message}`; });
+  }
+  window.addEventListener('leaflet-ready', () => { if ((location.hash || '#today') === '#map') initParkMap(); });
 
   /* ---------- derived data ---------- */
   function camById(id) { return data && data.cameras.find(c => c.id === id); }
