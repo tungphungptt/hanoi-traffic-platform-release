@@ -4,7 +4,7 @@
   const $ = id => document.getElementById(id);
   const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const LEVEL = { free: 'Thông thoáng', busy: 'Đông', gridlock: 'Ùn tắc' };
-  const COLOR = { free: '#7fd99a', busy: '#f2c14e', gridlock: '#f2796f' };
+  const COLOR = { free: '#8fd9a0', busy: '#f0a54a', gridlock: '#f27d70' };
   const PAGES = { today: 'Hôm nay', report: 'Báo cáo', gates: 'Cổng và camera', shifts: 'Giờ ra vào ca', people: 'Người nhận cảnh báo', api: 'Tích hợp (API)' };
   const fmt = v => (v == null ? '—' : Number(v).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
   const pct = v => `${Math.round((v || 0) * 100)}%`;

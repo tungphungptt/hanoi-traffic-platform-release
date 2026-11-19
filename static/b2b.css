@@ -1,12 +1,11 @@
 /* hanoiFlow cho khu công nghiệp: xám tối sáng, một màu nhấn xanh ngọc. */
 :root {
-  --bg: #262a31; --side: #20242a; --panel: #30353d; --panel-2: #393f48; --line: #464d58;
-  --ink: #f3f5f7; --ink-2: #c3c9d1; --ink-3: #9aa3ae;
-  --accent: #5fd4c0; --accent-ink: #12302b;
-  --free: #7fd99a; --busy: #f2c14e; --jam: #f2796f; --severe: #c8453e;
+  --bg: #2e2c29; --side: #262422; --panel: #383530; --panel-2: #433f39; --line: #56514a;
+  --ink: #f7f2e8; --ink-2: #cdc6b8; --ink-3: #a39b8c;
+  --accent: #e8c26a; --accent-ink: #3a2a06; --gold-deep: #b98a2c;
+  --free: #8fd9a0; --busy: #f0a54a; --jam: #f27d70; --severe: #c8453e;
   --sans: 'Be Vietnam Pro', system-ui, sans-serif;
-}
-* { box-sizing: border-box; }
+}* { box-sizing: border-box; }
 html { color-scheme: dark; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.6 var(--sans); }
 a { color: inherit; text-decoration: none; }
@@ -24,7 +23,7 @@ select, input { background: var(--panel); color: var(--ink); border: 1px solid v
 .side nav { display: grid; gap: 3px; }
 .side nav a { padding: 12px 14px; border-radius: 10px; color: var(--ink-2); font-weight: 500; }
 .side nav a:hover { background: var(--panel); color: var(--ink); }
-.side nav a.active { background: rgba(95,212,192,.14); color: var(--accent); font-weight: 700; }
+.side nav a.active { background: rgba(232,194,106,.14); color: var(--accent); font-weight: 700; }
 .side-foot { margin-top: auto; }
 .switch { display: block; text-align: center; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); color: var(--ink); font-weight: 600; font-size: 14px; }
 .switch:hover { background: var(--panel); }
@@ -34,7 +33,7 @@ select, input { background: var(--panel); color: var(--ink); border: 1px solid v
 .menu { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font: 600 14px var(--sans); }
 .crumb { font-weight: 700; }
 .top-switch { margin-left: auto; padding: 8px 12px; font-size: 13px; }
-.demo-note { margin: 18px 0 0; padding: 10px 14px; border-radius: 10px; background: rgba(242,193,78,.1); color: var(--busy); font-size: 13.5px; }
+.demo-note { margin: 18px 0 0; padding: 10px 14px; border-radius: 10px; background: rgba(232,194,106,.1); color: var(--accent); font-size: 13.5px; }
 
 .page { display: none; padding-top: 22px; }
 .page.active { display: block; }
@@ -81,18 +80,18 @@ h2 { margin: 0; font-size: 18px; font-weight: 700; }
 .gate.warn { border-color: var(--jam); }
 .badge { flex: none; padding: 3px 11px; border-radius: 99px; font-size: 13px; font-weight: 700; }
 .badge.free { background: rgba(127,217,154,.16); color: var(--free); }
-.badge.busy { background: rgba(242,193,78,.16); color: var(--busy); }
-.badge.gridlock { background: rgba(242,121,111,.18); color: var(--jam); }
+.badge.busy { background: rgba(240,165,74,.18); color: var(--busy); }
+.badge.gridlock { background: rgba(242,125,112,.18); color: var(--jam); }
 
 .todo { display: grid; gap: 10px; }
 .todo-item { display: flex; gap: 16px; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px; }
-.todo-item time { flex: none; padding: 4px 12px; border-radius: 10px; background: rgba(95,212,192,.14); color: var(--accent); font-weight: 700; font-size: 15px; }
+.todo-item time { flex: none; padding: 4px 12px; border-radius: 10px; background: rgba(232,194,106,.14); color: var(--accent); font-weight: 700; font-size: 15px; }
 .todo-item strong { display: block; } .todo-item span { color: var(--ink-2); font-size: 14.5px; }
 
 #alertPreview { margin-top: 20px; }
 .alert-card { max-width: 420px; padding: 16px; border-radius: 16px; background: var(--panel-2); border: 1px solid var(--jam); }
 .alert-card.ok { border-color: var(--line); }
-.tag { display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 700; background: rgba(242,121,111,.18); color: var(--jam); margin-bottom: 8px; }
+.tag { display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 12.5px; font-weight: 700; background: rgba(242,125,112,.18); color: var(--jam); margin-bottom: 8px; }
 .alert-card.ok .tag { background: rgba(127,217,154,.16); color: var(--free); }
 .alert-card p { margin: 4px 0; font-size: 15px; color: var(--ink-2); } .alert-card p b { color: var(--ink); }
 
@@ -137,3 +136,29 @@ code { background: var(--panel-2); padding: 2px 6px; border-radius: 6px; font-si
   h1, h2, td, th, .findings, .findings b { color: #111; }
 }
 @media (prefers-reduced-motion: reduce) { .side { transition: none; } }
+
+/* v2.2 xám vàng, ấm và có chút nghệ thuật */
+body { background:
+  radial-gradient(900px 420px at 92% -6%, rgba(232,194,106,.13), transparent 70%),
+  repeating-linear-gradient(115deg, transparent 0 46px, rgba(232,194,106,.035) 46px 47px),
+  var(--bg); background-attachment: fixed; }
+.side { background: linear-gradient(180deg, #2a2826, #211f1d); }
+.brand img { filter: drop-shadow(0 4px 10px rgba(232,194,106,.35)); }
+.side nav a.active { background: linear-gradient(90deg, rgba(232,194,106,.2), rgba(232,194,106,.05)); box-shadow: inset 3px 0 0 var(--accent); }
+h1 { position: relative; padding-bottom: 14px; }
+h1::after { content: ''; position: absolute; left: 0; bottom: 0; width: 56px; height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--accent), var(--gold-deep)); }
+.card, .gate, .todo-item { box-shadow: inset 0 1px 0 rgba(255,244,214,.06), 0 10px 24px -16px rgba(0,0,0,.55); }
+.card { border-radius: 22px; }
+.gate { border-radius: 22px; transition: transform .15s, border-color .15s; }
+.gate:hover { transform: translateY(-2px); border-color: rgba(232,194,106,.5); }
+.next { background: linear-gradient(135deg, #f0cf83, #d9a845); border: 0; box-shadow: 0 14px 30px -14px rgba(217,168,69,.7); }
+.next span, .next small { color: #5a4210; } .next strong { color: #2c1f03; }
+.btn { background: linear-gradient(180deg, #efca78, #dcae4c); color: var(--accent-ink); box-shadow: 0 6px 14px -8px rgba(217,168,69,.8); }
+.btn.ghost { background: transparent; box-shadow: none; color: var(--ink); }
+.todo-item time { background: rgba(232,194,106,.16); color: var(--accent); }
+.tl-now { background: var(--accent); } .tl-now span { color: var(--accent); }
+.demo-note { border: 1px solid rgba(232,194,106,.25); }
+.switch:hover { background: var(--panel); border-color: var(--accent); }
+.tl-seg.busy { background: var(--busy); }
+.c.busy { background: #f4cf86; } .c.free { background: #d3ecd2; }
+@media (prefers-reduced-motion: reduce) { .gate { transition: none; } }
