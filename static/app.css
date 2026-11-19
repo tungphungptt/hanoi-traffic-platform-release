@@ -559,6 +559,6 @@ video, #player { border-radius: 16px; }
 .brand-mark img { width: 46px; height: 46px; box-shadow: none; }
 
 /* v12.4 nút chuyển sang giao diện doanh nghiệp */
-.mode-switch { display: block; margin: 0 3px 12px; padding: 12px 14px; border-radius: 12px; background: #0f1d20; color: #c6f04a; font-weight: 700; font-size: 14px; text-align: center; text-decoration: none; }
-.mode-switch:hover { background: #162a2e; }
+.mode-switch { display: block; margin: 0 3px 12px; padding: 12px 14px; border-radius: 12px; background: #1b1e23; color: #f0c35a; font-weight: 700; font-size: 14px; text-align: center; text-decoration: none; }
+.mode-switch:hover { background: #22262c; }
 .mode-switch:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
