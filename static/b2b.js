@@ -3,6 +3,7 @@
 (function () {
   const $ = id => document.getElementById(id);
   const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const ZONE_NAME = 'KCN Thuận Thành III';
   const LEVEL = { free: 'Thông thoáng', busy: 'Đông đúc', gridlock: 'Ùn tắc' };
   const COLOR = { free: '#8fd9a0', busy: '#f0a54a', gridlock: '#f27d70' };
   const PAGES = { today: 'Hôm nay', map: 'Bản đồ KCN', report: 'Báo cáo', gates: 'Cổng và camera', shifts: 'Giờ ra vào ca', people: 'Người nhận cảnh báo', api: 'Tích hợp (API)' };
@@ -57,6 +58,10 @@
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
     }).addTo(parkMap);
+    L.marker([21.0450097, 106.0733952], { title: `Tâm tham chiếu ${ZONE_NAME}` })
+      .bindTooltip('Tâm KCN tham khảo')
+      .bindPopup(`<strong>${esc(ZONE_NAME)}</strong><br>Tâm tham chiếu theo OpenStreetMap; chưa phải vị trí cổng hoặc camera.`)
+      .addTo(parkMap);
     $('parkFit').addEventListener('click', () => parkBoundary && parkMap.fitBounds(parkBoundary.getBounds(), { padding: [28, 28], maxZoom: 16 }));
     fetch('/static/industrial_park_thuan_thanh_iii.geojson')
       .then(response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); })
@@ -106,7 +111,7 @@
 
   function renderToday(now) {
     const ns = nextShift(now), g = enrich();
-    $('zoneName').textContent = 'KCN Demo';
+    $('zoneName').textContent = ZONE_NAME;
     $('todaySub').textContent = `${now.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' })} · cập nhật ${hhmm(now.getHours() * 60 + now.getMinutes())}`;
     const box = $('nextShift');
     if (!ns) { box.innerHTML = '<span>Chưa có giờ tan ca</span><strong>—</strong><small>Thêm ở mục Giờ ra vào ca</small>'; }
@@ -114,7 +119,7 @@
     drawTimeline(ns);
     $('gateGrid').innerHTML = g.map(x => {
       const cam = x.camData;
-      return `<article class="gate${x.warn || x.level === 'gridlock' ? ' warn' : ''}"><div class="gate-top"><h3>${esc(x.name)}</h3><span class="cam">${cam ? esc(cam.camera) : 'Chưa gắn camera'}</span></div>
+      return `<article class="gate${x.warn || x.level === 'gridlock' ? ' warn' : ''}"><div class="gate-top"><h3>${esc(x.name)}</h3><span class="cam">${cam ? `Camera mẫu · ${esc(cam.camera)}` : 'Chưa gắn camera'}</span></div>
         <div class="gate-mid"><div class="gate-state"><small>Bây giờ</small><strong class="${x.level || 'busy'}">${x.level ? LEVEL[x.level] : '—'}</strong></div>${cam ? ring(x.p15) : ''}</div>
         <div class="gate-foot"><span>15 phút tới <b>${x.lvl15 ? LEVEL[x.lvl15] : '—'}</b></span><span>Cao điểm <b>${ns ? `${hhmm(ns.end)} – ${hhmm(ns.end + 50)}` : '—'}</b></span></div></article>`;
     }).join('');
@@ -177,7 +182,7 @@
   const heatClass = ci => (ci >= 0.70 ? 'severe' : ci >= 0.55 ? 'jam' : ci >= 0.30 ? 'busy' : 'free');
   function renderReport() {
     const g = enrich().filter(x => x.camData), N = 8;
-    $('reportSub').textContent = 'KCN Demo · số đo từ bản ghi camera đã phân tích (không phải số liệu theo tuần)';
+    $('reportSub').textContent = `${ZONE_NAME} · số liệu minh họa từ bản ghi camera Hà Nội, không phải số đo hiện trường hoặc số liệu theo tuần`;
     if (!g.length) { $('findings').innerHTML = '<li>Chưa gắn camera nào cho các cổng.</li>'; return; }
     const byPeak = g.slice().sort((a, b) => b.camData.peak_ci - a.camData.peak_ci), byMean = g.slice().sort((a, b) => a.camData.mean_ci - b.camData.mean_ci);
     const warnN = g.filter(x => x.warn).length;
@@ -194,7 +199,7 @@
   function renderGates() {
     const opts = sel => data.cameras.map(c => `<option value="${esc(c.id)}"${c.id === sel ? ' selected' : ''}>${esc(c.camera)}</option>`).join('');
     const g = enrich();
-    $('gateTable').innerHTML = `<thead><tr><th>Cổng</th><th>Camera</th><th>Bây giờ</th><th>Diễn biến</th></tr></thead><tbody>${g.map(x => `<tr><td><b>${esc(x.name)}</b></td><td><select data-gate="${esc(x.id)}" aria-label="Camera cho ${esc(x.name)}">${opts(x.cam)}</select></td><td>${badge(x.level)}</td><td>${x.camData ? spark(x.camData.series, 120, 30, x.level) : ''}</td></tr>`).join('')}</tbody>`;
+    $('gateTable').innerHTML = `<thead><tr><th>Cổng mẫu</th><th>Camera mẫu · Hà Nội</th><th>Bây giờ</th><th>Diễn biến</th></tr></thead><tbody>${g.map(x => `<tr><td><b>${esc(x.name)}</b></td><td><select data-gate="${esc(x.id)}" aria-label="Camera mẫu cho ${esc(x.name)}">${opts(x.cam)}</select></td><td>${badge(x.level)}</td><td>${x.camData ? spark(x.camData.series, 120, 30, x.level) : ''}</td></tr>`).join('')}</tbody>`;
   }
   $('gateTable').addEventListener('change', e => {
     const id = e.target.dataset && e.target.dataset.gate; if (!id) return;

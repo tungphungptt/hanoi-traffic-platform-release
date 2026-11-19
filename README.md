@@ -67,7 +67,9 @@ liệu cũ (tối đa 3 giờ) và ghi rõ.
 
 Trang khu công nghiệp (`/static/b2b.html`) có mục **Bản đồ KCN** với ranh giới tham khảo KCN Thuận Thành III.
 Polygon được lấy từ [OpenStreetMap way 1467190501](https://www.openstreetmap.org/way/1467190501), theo ODbL;
-không thay thế hồ sơ quy hoạch hoặc địa chính chính thức.
+không thay thế hồ sơ quy hoạch hoặc địa chính chính thức. Tên KCN và tâm tham chiếu trên trang theo bản đồ này;
+giờ ca, cổng và số liệu camera trong màn hình hiện vẫn là dữ liệu mô phỏng từ bản ghi Hà Nội, chưa phải dữ liệu
+hiện trường hay vị trí cổng/camera thực tế tại KCN.
 
 ## Cách hoạt động
 

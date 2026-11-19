@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="preload" as="image" href="/static/logo.png" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" onerror="this.onerror=null;this.removeAttribute('integrity');this.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'" />
-  <link rel="stylesheet" href="/static/b2b.css?v=3.2" />
+  <link rel="stylesheet" href="/static/b2b.css?v=3.3" />
 </head>
 <body>
   <div class="shell">
@@ -22,7 +22,7 @@
         <span><strong>hanoi<em>Flow</em></strong><small>cho khu công nghiệp</small></span>
       </a>
       <label class="zone">Khu đang xem
-        <select id="zone" aria-label="Khu đang xem"><option>KCN Demo (ví dụ)</option></select>
+        <select id="zone" aria-label="Khu đang xem"><option>KCN Thuận Thành III · mô phỏng</option></select>
       </label>
       <nav aria-label="Điều hướng">
         <a href="#today" data-page="today">Hôm nay</a>
@@ -48,9 +48,10 @@
       <!-- Hôm nay -->
       <section class="page" id="page-today">
         <div class="head row">
-          <div class="hero-copy"><p class="kick" id="greet">Xin chào</p><h1>Hôm nay tại <span id="zoneName">KCN Demo</span></h1><p class="sub" id="todaySub">—</p><p class="lede" id="lede"></p></div>
+          <div class="hero-copy"><p class="kick" id="greet">Xin chào</p><h1>Hôm nay tại <span id="zoneName">KCN Thuận Thành III</span></h1><p class="sub" id="todaySub">—</p><p class="lede" id="lede"></p></div>
           <div class="next" id="nextShift"><span>Tan ca tiếp theo</span><strong>—</strong><small></small></div>
         </div>
+        <div class="map-data-note"><strong>Bản đồ theo KCN Thuận Thành III.</strong> Giờ ca, cổng và camera bên dưới là cấu hình/dữ liệu mô phỏng; camera mẫu lấy từ bản ghi Hà Nội, chưa phải dữ liệu hiện trường của KCN. <a href="#map">Xem bản đồ KCN</a></div>
         <div class="card">
           <div class="card-head"><h2>Giờ tan ca hôm nay</h2><span class="muted" id="tlNote"></span></div>
           <div class="timeline" id="timeline"></div>
@@ -79,7 +80,7 @@
       <!-- Báo cáo -->
       <section class="page" id="page-report">
         <div class="head row">
-          <div><h1>Báo cáo giao thông giờ ra vào ca</h1><p class="sub" id="reportSub">—</p></div>
+          <div><h1>Báo cáo giao thông giờ ra vào ca</h1><p class="sub" id="reportSub">Số liệu mô phỏng từ bản ghi camera Hà Nội, không phải dữ liệu hiện trường KCN Thuận Thành III.</p></div>
           <div class="actions"><button class="btn ghost" id="csv" type="button">Tải CSV</button><button class="btn" id="print" type="button">In / lưu PDF</button></div>
         </div>
         <div class="card"><div class="card-head"><h2>Phát hiện chính</h2></div><ol class="findings" id="findings"></ol></div>
@@ -96,7 +97,7 @@
 
       <!-- Cổng và camera -->
       <section class="page" id="page-gates">
-        <div class="head"><h1>Cổng và camera</h1><p class="sub">Mỗi cổng hoặc nút giao lấy số liệu từ một camera. Đổi camera ở đây nếu bạn gắn khác.</p></div>
+        <div class="head"><h1>Cổng và camera</h1><p class="sub">Tên cổng là mẫu để cấu hình. Camera đang chọn là dữ liệu minh họa từ Hà Nội, chưa được định vị tại KCN Thuận Thành III.</p></div>
         <div class="card"><div class="table-wrap"><table id="gateTable"></table></div></div>
       </section>
 
@@ -148,6 +149,6 @@
     </main>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';s.onload=function(){window.dispatchEvent(new Event('leaflet-ready'))};document.head.appendChild(s)"></script>
-  <script src="/static/b2b.js?v=3.2"></script>
+  <script src="/static/b2b.js?v=3.3"></script>
 </body>
 </html>

@@ -62,6 +62,9 @@ h2 { margin: 0; font-size: 18px; font-weight: 600; }
 .park-map { width: 100%; height: min(68vh, 680px); min-height: 360px; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: #e7e2d7; }
 .park-map-note { margin: 14px 2px 0; color: var(--ink-3); font-size: 13px; }
 .park-map-note a { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
+.map-data-note { margin: -8px 0 22px; padding: 14px 18px; border: 1px solid rgba(217,181,109,.3); border-left: 4px solid var(--gold); border-radius: 12px; background: rgba(217,181,109,.07); color: var(--ink-2); font-size: 14px; }
+.map-data-note strong { color: var(--ink); }
+.map-data-note a { color: var(--gold); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .leaflet-container { font-family: var(--sans); }
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #262320; color: var(--ink); }
 .leaflet-control-attribution { font-size: 11px !important; }

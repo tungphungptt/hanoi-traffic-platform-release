@@ -272,5 +272,8 @@ def test_b2b_overview_and_console_page():
     assert data["totals"]["cameras"] == len(data["cameras"]) >= 9
     page = client.get("/static/b2b.html")
     assert page.status_code == 200 and 'id="page-map"' in page.text
+    assert "KCN Thuận Thành III" in page.text
+    assert "camera mẫu lấy từ bản ghi Hà Nội" in page.text
+    assert "KCN Demo" not in page.text
     geojson = client.get("/static/industrial_park_thuan_thanh_iii.geojson")
     assert geojson.status_code == 200 and geojson.json()["features"][0]["properties"]["name"] == "Khu công nghiệp Thuận Thành III"
