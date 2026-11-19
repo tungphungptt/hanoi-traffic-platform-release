@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#2e2c29" />
+  <meta name="theme-color" content="#1b1917" />
   <meta name="description" content="hanoiFlow cho khu công nghiệp: theo dõi các cổng và nút giao, dự báo tắc giờ tan ca, việc nên làm và cảnh báo cho bảo vệ." />
   <title>hanoiFlow · Khu công nghiệp</title>
   <link rel="icon" type="image/png" href="/static/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/b2b.css?v=2.2" />
+  <link rel="preload" as="image" href="/static/logo.png" />
+  <link rel="stylesheet" href="/static/b2b.css?v=3.0" />
 </head>
 <body>
   <div class="shell">
@@ -41,23 +42,22 @@
         <span class="crumb" id="crumb">Hôm nay</span>
         <a class="switch top-switch" href="/#intro">Giao diện nhà nước</a>
       </header>
-      <p class="demo-note" id="demoNote">Dữ liệu minh họa: số đo lấy từ camera thật trong bản ghi đã phân tích, không phải thời gian thực. Giờ ca và việc gắn cổng với camera do bạn cấu hình.</p>
 
       <!-- Hôm nay -->
       <section class="page" id="page-today">
         <div class="head row">
-          <div><h1>Hôm nay tại <span id="zoneName">KCN Demo</span></h1><p class="sub" id="todaySub">—</p></div>
+          <div class="hero-copy"><p class="kick" id="greet">Xin chào</p><h1>Hôm nay tại <span id="zoneName">KCN Demo</span></h1><p class="sub" id="todaySub">—</p><p class="lede" id="lede"></p></div>
           <div class="next" id="nextShift"><span>Tan ca tiếp theo</span><strong>—</strong><small></small></div>
         </div>
         <div class="card">
-          <div class="card-head"><h2>Giờ tan ca và cao điểm dự kiến</h2><span class="muted" id="tlNote"></span></div>
+          <div class="card-head"><h2>Giờ tan ca hôm nay</h2><span class="muted" id="tlNote"></span></div>
           <div class="timeline" id="timeline"></div>
           <div class="legend"><i class="sw busy"></i>Đông <i class="sw jam"></i>Tắc dự kiến theo lịch ca</div>
         </div>
-        <h2 class="sec">Các cổng và nút giao</h2>
+        <h2 class="sec">Các cổng và nút giao <small>đang thế nào</small></h2>
         <div class="gate-grid" id="gateGrid"></div>
-        <h2 class="sec">Việc nên làm trước giờ tan ca</h2>
-        <div class="todo" id="todo"></div>
+        <h2 class="sec">Việc nên làm trước giờ tan ca <small>theo thứ tự thời gian</small></h2>
+        <ol class="steps" id="todo"></ol>
         <div class="card" id="alertPreview"></div>
       </section>
 
@@ -129,9 +129,9 @@
         </div>
       </section>
 
-      <footer class="foot"><span>© 2026 hanoiFlow</span><span>Chỉ báo tham khảo từ dữ liệu hiện có</span></footer>
+      <footer class="foot"><span>© 2026 hanoiFlow</span><span>Số đo từ bản ghi camera mẫu · chỉ báo tham khảo</span></footer>
     </main>
   </div>
-  <script src="/static/b2b.js?v=2.0"></script>
+  <script src="/static/b2b.js?v=3.0"></script>
 </body>
 </html>

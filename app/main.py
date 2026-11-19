@@ -414,8 +414,9 @@ def model_report() -> dict[str, Any]:
 
 
 @app.get("/api/b2b/overview")
-def b2b_overview() -> dict[str, Any]:
+def b2b_overview(response: Response) -> dict[str, Any]:
     """Per-camera summary (now, +5/10/15 min, sparkline) of the saved analyses, for the business console."""
+    response.headers["Cache-Control"] = "public, max-age=60"
     try:
         return b2b.overview(ROOT / "artifacts")
     except (OSError, ValueError, KeyError) as exc:

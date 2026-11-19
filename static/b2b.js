@@ -67,6 +67,10 @@
     const pts = series.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
     return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="Diễn biến CI"><polyline points="${pts}" fill="none" stroke="${COLOR[level]}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
   }
+  function ring(p) {
+    const r = 26, c = 2 * Math.PI * r, col = p >= 0.5 ? COLOR.gridlock : p >= 0.25 ? COLOR.busy : COLOR.free;
+    return `<figure class="ring"><svg width="68" height="68" viewBox="0 0 68 68" role="img" aria-label="Nguy cơ tắc nặng ${pct(p)}"><circle cx="34" cy="34" r="${r}" fill="none" stroke="rgba(255,240,210,.12)" stroke-width="6"/><circle cx="34" cy="34" r="${r}" fill="none" stroke="${col}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(c * Math.min(1, p)).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 34 34)"/><text x="34" y="39" text-anchor="middle" font-size="15" font-weight="700" fill="#f5eedf">${pct(p)}</text></svg><figcaption>nguy cơ tắc nặng</figcaption></figure>`;
+  }
   const badge = lvl => (lvl ? `<span class="badge ${lvl}">${LEVEL[lvl]}</span>` : '<span class="badge busy">Chưa có camera</span>');
 
   function renderToday(now) {
@@ -79,13 +83,15 @@
     drawTimeline(ns);
     $('gateGrid').innerHTML = g.map(x => {
       const cam = x.camData;
-      return `<article class="gate${x.warn || x.level === 'gridlock' ? ' warn' : ''}"><header><h3>${esc(x.name)}</h3>${badge(x.level)}</header>
-        <dl><div><dt>15 phút tới</dt><dd>${x.lvl15 ? LEVEL[x.lvl15] : '—'}</dd></div>
-        <div><dt>Khả năng tắc nặng</dt><dd>${cam ? pct(x.p15) : '—'}</dd></div>
-        <div><dt>Cao điểm theo lịch ca</dt><dd>${ns ? `${hhmm(ns.end)} – ${hhmm(ns.end + 50)}` : '—'}</dd></div>
-        <div><dt>Camera</dt><dd>${cam ? esc(cam.camera) : '—'}</dd></div></dl></article>`;
+      return `<article class="gate${x.warn || x.level === 'gridlock' ? ' warn' : ''}"><div class="gate-top"><h3>${esc(x.name)}</h3><span class="cam">${cam ? esc(cam.camera) : 'Chưa gắn camera'}</span></div>
+        <div class="gate-mid"><div class="gate-state"><small>Bây giờ</small><strong class="${x.level || 'busy'}">${x.level ? LEVEL[x.level] : '—'}</strong></div>${cam ? ring(x.p15) : ''}</div>
+        <div class="gate-foot"><span>15 phút tới <b>${x.lvl15 ? LEVEL[x.lvl15] : '—'}</b></span><span>Cao điểm <b>${ns ? `${hhmm(ns.end)} – ${hhmm(ns.end + 50)}` : '—'}</b></span></div></article>`;
     }).join('');
-    renderTodo(g, ns);
+    const out = renderTodo(g, ns);
+    const hr = now.getHours();
+    $('greet').textContent = hr < 11 ? 'Chào buổi sáng' : hr < 14 ? 'Chào buổi trưa' : hr < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
+    $('lede').textContent = !ns ? 'Hãy thêm giờ tan ca để hanoiFlow báo trước cho bạn.'
+      : `Còn ${ns.left >= 60 ? `${Math.floor(ns.left / 60)} giờ ${ns.left % 60} phút` : `${ns.left} phút`} nữa là tan ca. ` + (out.risky ? `${out.worst.name} có nguy cơ tắc cao (${pct(out.worst.p15)}), nên ${out.first.charAt(0).toLowerCase()}${out.first.slice(1)}.` : 'Các cổng đang thông thoáng, chưa cần can thiệp.');
   }
 
   function drawTimeline(ns) {
@@ -116,14 +122,16 @@
       if (best && best !== worst) items.push({ t: ns.end - 5, h: `Xe đưa đón ${joinNames(ns.names)} đón tại ${best.name}`, d: `Tránh dòng xe dồn ra ${worst.name} cùng lúc. ${best.name} đang ${LEVEL[best.level].toLowerCase()}.` });
       if (risky) items.push({ t: ns.end, h: `Tăng bảo vệ tại ${worst.name}`, d: `Dự báo ${LEVEL[worst.lvl15].toLowerCase()} sau 15 phút (${pct(worst.p15)} khả năng tắc nặng).` });
     }
-    $('todo').innerHTML = items.length ? items.map(i => `<div class="todo-item"><time>${hhmm(i.t)}</time><div><strong>${esc(i.h)}</strong><span>${esc(i.d)}</span></div></div>`).join('')
-      : '<div class="todo-item"><div><strong>Chưa cần can thiệp</strong><span>Các cổng đang thông thoáng và chưa có cảnh báo trong 15 phút tới.</span></div></div>';
+    $('todo').innerHTML = items.length ? items.map(i => `<li><time>${hhmm(i.t)}</time><div><strong>${esc(i.h)}</strong><span>${esc(i.d)}</span></div></li>`).join('')
+      : '<li><time>—</time><div><strong>Chưa cần can thiệp</strong><span>Các cổng đang thông thoáng và chưa có cảnh báo trong 15 phút tới.</span></div></li>';
     const hot = worst && (worst.warn || worst.p15 >= 0.4);
     const who = people.map(p => p.name).join(', ') || 'chưa có người nhận';
     $('alertPreview').innerHTML = `<div class="card-head"><h2>Tin cảnh báo sẽ gửi</h2><span class="muted">Gửi tới: ${esc(who)}</span></div>
       <div class="alert-card${hot ? '' : ' ok'}"><span class="tag">${hot ? 'SẮP TẮC' : 'ỔN'}</span>
       <p><b>${hot ? `${esc(worst.name)}: ${pct(worst.p15)} khả năng tắc sau 15 phút` : 'Chưa có cổng nào sắp tắc'}</b></p>
       <p>${hot ? `Nên làm: ${esc(items[1] ? items[1].h : items[0] ? items[0].h : 'theo dõi cổng')}.` : 'Hệ thống sẽ nhắn ngay khi một cổng có nguy cơ tắc.'}</p></div>`;
+    const risky = !!(worst && (worst.level !== 'free' || worst.warn || worst.p15 >= 0.2));
+    return { items, worst, risky, first: items[0] ? items[0].h : 'theo dõi các cổng' };
   }
 
   /* ---------- report ---------- */
