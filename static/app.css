@@ -557,3 +557,8 @@ video, #player { border-radius: 16px; }
 /* v12.3 logo thật thay quốc kỳ */
 .brand-mark { width: 46px; height: 46px; background: none; box-shadow: none; border-radius: 0; }
 .brand-mark img { width: 46px; height: 46px; box-shadow: none; }
+
+/* v12.4 nút chuyển sang giao diện doanh nghiệp */
+.mode-switch { display: block; margin: 0 3px 12px; padding: 12px 14px; border-radius: 12px; background: #0f1d20; color: #c6f04a; font-weight: 700; font-size: 14px; text-align: center; text-decoration: none; }
+.mode-switch:hover { background: #162a2e; }
+.mode-switch:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
