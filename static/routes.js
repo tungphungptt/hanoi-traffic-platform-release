@@ -169,7 +169,7 @@ function bootRoutes() {
     const { f, ci, p } = forecastCi();
     const fmtT = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.round(s % 60)).padStart(2, '0')}`;
     $('routeForecast').textContent = !f
-      ? 'Chưa có dự báo: mở một kết quả ở mục 1–2 (hoặc bấm "Xem demo Hà Nội") rồi chọn vị trí camera để hệ thống tránh đoạn được dự báo tắc.'
+      ? 'Chưa có dự báo: mở một kết quả ở bước 1–2 (hoặc bấm "Xem demo Hà Nội") rồi chọn vị trí camera để hệ thống tránh đoạn được dự báo tắc.'
       : !cameraPoint
         ? `Đang có dự báo của ${f.camera} lúc ${fmtT(f.t)} (+10 phút: CI ${ci.toFixed(2)}). Chọn vị trí camera để áp dụng vào tuyến.`
         : `Dùng dự báo của ${f.camera} lập lúc ${fmtT(f.t)} trên video: sau 10 phút CI ${ci.toFixed(2)}, khả năng tắc ${Math.round(p * 100)}%. Tuyến đi qua vùng tròn đỏ sẽ bị cộng thêm thời gian.`;

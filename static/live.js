@@ -3,7 +3,7 @@
 
 const LIVE_REFRESH_MS = 15000;
 const LIVE_COLOR = { free: '#78a984', busy: '#d3a052', gridlock: '#a94d43' };
-const LIVE_LABEL = { free: 'Thông thoáng', busy: 'Đông đúc', gridlock: 'Tắc nghẽn' };
+const LIVE_LABEL = { free: 'Thông thoáng', busy: 'Đông đúc', gridlock: 'Ùn tắc' };
 
 function liveAge(seconds) {
   if (!Number.isFinite(seconds)) return '—';

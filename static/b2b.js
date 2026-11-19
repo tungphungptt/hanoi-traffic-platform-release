@@ -3,7 +3,7 @@
 (function () {
   const $ = id => document.getElementById(id);
   const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const LEVEL = { free: 'Thông thoáng', busy: 'Đông', gridlock: 'Ùn tắc' };
+  const LEVEL = { free: 'Thông thoáng', busy: 'Đông đúc', gridlock: 'Ùn tắc' };
   const COLOR = { free: '#8fd9a0', busy: '#f0a54a', gridlock: '#f27d70' };
   const PAGES = { today: 'Hôm nay', report: 'Báo cáo', gates: 'Cổng và camera', shifts: 'Giờ ra vào ca', people: 'Người nhận cảnh báo', api: 'Tích hợp (API)' };
   const fmt = v => (v == null ? '—' : Number(v).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
@@ -69,7 +69,7 @@
   }
   function ring(p) {
     const r = 26, c = 2 * Math.PI * r, col = p >= 0.5 ? COLOR.gridlock : p >= 0.25 ? COLOR.busy : COLOR.free;
-    return `<figure class="ring"><svg width="68" height="68" viewBox="0 0 68 68" role="img" aria-label="Nguy cơ tắc nặng ${pct(p)}"><circle cx="34" cy="34" r="${r}" fill="none" stroke="rgba(255,240,210,.12)" stroke-width="6"/><circle cx="34" cy="34" r="${r}" fill="none" stroke="${col}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(c * Math.min(1, p)).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 34 34)"/><text x="34" y="39" text-anchor="middle" font-size="15" font-weight="700" fill="#f5eedf">${pct(p)}</text></svg><figcaption>nguy cơ tắc nặng</figcaption></figure>`;
+    return `<figure class="ring"><svg width="68" height="68" viewBox="0 0 68 68" role="img" aria-label="Nguy cơ ùn tắc ${pct(p)}"><circle cx="34" cy="34" r="${r}" fill="none" stroke="rgba(255,240,210,.12)" stroke-width="6"/><circle cx="34" cy="34" r="${r}" fill="none" stroke="${col}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(c * Math.min(1, p)).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 34 34)"/><text x="34" y="39" text-anchor="middle" font-size="15" font-weight="700" fill="#f5eedf">${pct(p)}</text></svg><figcaption>nguy cơ ùn tắc</figcaption></figure>`;
   }
   const badge = lvl => (lvl ? `<span class="badge ${lvl}">${LEVEL[lvl]}</span>` : '<span class="badge busy">Chưa có camera</span>');
 
@@ -118,9 +118,9 @@
     const walk = g.find(x => x.id === 'walk');
     if (ns && worst) {
       const risky = worst.level !== 'free' || worst.warn || worst.p15 >= 0.2;
-      if (walk && risky) items.push({ t: ns.end - 10, h: `Mở ${walk.name} cho công nhân đi bộ`, d: `${worst.name} có ${pct(worst.p15)} khả năng tắc nặng sau 15 phút${walk.level ? `; ${walk.name} đang ${LEVEL[walk.level].toLowerCase()}` : ''}.` });
+      if (walk && risky) items.push({ t: ns.end - 10, h: `Mở ${walk.name} cho công nhân đi bộ`, d: `${worst.name} có ${pct(worst.p15)} khả năng ùn tắc sau 15 phút${walk.level ? `; ${walk.name} đang ${LEVEL[walk.level].toLowerCase()}` : ''}.` });
       if (best && best !== worst) items.push({ t: ns.end - 5, h: `Xe đưa đón ${joinNames(ns.names)} đón tại ${best.name}`, d: `Tránh dòng xe dồn ra ${worst.name} cùng lúc. ${best.name} đang ${LEVEL[best.level].toLowerCase()}.` });
-      if (risky) items.push({ t: ns.end, h: `Tăng bảo vệ tại ${worst.name}`, d: `Dự báo ${LEVEL[worst.lvl15].toLowerCase()} sau 15 phút (${pct(worst.p15)} khả năng tắc nặng).` });
+      if (risky) items.push({ t: ns.end, h: `Tăng bảo vệ tại ${worst.name}`, d: `Dự báo ${LEVEL[worst.lvl15].toLowerCase()} sau 15 phút (${pct(worst.p15)} khả năng ùn tắc).` });
     }
     $('todo').innerHTML = items.length ? items.map(i => `<li><time>${hhmm(i.t)}</time><div><strong>${esc(i.h)}</strong><span>${esc(i.d)}</span></div></li>`).join('')
       : '<li><time>—</time><div><strong>Chưa cần can thiệp</strong><span>Các cổng đang thông thoáng và chưa có cảnh báo trong 15 phút tới.</span></div></li>';
@@ -156,7 +156,7 @@
       warnN ? `<b>${warnN}/${g.length} cổng</b> đang có cảnh báo tắc trong 15 phút tới.` : 'Chưa có cổng nào cảnh báo tắc trong 15 phút tới.',
     ].map(t => `<li>${t}</li>`).join('');
     $('heat').innerHTML = `<thead><tr><th>Cổng</th>${Array.from({ length: N }, (_, i) => `<th>Đoạn ${i + 1}</th>`).join('')}</tr></thead><tbody>${g.map(x => `<tr><td>${esc(x.name)}</td>${buckets(x.camData.series, N).map(v => `<td class="c ${heatClass(v)}">${fmt(v)}</td>`).join('')}</tr>`).join('')}</tbody>`;
-    $('sumTable').innerHTML = `<thead><tr><th>Cổng</th><th>Camera</th><th>Bây giờ</th><th>Đỉnh</th><th>Trung bình</th><th>+15 phút</th><th>Khả năng tắc nặng</th></tr></thead><tbody>${g.map(x => `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.camData.camera)}</td><td>${LEVEL[x.level]} · ${fmt(x.now)}</td><td>${fmt(x.camData.peak_ci)}</td><td>${fmt(x.camData.mean_ci)}</td><td>${LEVEL[x.lvl15]}</td><td class="${x.p15 >= 0.5 ? 'bad' : ''}">${pct(x.p15)}</td></tr>`).join('')}</tbody>`;
+    $('sumTable').innerHTML = `<thead><tr><th>Cổng</th><th>Camera</th><th>Bây giờ</th><th>Đỉnh</th><th>Trung bình</th><th>+15 phút</th><th>Khả năng ùn tắc</th></tr></thead><tbody>${g.map(x => `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.camData.camera)}</td><td>${LEVEL[x.level]} · ${fmt(x.now)}</td><td>${fmt(x.camData.peak_ci)}</td><td>${fmt(x.camData.mean_ci)}</td><td>${LEVEL[x.lvl15]}</td><td class="${x.p15 >= 0.5 ? 'bad' : ''}">${pct(x.p15)}</td></tr>`).join('')}</tbody>`;
   }
 
   /* ---------- gates, shifts, people ---------- */

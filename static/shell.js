@@ -1,12 +1,12 @@
 /* hanoiFlow — sidebar navigation (one page per hash), mobile menu. */
 'use strict';
 
-const PAGES = { intro: 'Giới thiệu', video: 'Dự báo & phương án', overview: 'Bản đồ & thời tiết', live: 'Trực tiếp' };
+const PAGES = { intro: 'Giới thiệu', video: 'Phân tích video', overview: 'Bản đồ và thời tiết', live: 'Camera trực tiếp', tech: 'Thông tin kỹ thuật' };
 
 function pageFromHash(hash) {
   const key = String(hash || '').replace(/^#/, '');
   if (key === '') return 'intro';
-  if (key === 'how') return 'video';
+  if (key === 'how') return 'tech';
   return Object.prototype.hasOwnProperty.call(PAGES, key) ? key : 'video';
 }
 

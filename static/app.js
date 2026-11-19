@@ -7,7 +7,7 @@
 
 const SEVERE_CI = 0.55;
 const BUSY_CI = 0.30;
-const LEVEL_LABEL = { free: 'Thông thoáng', busy: 'Đông đúc', gridlock: 'Tắc nghẽn nghiêm trọng' };
+const LEVEL_LABEL = { free: 'Thông thoáng', busy: 'Đông đúc', gridlock: 'Ùn tắc' };
 const LEVEL_COLOR = { free: '#78a984', busy: '#d3a052', gridlock: '#a94d43' };
 const SESSION_CONTRACT = 'hanoiflow-forecast-session/1.1';
 const ACCEPTED_CONTRACTS = [SESSION_CONTRACT, 'hanoiflow-forecast-session/1.0'];
@@ -151,7 +151,7 @@ if (typeof document !== 'undefined') {
   }
   player.addEventListener('error', () => {
     if (!player.getAttribute('src')) return;
-    notice('Trình duyệt không phát được file video này. Hãy chọn lại đúng file mp4 (H.264) ở mục 1.', 'error');
+    notice('Trình duyệt không phát được file video này. Hãy chọn lại đúng file mp4 (H.264) ở bước 1.', 'error');
   });
   $('noVideoPick').addEventListener('click', () => $('videoFile').click());
 
@@ -423,7 +423,7 @@ if (typeof document !== 'undefined') {
   function checkVideoMatchesSession() {
     if (!state.session) return;
     if (clip.segments) return;
-    if (!hasVideo()) { notice('Chọn file video gốc ở mục 1 để phát và kiểm chứng.'); return; }
+    if (!hasVideo()) { notice('Chọn file video gốc ở bước 1 để phát và kiểm chứng.'); return; }
     const expected = Number(state.session.video?.duration_seconds || 0);
     player.addEventListener('loadedmetadata', () => {
       if (expected && Math.abs(player.duration - expected) > 3) {
@@ -683,7 +683,7 @@ if (typeof document !== 'undefined') {
         state.locked = lastAtOrBefore(anchors, Number(button.dataset.at));
         player.pause();
         seekTo(Number(button.dataset.target || button.dataset.at));
-        if (!hasVideo()) notice('Chọn file video gốc ở mục 1 để xem hình ảnh.');
+        if (!hasVideo()) notice('Chọn file video gốc ở bước 1 để xem hình ảnh.');
         scheduleRender();
         document.querySelector('.player-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
@@ -694,7 +694,7 @@ if (typeof document !== 'undefined') {
     const h = forecast().highlights || {};
     const hits = [...(h.hits || []).map(r => momentRow(r, 'hit')), ...(h.watch_hits || []).map(r => momentRow(r, 'watch'))];
     $('hitList').innerHTML = hits.length ? hits.join('')
-      : '<p class="empty">Trong video này hệ thống chưa có lần cảnh báo tắc nào trúng. Xem mục 4 để biết mô hình so với cách đoán đơn giản ra sao.</p>';
+      : '<p class="empty">Trong video này hệ thống chưa có lần cảnh báo tắc nào trúng. Xem bảng so sánh ở cuối bước 2 để biết dự báo so với cách đoán đơn giản ra sao.</p>';
     const wrong = [...(h.misses || []).map(r => momentRow(r, 'miss')), ...(h.false_alarms || []).map(r => momentRow(r, 'false'))];
     $('missList').innerHTML = wrong.length ? wrong.join('') : '<p class="empty">Không có trường hợp sai nào được ghi nhận.</p>';
     bindMoments($('hitList'));
@@ -818,7 +818,7 @@ if (typeof document !== 'undefined') {
       } else if (!hadParts && !demo.segments.length) {
         notice(`${demo.note} Video xem thử của demo này hiện chưa có; kết quả phân tích vẫn xem được ở biểu đồ.`);
       } else if (!hadParts) {
-        notice(`${demo.note} Để xem hình ảnh: tải ${demo.segments.length} file (${parts}) từ thư mục Drive, rồi chọn cả ${demo.segments.length} file cùng lúc ở mục 1.`);
+        notice(`${demo.note} Để xem hình ảnh: tải ${demo.segments.length} file (${parts}) từ thư mục Drive, rồi chọn cả ${demo.segments.length} file cùng lúc ở bước 1.`);
         $('demoSource').href = demo.source; $('demoSource').hidden = false;
       }
     } catch (error) {
@@ -861,7 +861,7 @@ if (typeof document !== 'undefined') {
     if (!file) return;
     try {
       loadSession(validateSession(JSON.parse(await file.text())));
-      toast('Đã mở kết quả. Chọn đúng file video gốc ở mục 1 để phát.');
+      toast('Đã mở kết quả. Chọn đúng file video gốc ở bước 1 để phát.');
     } catch (error) { notice(error.message, 'error'); }
     e.target.value = '';
   });
