@@ -3,99 +3,123 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#14161a" />
-  <meta name="description" content="hanoiFlow cho doanh nghiệp: theo dõi camera giao thông Hà Nội, dự báo ùn tắc +5/+10/+15 phút, tuyến thay thế và dữ liệu xuất cho hệ thống vận tải." />
-  <title>hanoiFlow · Doanh nghiệp</title>
+  <meta name="theme-color" content="#262a31" />
+  <meta name="description" content="hanoiFlow cho khu công nghiệp: theo dõi các cổng và nút giao, dự báo tắc giờ tan ca, việc nên làm và cảnh báo cho bảo vệ." />
+  <title>hanoiFlow · Khu công nghiệp</title>
   <link rel="icon" type="image/png" href="/static/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/b2b.css?v=1.1" />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/b2b.css?v=2.0" />
 </head>
 <body>
   <div class="shell">
     <aside class="side" id="side">
-      <a class="brand" href="#overview" aria-label="hanoiFlow">
+      <a class="brand" href="#today" aria-label="hanoiFlow">
         <img src="/static/logo.png" width="40" height="40" alt="" />
-        <span><strong>hanoi<em>Flow</em></strong><small>Doanh nghiệp</small></span>
+        <span><strong>hanoi<em>Flow</em></strong><small>cho khu công nghiệp</small></span>
       </a>
+      <label class="zone">Khu đang xem
+        <select id="zone" aria-label="Khu đang xem"><option>KCN Demo (ví dụ)</option></select>
+      </label>
       <nav aria-label="Điều hướng">
-        <p class="grp">Giám sát</p>
-        <a href="#overview" data-page="overview">Tổng quan</a>
-        <a href="#cameras" data-page="cameras">Camera <span class="count" id="camCount">—</span></a>
-        <p class="grp">Vận hành</p>
-        <a href="#routes" data-page="routes">Tuyến thay thế</a>
-        <p class="grp">Tích hợp</p>
-        <a href="#api" data-page="api">API &amp; xuất dữ liệu</a>
+        <a href="#today" data-page="today">Hôm nay</a>
+        <a href="#report" data-page="report">Báo cáo</a>
+        <a href="#gates" data-page="gates">Cổng và camera</a>
+        <a href="#shifts" data-page="shifts">Giờ ra vào ca</a>
+        <a href="#people" data-page="people">Người nhận cảnh báo</a>
+        <a href="#api" data-page="api">Tích hợp (API)</a>
       </nav>
       <div class="side-foot">
-        <div class="status"><span class="dot"></span><div><strong>Dữ liệu bản ghi</strong><small id="statusNote">Đang tải…</small></div></div>
-        <a class="switch" href="/#intro" id="switchPublic">Chuyển sang giao diện công chúng</a>
+        <a class="switch" href="/#intro">Chuyển sang giao diện công chúng</a>
       </div>
     </aside>
 
     <main class="main">
       <header class="top">
         <button class="menu" id="menu" aria-label="Mở menu" aria-expanded="false">Menu</button>
-        <span class="crumb" id="crumb">Tổng quan</span>
+        <span class="crumb" id="crumb">Hôm nay</span>
         <a class="switch top-switch" href="/#intro">Giao diện công chúng</a>
       </header>
+      <p class="demo-note" id="demoNote">Dữ liệu minh họa: số đo lấy từ camera thật trong bản ghi đã phân tích, không phải thời gian thực. Giờ ca và việc gắn cổng với camera do bạn cấu hình.</p>
 
-      <section class="page" id="page-overview">
-        <div class="head"><p class="kick">Hà Nội · mạng lưới camera</p><h1>Tình hình mạng lưới</h1>
-          <p class="sub">Tổng hợp từ các bản ghi camera đã phân tích. Mỗi dòng là một camera: đang thế nào và dự báo sẽ ra sao sau 5, 10, 15 phút.</p></div>
-        <div class="summary" id="summary"><span class="mood"></span><div><p id="sumText">Đang tải tình hình…</p><small id="sumSub"></small></div></div>
-        <div class="guide"><div><strong><i style="background:var(--free)"></i>Thông thoáng</strong>Xe chạy bình thường, ít chiếm đường.</div><div><strong><i style="background:var(--busy)"></i>Đông</strong>Xe nhiều, tốc độ chậm lại. Nên theo dõi.</div><div><strong><i style="background:var(--gridlock)"></i>Ùn tắc</strong>Nhiều xe đứng yên. Nên chọn đường khác.</div></div>
-        <div class="kpis" id="kpis"></div>
-        <div class="grid2">
-          <div class="card">
-            <div class="card-head"><h2>Camera, đông nhất lên đầu</h2><span class="legend">Số 0–1 là chỉ số CI: càng cao càng đông</span></div>
-            <div class="table-wrap"><table>
-              <thead><tr><th>Camera</th><th>Bây giờ</th><th>Diễn biến</th><th>+5 phút</th><th>+10 phút</th><th>+15 phút</th></tr></thead>
-              <tbody id="rows"><tr><td colspan="6" class="muted">Đang tải…</td></tr></tbody>
-            </table></div>
-          </div>
-          <div class="card">
-            <div class="card-head"><h2>Cần chú ý</h2></div>
-            <ul class="alerts" id="alerts"></ul>
-          </div>
+      <!-- Hôm nay -->
+      <section class="page" id="page-today">
+        <div class="head row">
+          <div><h1>Hôm nay tại <span id="zoneName">KCN Demo</span></h1><p class="sub" id="todaySub">—</p></div>
+          <div class="next" id="nextShift"><span>Tan ca tiếp theo</span><strong>—</strong><small></small></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Giờ tan ca và cao điểm dự kiến</h2><span class="muted" id="tlNote"></span></div>
+          <div class="timeline" id="timeline"></div>
+          <div class="legend"><i class="sw busy"></i>Đông <i class="sw jam"></i>Tắc dự kiến theo lịch ca</div>
+        </div>
+        <h2 class="sec">Các cổng và nút giao</h2>
+        <div class="gate-grid" id="gateGrid"></div>
+        <h2 class="sec">Việc nên làm trước giờ tan ca</h2>
+        <div class="todo" id="todo"></div>
+        <div class="card" id="alertPreview"></div>
+      </section>
+
+      <!-- Báo cáo -->
+      <section class="page" id="page-report">
+        <div class="head row">
+          <div><h1>Báo cáo giao thông giờ ra vào ca</h1><p class="sub" id="reportSub">—</p></div>
+          <div class="actions"><button class="btn ghost" id="csv" type="button">Tải CSV</button><button class="btn" id="print" type="button">In / lưu PDF</button></div>
+        </div>
+        <div class="card"><div class="card-head"><h2>Phát hiện chính</h2></div><ol class="findings" id="findings"></ol></div>
+        <div class="card">
+          <div class="card-head"><h2>Mức ùn tắc tại từng cổng theo thời gian</h2><span class="muted">Mỗi ô là chỉ số CI trung bình của một đoạn bản ghi</span></div>
+          <div class="table-wrap"><table class="heat" id="heat"></table></div>
+          <div class="legend"><i class="sw free"></i>Thông thoáng <i class="sw busy"></i>Đông <i class="sw jam"></i>Tắc <i class="sw severe"></i>Tắc nặng</div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Tổng hợp theo cổng</h2></div>
+          <div class="table-wrap"><table id="sumTable"></table></div>
         </div>
       </section>
 
-      <section class="page" id="page-cameras">
-        <div class="head"><p class="kick">Giám sát</p><h1>Camera</h1>
-          <p class="sub">Chọn camera để xem diễn biến CI toàn bản ghi và xác suất ùn tắc nặng ở từng mốc dự báo.</p></div>
-        <div class="cams" id="cams"></div>
+      <!-- Cổng và camera -->
+      <section class="page" id="page-gates">
+        <div class="head"><h1>Cổng và camera</h1><p class="sub">Mỗi cổng hoặc nút giao lấy số liệu từ một camera. Đổi camera ở đây nếu bạn gắn khác.</p></div>
+        <div class="card"><div class="table-wrap"><table id="gateTable"></table></div></div>
       </section>
 
-      <section class="page" id="page-routes">
-        <div class="head"><p class="kick">Vận hành</p><h1>Tuyến thay thế</h1>
-          <p class="sub">So sánh tối đa 3 tuyến giữa hai điểm trong Hà Nội. Thời gian theo mạng đường OSRM, chưa tính tắc đường thời gian thực.</p></div>
-        <div class="card route-form">
-          <label>Điểm đi<select id="from"></select></label>
-          <label>Điểm đến<select id="to"></select></label>
-          <button class="btn" id="go" type="button">Tìm tuyến</button>
-        </div>
-        <div class="grid2 routes-out">
-          <div class="card"><div class="card-head"><h2>Đường đi</h2></div><div id="routeMap" class="route-map"><p class="muted pad">Chọn hai điểm rồi bấm Tìm tuyến.</p></div></div>
-          <div class="card"><div class="card-head"><h2>Phương án</h2></div><div id="routeList" class="route-list"></div></div>
+      <!-- Giờ ra vào ca -->
+      <section class="page" id="page-shifts">
+        <div class="head"><h1>Giờ ra vào ca</h1><p class="sub">Giờ tan ca của từng nhà máy. Hệ thống dùng các giờ này để đếm ngược và lên việc nên làm.</p></div>
+        <div class="card">
+          <div class="table-wrap"><table id="shiftTable"></table></div>
+          <form class="inline-form" id="shiftForm">
+            <label>Nhà máy<input id="shName" required maxlength="40" placeholder="Ví dụ: Nhà máy D" /></label>
+            <label>Giờ tan ca<input id="shTime" type="time" required value="17:00" /></label>
+            <button class="btn" type="submit">Thêm</button>
+          </form>
         </div>
       </section>
 
+      <!-- Người nhận cảnh báo -->
+      <section class="page" id="page-people">
+        <div class="head"><h1>Người nhận cảnh báo</h1><p class="sub">Danh sách những người sẽ nhận tin khi cổng sắp tắc. Hiện danh sách được lưu trên trình duyệt này, chưa kết nối gửi tin thật.</p></div>
+        <div class="card">
+          <div class="table-wrap"><table id="peopleTable"></table></div>
+          <form class="inline-form" id="peopleForm">
+            <label>Họ tên hoặc bộ phận<input id="pName" required maxlength="40" placeholder="Ví dụ: Trưởng bảo vệ" /></label>
+            <label>Điện thoại hoặc email<input id="pContact" maxlength="60" placeholder="Có thể bỏ trống" /></label>
+            <button class="btn" type="submit">Thêm</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- API -->
       <section class="page" id="page-api">
-        <div class="head"><p class="kick">Tích hợp</p><h1>API &amp; xuất dữ liệu</h1>
-          <p class="sub">Đưa số liệu vào hệ thống điều phối, kho hoặc báo cáo của doanh nghiệp.</p></div>
+        <div class="head"><h1>Tích hợp (API)</h1><p class="sub">Đưa số liệu vào hệ thống điều phối hoặc báo cáo của doanh nghiệp.</p></div>
         <div class="card">
-          <div class="card-head"><h2>Xuất nhanh</h2></div>
-          <div class="actions"><button class="btn" id="csv" type="button">Tải CSV tổng quan camera</button><button class="btn ghost" id="json" type="button">Tải JSON</button></div>
-        </div>
-        <div class="card">
-          <div class="card-head"><h2>Điểm truy cập</h2></div>
+          <div class="card-head"><h2>Điểm truy cập</h2><div class="actions"><button class="btn ghost" id="json" type="button">Tải JSON</button></div></div>
           <div class="table-wrap"><table class="api">
             <thead><tr><th>Phương thức</th><th>Đường dẫn</th><th>Dùng để</th></tr></thead>
             <tbody>
               <tr><td><code>GET</code></td><td><code>/api/b2b/overview</code></td><td>Mức hiện tại, dự báo +5/10/15 phút và chuỗi CI của từng camera.</td></tr>
-              <tr><td><code>GET</code></td><td><code>/api/routes?from=lat,lng&amp;to=lat,lng</code></td><td>Tối đa 3 tuyến lái xe, nhanh nhất xếp đầu.</td></tr>
               <tr><td><code>GET</code></td><td><code>/api/live</code></td><td>Danh sách camera đang gửi số liệu trực tiếp.</td></tr>
               <tr><td><code>POST</code></td><td><code>/api/live/{camera}/samples</code></td><td>Bộ thu gửi số liệu CI mỗi giây. Cần tiêu đề <code>X-Live-Token</code>.</td></tr>
               <tr><td><code>POST</code></td><td><code>/api/report/xlsx</code> · <code>/pdf</code></td><td>Dựng báo cáo từ một phiên dự báo.</td></tr>
@@ -108,6 +132,6 @@
       <footer class="foot"><span>© 2026 hanoiFlow</span><span>Chỉ báo tham khảo từ dữ liệu hiện có</span></footer>
     </main>
   </div>
-  <script src="/static/b2b.js?v=1.1"></script>
+  <script src="/static/b2b.js?v=2.0"></script>
 </body>
 </html>
