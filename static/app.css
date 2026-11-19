@@ -562,3 +562,7 @@ video, #player { border-radius: 16px; }
 .mode-switch { display: block; margin: 0 3px 12px; padding: 12px 14px; border-radius: 12px; background: #1b1e23; color: #f0c35a; font-weight: 700; font-size: 14px; text-align: center; text-decoration: none; }
 .mode-switch:hover { background: #22262c; }
 .mode-switch:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* v12.6 ghi chú dữ liệu chưa xem trước */
+.blind-note { margin: 0 0 16px; padding: 12px 16px; border-radius: 12px; background: var(--gold-soft, #fbf2d6); border: 1px solid #ecd9a0; color: #5b4310; font-size: 15px; line-height: 1.55; }
+.blind-note strong { color: #3f2d06; }
