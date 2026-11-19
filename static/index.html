@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" onerror="this.onerror=null;this.removeAttribute('integrity');this.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'" />
-  <link rel="stylesheet" href="/static/app.css?v=12.5" />
+  <link rel="stylesheet" href="/static/app.css?v=12.6" />
 </head>
 <body>
   <div class="app-shell">
@@ -67,7 +67,7 @@
                 <a class="btn btn-primary btn-lg" href="#video" id="introDemo">Xem demo dự báo</a>
                 <a class="btn btn-outline btn-lg" href="#overview">Bản đồ và thời tiết</a>
               </div>
-              <p class="intro-note">Demo chạy ngay trong trình duyệt, không cần tải file.</p>
+              <p class="intro-note">Demo chạy ngay trong trình duyệt, không cần tải file. Các video demo là dữ liệu AI chưa từng xem: kết quả là dự đoán thật, không biết trước.</p>
             </div>
             <figure class="intro-figure" aria-labelledby="figCap">
               <svg viewBox="0 0 560 330" role="img" aria-label="Minh họa: chỉ số ùn tắc đo được đến hiện tại, rồi dự báo tăng vượt mức ùn tắc nặng trong 10 phút tới">
@@ -172,6 +172,7 @@
           </section>
 
           <section id="workspace" hidden>
+            <p class="blind-note"><strong>Dữ liệu chưa từng được xem trước.</strong> AI không biết trước video này: đây là video hoàn toàn mới, không nằm trong dữ liệu học, và mọi con số dưới đây là dự đoán thật, chỉ dựa trên phần video đến thời điểm đang xem.</p>
             <div class="workspace-grid">
               <div class="panel player-card">
                 <div class="panel-heading">
