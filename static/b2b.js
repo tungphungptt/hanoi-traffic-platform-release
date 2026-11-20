@@ -90,6 +90,10 @@
 
   /* ---------- derived data ---------- */
   function camById(id) { return data && data.cameras.find(c => c.id === id); }
+  function sampleLabel(cam) {
+    const index = data.cameras.findIndex(c => c.id === cam.id);
+    return `Bản ghi Hà Nội ${String(index + 1).padStart(2, '0')}`;
+  }
   function enrich() {
     return gates.map(g => {
       const cam = camById(g.cam) || null;
@@ -130,7 +134,7 @@
     drawTimeline(ns);
     $('gateGrid').innerHTML = g.map(x => {
       const cam = x.camData;
-      return `<article class="gate${x.warn || x.level === 'gridlock' ? ' warn' : ''}"><div class="gate-top"><h3>${esc(x.name)}</h3><span class="cam">${cam ? `Video mẫu Hà Nội · ${esc(cam.camera)}` : 'Chưa gắn camera'}</span></div>
+      return `<article class="gate${x.warn || x.level === 'gridlock' ? ' warn' : ''}"><div class="gate-top"><h3>${esc(x.name)}</h3><span class="cam">${cam ? `Camera mô phỏng · ${esc(sampleLabel(cam))}` : 'Chưa gắn camera'}</span></div>
         <div class="gate-mid"><div class="gate-state"><small>Bây giờ</small><strong class="${x.level || 'busy'}">${x.level ? LEVEL[x.level] : '—'}</strong></div>${cam ? ring(x.p15) : ''}</div>
         <div class="gate-foot"><span>15 phút tới <b>${x.lvl15 ? LEVEL[x.lvl15] : '—'}</b></span><span>Cao điểm <b>${ns ? `${hhmm(ns.end)} – ${hhmm(ns.end + 50)}` : '—'}</b></span></div></article>`;
     }).join('');
@@ -203,12 +207,12 @@
       warnN ? `<b>${warnN}/${g.length} cổng</b> đang có cảnh báo tắc trong 15 phút tới.` : 'Chưa có cổng nào cảnh báo tắc trong 15 phút tới.',
     ].map(t => `<li>${t}</li>`).join('');
     $('heat').innerHTML = `<thead><tr><th>Cổng</th>${Array.from({ length: N }, (_, i) => `<th>Đoạn ${i + 1}</th>`).join('')}</tr></thead><tbody>${g.map(x => `<tr><td>${esc(x.name)}</td>${buckets(x.camData.series, N).map(v => `<td class="c ${heatClass(v)}">${fmt(v)}</td>`).join('')}</tr>`).join('')}</tbody>`;
-    $('sumTable').innerHTML = `<thead><tr><th>Cổng</th><th>Camera</th><th>Bây giờ</th><th>Đỉnh</th><th>Trung bình</th><th>+15 phút</th><th>Khả năng ùn tắc</th></tr></thead><tbody>${g.map(x => `<tr><td><b>${esc(x.name)}</b></td><td>${esc(x.camData.camera)}</td><td>${LEVEL[x.level]} · ${fmt(x.now)}</td><td>${fmt(x.camData.peak_ci)}</td><td>${fmt(x.camData.mean_ci)}</td><td>${LEVEL[x.lvl15]}</td><td class="${x.p15 >= 0.5 ? 'bad' : ''}">${pct(x.p15)}</td></tr>`).join('')}</tbody>`;
+    $('sumTable').innerHTML = `<thead><tr><th>Cổng</th><th>Bản ghi mẫu</th><th>Bây giờ</th><th>Đỉnh</th><th>Trung bình</th><th>+15 phút</th><th>Khả năng ùn tắc</th></tr></thead><tbody>${g.map(x => `<tr><td><b>${esc(x.name)}</b></td><td>${esc(sampleLabel(x.camData))}</td><td>${LEVEL[x.level]} · ${fmt(x.now)}</td><td>${fmt(x.camData.peak_ci)}</td><td>${fmt(x.camData.mean_ci)}</td><td>${LEVEL[x.lvl15]}</td><td class="${x.p15 >= 0.5 ? 'bad' : ''}">${pct(x.p15)}</td></tr>`).join('')}</tbody>`;
   }
 
   /* ---------- gates, shifts, people ---------- */
   function renderGates() {
-    const opts = sel => data.cameras.map(c => `<option value="${esc(c.id)}"${c.id === sel ? ' selected' : ''}>Video mẫu Hà Nội · ${esc(c.camera)}</option>`).join('');
+    const opts = sel => data.cameras.map(c => `<option value="${esc(c.id)}"${c.id === sel ? ' selected' : ''}>${esc(sampleLabel(c))}</option>`).join('');
     const g = enrich();
     $('gateTable').innerHTML = `<thead><tr><th>Đường/cổng mô phỏng theo bản đồ KCN</th><th>Bản ghi camera mẫu (Hà Nội)</th><th>Bây giờ</th><th>Diễn biến</th></tr></thead><tbody>${g.map(x => `<tr><td><b>${esc(x.name)}</b></td><td><select data-gate="${esc(x.id)}" aria-label="Bản ghi camera mẫu cho ${esc(x.name)}">${opts(x.cam)}</select></td><td>${badge(x.level)}</td><td>${x.camData ? spark(x.camData.series, 120, 30, x.level) : ''}</td></tr>`).join('')}</tbody>`;
   }
@@ -236,7 +240,7 @@
   $('csv').addEventListener('click', () => {
     if (!data) return;
     const q = v => `"${String(v).replace(/"/g, '""')}"`;
-    const rows = enrich().filter(x => x.camData).map(x => [q(x.name), q(x.camData.camera), x.now, x.level, x.camData.peak_ci, x.camData.mean_ci, x.ci15, x.lvl15, x.p15].join(','));
+    const rows = enrich().filter(x => x.camData).map(x => [q(x.name), q(sampleLabel(x.camData)), x.now, x.level, x.camData.peak_ci, x.camData.mean_ci, x.ci15, x.lvl15, x.p15].join(','));
     download('hanoiflow-kcn-cong.csv', 'text/csv;charset=utf-8', '﻿' + ['cong,camera,ci_hien_tai,muc,ci_dinh,ci_tb,ci_15p,muc_15p,xs_tac_nang_15p', ...rows].join('\n'));
   });
   $('print').addEventListener('click', () => window.print());
