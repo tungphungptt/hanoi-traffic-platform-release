@@ -36,7 +36,27 @@
   if (Array.isArray(savedGates) && gates.some((g, i) => g && savedGates[i] && g.name !== savedGates[i].name)) {
     store.set('hf_kcn_gates', gates);
   }
-  let shifts = store.get('hf_kcn_shifts', [{ name: 'Nhà máy A', end: '17:00' }, { name: 'Nhà máy B', end: '17:00' }, { name: 'Nhà máy C', end: '17:30' }]);
+  const DEFAULT_SHIFTS = [
+    { name: 'Nhà máy Smart Vina', end: '17:00' },
+    { name: 'Công ty TNHH Công nghệ YISE Việt Nam', end: '17:00' },
+    { name: 'Công ty TNHH bao bì nhựa Kangle (Việt Nam)', end: '17:30' },
+  ];
+  const LEGACY_SHIFT_NAMES = {
+    'Nhà máy A': DEFAULT_SHIFTS[0].name,
+    'Nhà máy B': DEFAULT_SHIFTS[1].name,
+    'Nhà máy C': DEFAULT_SHIFTS[2].name,
+  };
+  let shifts = store.get('hf_kcn_shifts', DEFAULT_SHIFTS.map(s => ({ ...s })));
+  if (Array.isArray(shifts)) {
+    let shiftsMigrated = false;
+    shifts = shifts.map(s => {
+      const name = s && LEGACY_SHIFT_NAMES[s.name];
+      if (!name) return s;
+      shiftsMigrated = true;
+      return { ...s, name };
+    });
+    if (shiftsMigrated) store.set('hf_kcn_shifts', shifts);
+  }
   let people = store.get('hf_kcn_people', [{ name: 'Trưởng bảo vệ', contact: '' }, { name: 'Phòng hành chính', contact: '' }]);
   let data = null;
   let parkMap, parkBoundary;

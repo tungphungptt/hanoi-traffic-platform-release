@@ -1,6 +1,7 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const vm = require('node:vm');
 const page = require('../static/app.js');
 
 test('CI levels use the shared three-level scale', () => {
@@ -71,6 +72,70 @@ test('Thuận Thành III industrial map is an attributed closed GeoJSON boundary
   assert.match(asset.source_url, /openstreetmap\.org\/way\/1467190501/);
   assert.deepEqual(ring[0], ring[ring.length - 1]);
   assert.ok(ring.every(([lon, lat]) => lon > 106.06 && lon < 106.09 && lat > 21.03 && lat < 21.06));
+});
+
+test('KCN shift defaults use registered facilities and migrate only legacy default names', () => {
+  const source = fs.readFileSync(require.resolve('../static/b2b.js'), 'utf8');
+  const html = fs.readFileSync(require.resolve('../static/b2b.html'), 'utf8');
+  const loadB2B = savedShifts => {
+    const stored = new Map();
+    if (savedShifts) stored.set('hf_kcn_shifts', JSON.stringify(savedShifts));
+    const elements = new Map();
+    const getElement = id => {
+      if (!elements.has(id)) {
+        elements.set(id, {
+          addEventListener() {},
+          classList: { remove() {}, toggle() {} },
+          setAttribute() {},
+          dataset: {},
+        });
+      }
+      return elements.get(id);
+    };
+    const context = {
+      document: { getElementById: getElement, querySelectorAll: () => [] },
+      fetch: () => new Promise(() => {}),
+      localStorage: {
+        getItem: key => stored.get(key) ?? null,
+        setItem: (key, value) => stored.set(key, value),
+      },
+      location: { hash: '#shifts', origin: 'http://localhost' },
+      setInterval() {},
+      window: { addEventListener() {}, scrollTo() {} },
+    };
+    vm.runInNewContext(source, context);
+    return { stored, elements };
+  };
+  const migratedApp = loadB2B([
+    { name: 'Nhà máy A', end: '16:45' },
+    { name: 'Nhà máy B', end: '17:00' },
+    { name: 'Nhà máy C', end: '17:30' },
+    { name: 'Nhà máy riêng', end: '19:00' },
+  ]);
+
+  const migrated = JSON.parse(migratedApp.stored.get('hf_kcn_shifts'));
+  assert.deepEqual(migrated.map(shift => shift.name), [
+    'Nhà máy Smart Vina',
+    'Công ty TNHH Công nghệ YISE Việt Nam',
+    'Công ty TNHH bao bì nhựa Kangle (Việt Nam)',
+    'Nhà máy riêng',
+  ]);
+  assert.deepEqual(migrated.map(shift => shift.end), ['16:45', '17:00', '17:30', '19:00']);
+  assert.match(migratedApp.elements.get('shiftTable').innerHTML, /Nhà máy Smart Vina/);
+
+  const freshApp = loadB2B();
+  for (const name of [
+    'Nhà máy Smart Vina',
+    'Công ty TNHH Công nghệ YISE Việt Nam',
+    'Công ty TNHH bao bì nhựa Kangle (Việt Nam)',
+  ]) {
+    assert.ok(freshApp.elements.get('shiftTable').innerHTML.includes(name));
+  }
+  assert.equal(freshApp.stored.has('hf_kcn_shifts'), false);
+  assert.match(html, /van-ban-chi-dao\/-\/g\/vanban\/5241075/);
+  assert.match(html, /van-ban-chi-dao\/-\/g\/vanban\/5229150/);
+  assert.match(html, /van-ban-chi-dao\/-\/g\/vanban\/4933701/);
+  assert.match(html, /giờ tan ca mặc định chỉ minh họa/);
 });
 
 test('sidebar pages and route/weather formatting', () => {
