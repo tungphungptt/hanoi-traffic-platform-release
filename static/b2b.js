@@ -19,12 +19,23 @@
     set(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* private mode: keep in memory only */ } },
   };
   const DEFAULT_GATES = [
-    { id: 'main', name: 'Cổng chính', cam: 'nguyen_van_cu:0' },
-    { id: 'g2', name: 'Cổng 2', cam: 'le_hong_phong:0' },
-    { id: 'walk', name: 'Cổng phụ (đi bộ)', cam: 'quang_trung:0' },
-    { id: 'feeder', name: 'Nút giao đường gom', cam: 'ho_tung_mau:0' },
+    { id: 'main', name: 'Đường nội bộ KCN · cổng chính (mô phỏng)', cam: 'nguyen_van_cu:0' },
+    { id: 'g2', name: 'Đường nội bộ KCN · cổng 2 (mô phỏng)', cam: 'le_hong_phong:0' },
+    { id: 'walk', name: 'Đường nhánh nội bộ · lối đi bộ (mô phỏng)', cam: 'quang_trung:0' },
+    { id: 'feeder', name: 'Đường gom KCN · nút giao (mô phỏng)', cam: 'ho_tung_mau:0' },
   ];
-  let gates = store.get('hf_kcn_gates', DEFAULT_GATES);
+  const LEGACY_GATE_NAMES = { main: 'Cổng chính', g2: 'Cổng 2', walk: 'Cổng phụ (đi bộ)', feeder: 'Nút giao đường gom' };
+  const savedGates = store.get('hf_kcn_gates', null);
+  let gates = Array.isArray(savedGates)
+    ? savedGates.map(g => {
+      if (!g || typeof g !== 'object' || g.name !== LEGACY_GATE_NAMES[g.id]) return g;
+      const updated = DEFAULT_GATES.find(d => d.id === g.id);
+      return updated ? { ...g, name: updated.name } : g;
+    })
+    : DEFAULT_GATES;
+  if (Array.isArray(savedGates) && gates.some((g, i) => g && savedGates[i] && g.name !== savedGates[i].name)) {
+    store.set('hf_kcn_gates', gates);
+  }
   let shifts = store.get('hf_kcn_shifts', [{ name: 'Nhà máy A', end: '17:00' }, { name: 'Nhà máy B', end: '17:00' }, { name: 'Nhà máy C', end: '17:30' }]);
   let people = store.get('hf_kcn_people', [{ name: 'Trưởng bảo vệ', contact: '' }, { name: 'Phòng hành chính', contact: '' }]);
   let data = null;
@@ -119,7 +130,7 @@
     drawTimeline(ns);
     $('gateGrid').innerHTML = g.map(x => {
       const cam = x.camData;
-      return `<article class="gate${x.warn || x.level === 'gridlock' ? ' warn' : ''}"><div class="gate-top"><h3>${esc(x.name)}</h3><span class="cam">${cam ? `Camera mẫu · ${esc(cam.camera)}` : 'Chưa gắn camera'}</span></div>
+      return `<article class="gate${x.warn || x.level === 'gridlock' ? ' warn' : ''}"><div class="gate-top"><h3>${esc(x.name)}</h3><span class="cam">${cam ? `Video mẫu Hà Nội · ${esc(cam.camera)}` : 'Chưa gắn camera'}</span></div>
         <div class="gate-mid"><div class="gate-state"><small>Bây giờ</small><strong class="${x.level || 'busy'}">${x.level ? LEVEL[x.level] : '—'}</strong></div>${cam ? ring(x.p15) : ''}</div>
         <div class="gate-foot"><span>15 phút tới <b>${x.lvl15 ? LEVEL[x.lvl15] : '—'}</b></span><span>Cao điểm <b>${ns ? `${hhmm(ns.end)} – ${hhmm(ns.end + 50)}` : '—'}</b></span></div></article>`;
     }).join('');
@@ -197,9 +208,9 @@
 
   /* ---------- gates, shifts, people ---------- */
   function renderGates() {
-    const opts = sel => data.cameras.map(c => `<option value="${esc(c.id)}"${c.id === sel ? ' selected' : ''}>${esc(c.camera)}</option>`).join('');
+    const opts = sel => data.cameras.map(c => `<option value="${esc(c.id)}"${c.id === sel ? ' selected' : ''}>Video mẫu Hà Nội · ${esc(c.camera)}</option>`).join('');
     const g = enrich();
-    $('gateTable').innerHTML = `<thead><tr><th>Cổng mẫu</th><th>Camera mẫu · Hà Nội</th><th>Bây giờ</th><th>Diễn biến</th></tr></thead><tbody>${g.map(x => `<tr><td><b>${esc(x.name)}</b></td><td><select data-gate="${esc(x.id)}" aria-label="Camera mẫu cho ${esc(x.name)}">${opts(x.cam)}</select></td><td>${badge(x.level)}</td><td>${x.camData ? spark(x.camData.series, 120, 30, x.level) : ''}</td></tr>`).join('')}</tbody>`;
+    $('gateTable').innerHTML = `<thead><tr><th>Đường/cổng mô phỏng theo bản đồ KCN</th><th>Bản ghi camera mẫu (Hà Nội)</th><th>Bây giờ</th><th>Diễn biến</th></tr></thead><tbody>${g.map(x => `<tr><td><b>${esc(x.name)}</b></td><td><select data-gate="${esc(x.id)}" aria-label="Bản ghi camera mẫu cho ${esc(x.name)}">${opts(x.cam)}</select></td><td>${badge(x.level)}</td><td>${x.camData ? spark(x.camData.series, 120, 30, x.level) : ''}</td></tr>`).join('')}</tbody>`;
   }
   $('gateTable').addEventListener('change', e => {
     const id = e.target.dataset && e.target.dataset.gate; if (!id) return;
